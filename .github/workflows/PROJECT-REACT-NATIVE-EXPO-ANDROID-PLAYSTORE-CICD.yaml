@@ -1,0 +1,245 @@
+# ===================================================================
+# React Native(Expo) Android Play 스토어 배포: AAB 빌드 > 내부 테스트 > 비공개 테스트 승격
+# ===================================================================
+# deploy 브랜치에 푸시되면 실행. EAS 를 쓰지 않고 expo prebuild + Gradle + fastlane 으로 처리
+# 비밀값 이름은 projectops 의 Flutter Play 스토어 워크플로와 같게 맞춤 (나중에 템플릿으로 옮기기 위함)
+#
+# 필요한 GitHub Secrets
+#   RELEASE_KEYSTORE_BASE64: 서명 키 저장소 (base64)
+#   RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
+#   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: Play Console 서비스 계정 (base64)
+#   ENV_FILE: mobile/.env 내용 (선택)
+#   GOOGLE_SERVICES_JSON: Firebase 설정 (푸시를 붙인 뒤 필요)
+#
+# 선택 Variables
+#   ANDROID_PROMOTE_TO_CLOSED_TESTING: true(기본) 면 비공개 테스트 트랙에도 올림
+#   ANDROID_CLOSED_TESTING_TRACK: 비공개 테스트 트랙 이름 (기본 alpha)
+#   ANDROID_RELEASE_STATUS: completed(기본) | draft — 앱이 아직 초안 상태면 draft
+#
+# 주의: Play Console 에 앱을 만들고 첫 AAB 를 손으로 한 번 올린 뒤부터 동작 (API 로 새 앱을 만들 수 없음)
+# ===================================================================
+
+name: PROJECT-REACT-NATIVE-EXPO-ANDROID-PLAYSTORE-CICD
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('PLAYSTORE closed_testing={0}', inputs.promote_to_closed_testing) || github.event.head_commit.message }}
+
+on:
+  push:
+    branches: ["deploy"]
+    paths: ["mobile/**", "version.yml", ".github/workflows/PROJECT-REACT-NATIVE-EXPO-ANDROID-PLAYSTORE-CICD.yaml"]
+  workflow_dispatch:
+    inputs:
+      promote_to_closed_testing:
+        description: "비공개 테스트 트랙에도 올릴지 (default = 레포 변수, 없으면 true)"
+        required: false
+        default: "default"
+        type: choice
+        options: ["default", "true", "false"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rn-expo-android-playstore
+  cancel-in-progress: false
+
+# ============================================
+# 프로젝트별 설정
+# ============================================
+env:
+  APP_DIRECTORY: "mobile"                         # Expo 앱 폴더 (레포 루트 기준)
+  ANDROID_PACKAGE_NAME: "kr.suhsaechan.secbrief"  # app.json 의 android.package 와 같아야 함
+  NODE_VERSION: ${{ vars.NODE_VERSION || '22' }}
+  JAVA_VERSION: ${{ vars.JAVA_VERSION || '17' }}
+  CLOSED_TESTING_TRACK: ${{ vars.ANDROID_CLOSED_TESTING_TRACK || 'alpha' }}
+  RELEASE_STATUS: ${{ vars.ANDROID_RELEASE_STATUS || 'completed' }}
+
+jobs:
+  build-android:
+    name: AAB 빌드
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_code: ${{ steps.version.outputs.version_code }}
+    steps:
+      # 비밀값 누락을 빌드 전에 알림 (값은 출력하지 않음)
+      - name: 배포 비밀값 확인
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
+        run: |
+          MISSING_NAMES=""
+          for NAME in RELEASE_KEYSTORE_BASE64 RELEASE_KEYSTORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64; do
+            if [ -z "${!NAME}" ]; then MISSING_NAMES="$MISSING_NAMES $NAME"; fi
+          done
+          if [ -n "$MISSING_NAMES" ]; then
+            echo "::error::[playstore deploy] rejected : missing secrets :$MISSING_NAMES"
+            exit 1
+          fi
+
+      - name: 레포 체크아웃
+        uses: actions/checkout@v4
+
+      # version.yml 이 버전의 단일 원본
+      - name: 버전 읽기
+        id: version
+        run: |
+          VERSION=$(grep -E '^version:' version.yml | head -n 1 | sed -E 's/^version:[[:space:]]*"?([^"#[:space:]]+)"?.*/\1/')
+          VERSION_CODE=$(grep -E '^version_code:' version.yml | head -n 1 | sed -E 's/^version_code:[[:space:]]*([0-9]+).*/\1/')
+          if [ -z "$VERSION" ] || [ -z "$VERSION_CODE" ]; then
+            echo "::error::[playstore deploy] rejected : version or version_code not found in version.yml"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "version $VERSION ($VERSION_CODE)"
+
+      - name: Node 준비
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.APP_DIRECTORY }}/package-lock.json
+
+      - name: Java 준비
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Gradle 캐시
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 의존성 설치
+        working-directory: ${{ env.APP_DIRECTORY }}
+        run: npm ci
+
+      - name: .env 파일 만들기 (있을 때만)
+        working-directory: ${{ env.APP_DIRECTORY }}
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          if [ -n "$ENV_FILE" ]; then printf '%s' "$ENV_FILE" > .env; fi
+
+      - name: Firebase 설정 파일 만들기 (있을 때만)
+        working-directory: ${{ env.APP_DIRECTORY }}
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then printf '%s' "$GOOGLE_SERVICES_JSON" > google-services.json; fi
+
+      # prebuild 가 app.json 값으로 네이티브 버전을 정하므로 그 전에 넣음
+      - name: app.json 에 버전 반영
+        working-directory: ${{ env.APP_DIRECTORY }}
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const appConfig = JSON.parse(fs.readFileSync("app.json", "utf8"));
+            appConfig.expo.version = process.env.VERSION;
+            appConfig.expo.android = { ...(appConfig.expo.android || {}), versionCode: Number(process.env.VERSION_CODE) };
+            fs.writeFileSync("app.json", JSON.stringify(appConfig, null, 2) + "\n");
+          '
+
+      - name: 네이티브 Android 프로젝트 생성
+        working-directory: ${{ env.APP_DIRECTORY }}
+        run: npx expo prebuild --platform android --no-install
+
+      - name: AAB 빌드 (릴리스 서명)
+        working-directory: ${{ env.APP_DIRECTORY }}/android
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          ./gradlew bundleRelease --no-daemon \
+            "-Pandroid.injected.signing.store.file=$KEYSTORE_PATH" \
+            "-Pandroid.injected.signing.store.password=$RELEASE_KEYSTORE_PASSWORD" \
+            "-Pandroid.injected.signing.key.alias=$RELEASE_KEY_ALIAS" \
+            "-Pandroid.injected.signing.key.password=$RELEASE_KEY_PASSWORD"
+
+      - name: AAB 올리기
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-aab
+          path: ${{ env.APP_DIRECTORY }}/android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy-playstore:
+    name: Play 스토어 업로드
+    needs: build-android
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: AAB 내려받기
+        uses: actions/download-artifact@v4
+        with:
+          name: release-aab
+          path: aab
+
+      - name: Ruby 준비
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: fastlane 설치
+        run: gem install fastlane --no-document
+
+      - name: Play 서비스 계정 파일 만들기
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
+        run: |
+          printf '%s' "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64" | base64 --decode > "$RUNNER_TEMP/play-service-account.json"
+
+      - name: 내부 테스트 트랙에 업로드
+        run: |
+          AAB_PATH=$(find aab -name "*.aab" | head -n 1)
+          fastlane supply \
+            --aab "$AAB_PATH" \
+            --track internal \
+            --release_status "$RELEASE_STATUS" \
+            --package_name "$ANDROID_PACKAGE_NAME" \
+            --json_key "$RUNNER_TEMP/play-service-account.json" \
+            --skip_upload_metadata true --skip_upload_images true \
+            --skip_upload_screenshots true --skip_upload_changelogs true
+
+      # 개인 개발자 계정의 프로덕션 접근 요건(테스터 12명, 14일)에 쓰는 트랙
+      - name: 비공개 테스트 트랙으로 승격
+        if: ${{ (inputs.promote_to_closed_testing == 'true') || ((inputs.promote_to_closed_testing == 'default' || inputs.promote_to_closed_testing == '') && (vars.ANDROID_PROMOTE_TO_CLOSED_TESTING || 'true') == 'true') }}
+        env:
+          VERSION_CODE: ${{ needs.build-android.outputs.version_code }}
+        run: |
+          fastlane supply \
+            --track internal \
+            --track_promote_to "$CLOSED_TESTING_TRACK" \
+            --track_promote_release_status "$RELEASE_STATUS" \
+            --version_code "$VERSION_CODE" \
+            --package_name "$ANDROID_PACKAGE_NAME" \
+            --json_key "$RUNNER_TEMP/play-service-account.json" \
+            --skip_upload_aab true --skip_upload_apk true \
+            --skip_upload_metadata true --skip_upload_images true \
+            --skip_upload_screenshots true --skip_upload_changelogs true
+
+      - name: 서비스 계정 파일 지우기 (성공·실패 공통)
+        if: always()
+        run: rm -f "$RUNNER_TEMP/play-service-account.json"
+
+      - name: 결과 요약
+        env:
+          VERSION: ${{ needs.build-android.outputs.version }}
+          VERSION_CODE: ${{ needs.build-android.outputs.version_code }}
+        run: |
+          {
+            echo "### Play 스토어 업로드 완료"
+            echo "- 버전: $VERSION ($VERSION_CODE)"
+            echo "- 패키지: $ANDROID_PACKAGE_NAME"
+          } >> "$GITHUB_STEP_SUMMARY"

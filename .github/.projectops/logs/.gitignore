@@ -1,0 +1,4 @@
+# projectops run diagnostic logs — not tracked in the repository.
+# The wizard writes a record here on every run; nothing here is meant to be committed.
+*
+!.gitignore

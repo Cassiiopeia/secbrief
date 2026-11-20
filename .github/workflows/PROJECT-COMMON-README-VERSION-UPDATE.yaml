@@ -1,0 +1,312 @@
+# ===================================================================
+# PROJECT-COMMON-README-VERSION-UPDATE.yaml
+# README version auto-update workflow
+# ===================================================================
+#
+# On a push to main, this workflow gets the version info via version_manager.sh
+# and updates it in README.md automatically.
+#
+# ===================================================================
+# How it works:
+# 1. Triggered on a push to main
+# 2. Extracts the latest version info via version_manager.sh
+# 3. Updates the version info in README.md
+# 4. Commits and pushes the change
+#
+# ⚠️ Guidelines for the version line in README.md:
+#
+# ✅ Supported version line formats:
+# - ## 최신 버전 : v1.0.0 (2025-08-15)
+# - ## 최신버전 : v1.0.0 (2025-08-15)
+# - ## Current Version : v1.0.0 (2025-08-15)
+# - ## Recent Version : v1.0.0 (2025-08-15)
+# - ## Version : v1.0.0 (2025-08-15)
+# - ## 버전 : v1.0.0 (2025-08-15)
+#
+# - Case-insensitive
+# - Any spacing around the colon (:)
+# - Recognized automatically when it contains keywords such as "version", "버전", "최신", "current", "recent"
+# - The comment <!-- AUTO-VERSION-SECTION: DO NOT EDIT MANUALLY --> is added automatically.
+#
+# ❌ Unsupported formats (error):
+# - ## 최신 버전: v1.0.0** (no Markdown bold)
+# - ## 최신 버전 v1.0.0 (missing colon)
+# - Version lines containing regex special characters (*, [, ], ^, $)
+#
+# 🔧 Environment settings:
+# - SHOW_DATE: whether to show the date with the version (true/false, default: true)
+#   * true: v1.0.0 (2025-08-16) format
+#   * false: v1.0.0 format
+# ===================================================================
+
+name: README VERSION UPDATE
+
+# Environment settings — user customization
+env:
+  # Whether to show the date with the version (true/false)
+  SHOW_DATE: true  # 🔧 set to false to hide the date
+
+on:
+  push:
+    branches: ["(unknown)"]
+  # A release without a PAT fires no push trigger (#551), so the release workflow wakes this directly.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-readme:
+    name: Update README version info
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch || 'main' }}
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Read latest version with version_manager.sh
+        id: version_info
+        run: |
+          # Make the version script executable
+          chmod +x .github/scripts/version_manager.sh
+          
+          # Get the latest version via version_manager.sh
+          LATEST_VERSION=$(.github/scripts/version_manager.sh get | tail -n 1)
+          
+          # Use today's date as the release date
+          RELEASE_DATE=$(date '+%Y-%m-%d')
+          
+          # Save version info
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "release_date=$RELEASE_DATE" >> $GITHUB_OUTPUT
+
+      - name: Update version info in README.md
+        run: |
+          LATEST_VERSION="${{ steps.version_info.outputs.latest_version }}"
+          RELEASE_DATE="${{ steps.version_info.outputs.release_date }}"
+          SHOW_DATE="${{ env.SHOW_DATE }}"
+
+          # Many projects have no README.md — skip instead of failing when missing (#726)
+          if [ ! -f README.md ]; then
+            echo "::notice::No README.md, skipping the version line (it is added on the next push once README.md exists)"
+            exit 0
+          fi
+
+          # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          # Error message printer
+          # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          print_error_message() {
+            local error_type="$1"
+            local version_line="$2"
+            local header_part="$3"
+            local version_text="$4"
+
+            echo ""
+            echo "❌ README.md version update failed"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            echo "🔍 Error type: $error_type"
+            echo ""
+            echo "📋 Diagnostics:"
+            echo "   • Current version line: $version_line"
+            echo "   • Extracted header: $header_part"
+            echo "   • New version text: $version_text"
+            echo ""
+            echo "💡 How to fix:"
+            echo "   Make sure the version line in README.md matches one of these formats:"
+            echo ""
+            echo "   ✅ Supported formats:"
+            echo "      • ## Latest version : v1.0.0 (2025-08-15)"
+            echo "      • ## 최신 버전 : v1.0.0 (2025-08-15)"
+            echo "      • ## 최신버전 : v1.0.0"
+            echo "      • ## Version : v1.0.0"
+            echo "      • ## Current Version : v1.0.0 (2025-08-15)"
+            echo ""
+            echo "   ⚠️ Notes:"
+            echo "      • Do not use markdown bold (**)"
+            echo "      • Do not use regex special characters (*, [, ], ^, $)"
+            echo "      • The version must come right after the colon (:)"
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          }
+
+          # Pick the version format based on SHOW_DATE
+          if [ "$SHOW_DATE" = "true" ]; then
+            VERSION_TEXT="v${LATEST_VERSION} (${RELEASE_DATE})"
+            echo "🗓️ Version with date: $VERSION_TEXT"
+          else
+            VERSION_TEXT="v${LATEST_VERSION}"
+            echo "📋 Version only: $VERSION_TEXT"
+          fi
+
+          # Regexes to find the various version line patterns
+          # Case-insensitive, flexible spacing
+          VERSION_PATTERNS=(
+            "^##[[:space:]]*최신[[:space:]]*버전[[:space:]]*:"
+            "^##[[:space:]]*최신버전[[:space:]]*:"
+            "^##[[:space:]]*[Cc]urrent[[:space:]]*[Vv]ersion[[:space:]]*:"
+            "^##[[:space:]]*[Rr]ecent[[:space:]]*[Vv]ersion[[:space:]]*:"
+            "^##[[:space:]]*[Vv]ersion[[:space:]]*:"
+            "^##[[:space:]]*버전[[:space:]]*:"
+            "^##[[:space:]]*[Ll]atest[[:space:]]*[Vv]ersion[[:space:]]*:"
+          )
+
+          # Find the version line
+          VERSION_LINE=""
+          PATTERN_FOUND=""
+
+          for pattern in "${VERSION_PATTERNS[@]}"; do
+            if grep -qi "$pattern" README.md; then
+              VERSION_LINE=$(grep -i "$pattern" README.md | head -n 1)
+              PATTERN_FOUND="$pattern"
+              echo "✅ Found version line: $VERSION_LINE"
+              break
+            fi
+          done
+
+          # No version line: add one in the default format
+          if [ -z "$VERSION_LINE" ]; then
+            echo "📝 No version line found, adding one"
+
+            # The new heading follows the version.yml language (options.language) (#769). The patterns above find either heading again.
+            # Old installs without the catalog fall back to the old Korean heading.
+            VERSION_HEADING=$(python3 .github/scripts/i18n/messages.py get readme.version_heading 2>/dev/null) \
+              || VERSION_HEADING="최신 버전"
+
+            # Check whether the file starts with a heading and add after it
+            if grep -q "^# " README.md; then
+              # Add after the first heading
+              sed -i '/^# /a\\n<!-- AUTO-VERSION-SECTION: DO NOT EDIT MANUALLY -->\n## '"$VERSION_HEADING"' : '"$VERSION_TEXT" README.md
+            else
+              # Add at the top of the file
+              sed -i '1i\<!-- AUTO-VERSION-SECTION: DO NOT EDIT MANUALLY -->\n## '"$VERSION_HEADING"' : '"$VERSION_TEXT"'\n' README.md
+            fi
+            echo "✅ Added version line: $VERSION_TEXT"
+          else
+            # Update the existing version line
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # Validate the version line format and warn
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            if [[ "$VERSION_LINE" =~ \*\* ]]; then
+              echo ""
+              echo "⚠️ Warning: the version line contains markdown bold (**)"
+              echo "   Current version line: $VERSION_LINE"
+              echo "   This may make the version update fail"
+              echo ""
+            fi
+
+            # Check whether the HTML comment is above that line
+            LINE_NUMBER=$(grep -n -i "$PATTERN_FOUND" README.md | head -n 1 | cut -d: -f1)
+            PREV_LINE_NUMBER=$((LINE_NUMBER - 1))
+
+            if [ $PREV_LINE_NUMBER -gt 0 ]; then
+              PREV_LINE=$(sed -n "${PREV_LINE_NUMBER}p" README.md)
+              if [[ "$PREV_LINE" != *"AUTO-VERSION-SECTION"* ]]; then
+                # No comment: add it above the version line
+                sed -i "${PREV_LINE_NUMBER}a\\<!-- AUTO-VERSION-SECTION: DO NOT EDIT MANUALLY -->" README.md
+                echo "✅ Added auto-update marker comment"
+                # Adding the comment shifts the line number
+                LINE_NUMBER=$((LINE_NUMBER + 1))
+              fi
+            else
+              # First line: add it above
+              sed -i '1i\<!-- AUTO-VERSION-SECTION: DO NOT EDIT MANUALLY -->' README.md
+              echo "✅ Added auto-update marker comment"
+              # Adding the comment shifts the line number
+              LINE_NUMBER=$((LINE_NUMBER + 1))
+            fi
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # Extract the header part (only up to the colon, for safety)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            HEADER_PART=$(echo "$VERSION_LINE" | sed 's/\(.*:\).*/\1 /')
+
+            # Validate header extraction
+            if [ -z "$HEADER_PART" ] || [[ "$HEADER_PART" == "$VERSION_LINE" ]]; then
+              print_error_message "Header extraction failed - no colon (:) found" "$VERSION_LINE" "$HEADER_PART" "$VERSION_TEXT"
+              exit 1
+            fi
+
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # Replace directly by line number (avoids regex special character issues)
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            NEW_LINE="${HEADER_PART}${VERSION_TEXT}"
+
+            if ! sed -i "${LINE_NUMBER}s|.*|${NEW_LINE}|" README.md 2>/tmp/sed_error.log; then
+              SED_ERROR=$(cat /tmp/sed_error.log 2>/dev/null || echo "unknown sed error")
+              print_error_message "sed command failed - $SED_ERROR" "$VERSION_LINE" "$HEADER_PART" "$VERSION_TEXT"
+              exit 1
+            fi
+
+            # Verify the result
+            UPDATED_LINE=$(sed -n "${LINE_NUMBER}p" README.md)
+            if [[ "$UPDATED_LINE" != *"$VERSION_TEXT"* ]]; then
+              print_error_message "Version replacement check failed" "$VERSION_LINE" "$HEADER_PART" "$VERSION_TEXT"
+              echo "   • Updated line: $UPDATED_LINE"
+              exit 1
+            fi
+
+            echo "✅ Version info updated: $VERSION_TEXT"
+          fi
+
+      - name: Commit and push changes
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch || 'main' }}"
+          # Without README.md, git add dies with a pathspec error (128) (#726)
+          if [ -f README.md ]; then git add README.md; fi
+
+          if git diff --staged --quiet; then
+            echo "📝 No changes in README.md"
+          else
+            REPO_NAME=$(basename "${{ github.repository }}")
+            VERSION="${{ steps.version_info.outputs.latest_version }}"
+
+            # The commit message uses the version.yml language (options.language) (#787).
+            # Old installs without the catalog fall back to the old Korean text — a message must never block the release.
+            COMMIT_TITLE=$(python3 .github/scripts/i18n/messages.py get release.commit.readme --var repo="$REPO_NAME" --var version="$VERSION" 2>/dev/null) \
+              || COMMIT_TITLE="$REPO_NAME 버전 관리 : docs : v$VERSION README 버전 정보 업데이트"
+            git commit -m "$COMMIT_TITLE [skip ci]"
+
+            # Prevent race conditions: pull-rebase, then push (up to 3 retries)
+            MAX_RETRIES=3
+            RETRY_COUNT=0
+            PUSH_SUCCESS=false
+
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              echo "🔄 Push attempt $RETRY_COUNT/$MAX_RETRIES..."
+
+              if git push origin HEAD:$DEFAULT_BRANCH; then
+                PUSH_SUCCESS=true
+                echo "✅ README.md version info updated"
+                break
+              else
+                echo "⚠️ Push failed, syncing remote changes..."
+
+                # --autostash: with unstaged changes such as chmod +x from an earlier step,
+                # a plain rebase refuses with "You have unstaged changes" and the retry never runs (#807).
+                if git pull --rebase --autostash origin $DEFAULT_BRANCH; then
+                  echo "✅ Rebase succeeded, retrying push..."
+                else
+                  echo "❌ Rebase failed, resolve the conflict"
+                  git rebase --abort 2>/dev/null || true
+                  exit 1
+                fi
+              fi
+            done
+
+            if [ "$PUSH_SUCCESS" = false ]; then
+              echo "❌ Push failed after $MAX_RETRIES attempts"
+              exit 1
+            fi
+          fi

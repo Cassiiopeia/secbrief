@@ -1,0 +1,551 @@
+# ===================================================================
+# Spring Boot zero-downtime deploy (Nginx Blue-Green, SSH + Docker)
+# ===================================================================
+#
+# On a push to the deploy branch, builds the Docker image and
+# deploys Blue-Green with zero downtime by toggling the proxy_pass port in the nginx config.
+#
+# This workflow is the zero-downtime deploy option.
+# The default deploy is PROJECT-SPRING-SIMPLE-CICD.yaml.
+# To switch, uncomment push.branches below + comment out the push trigger in SIMPLE-CICD.
+#
+# ===================================================================
+# 🔑 Required GitHub Secrets
+# ===================================================================
+# APPLICATION_PROD_YML (optional): contents of application-prod.yml
+# DOCKERHUB_USERNAME: DockerHub user name
+# DOCKERHUB_TOKEN: DockerHub access token
+# SERVER_HOST: deploy server address
+# SERVER_USER: SSH user name
+# SERVER_PASSWORD: SSH password (when SSH_AUTH_METHOD=password)
+# SSH_KEY: SSH private key .pem contents (when SSH_AUTH_METHOD=key, AWS EC2 etc.)
+# ===================================================================
+#
+# 🔧 Environment settings (set in the env section)
+# ===================================================================
+#
+# 🌐 Ports and container:
+# PROJECT_NAME: project name (container/image name)
+# SERVICE_DOMAIN: external domain (matches nginx server_name)
+# CONTAINER_INTERNAL_PORT: Spring Boot internal port (default: 8080)
+# BLUE_PORT: Blue host port (default: 8080)
+# GREEN_PORT: Green host port (default: 8081)
+#
+# 🔧 Nginx:
+# NGINX_RP_CONF: nginx reverse proxy config file path
+# NGINX_BACKUP_DIR: nginx config backup directory
+# NGINX_BACKUP_KEEP: number of backups kept (default: 10)
+#
+# 📦 Volume/storage:
+# ENABLE_VOLUME_MOUNT: whether to mount a volume (true/false)
+# VOLUME_HOST_PATH: host volume path
+# VOLUME_CONTAINER_PATH: mount path inside the container
+#
+# 🔌 SSH connection:
+# SSH_PORT: SSH port (default: 2022)
+# SSH_COMMAND_TIMEOUT: command timeout (default: 600s)
+# SSH_CONNECTION_TIMEOUT: connection timeout (default: 60s)
+#
+# ⏱️ Health check:
+# HEALTHCHECK_PATH: HTTP path (default: /actuator/health, fallback: /)
+# HEALTHCHECK_MAX_RETRIES: max container health checks (default: 120)
+# HEALTHCHECK_RETRY_INTERVAL: retry interval in seconds (default: 1)
+# DOMAIN_CHECK_RETRIES: domain checks after nginx reload (default: 10)
+# DOMAIN_CHECK_INTERVAL: domain check interval in seconds (default: 2)
+# IN_FLIGHT_WAIT: seconds to wait before removing the old container (default: 5)
+#
+# 💡 Prerequisites:
+#   - nginx installed on the server + a sites-enabled config
+#   - the config's server block contains this line:
+#       server_name ${SERVICE_DOMAIN};
+#       proxy_pass http://127.0.0.1:${BLUE_PORT};   # or ${GREEN_PORT}
+#   - the SSH user can run nginx -t / reload and docker commands with sudo
+# ===================================================================
+
+name: PROJECT-SPRING-NONSTOP-NGINX-CICD
+
+# ===================================================================
+# Trigger settings
+# ===================================================================
+# The automatic trigger on deploy branch push is commented out.
+# To switch to this workflow, uncomment push.branches below.
+on:
+  # push:
+  #   branches:
+  #     - main
+  workflow_dispatch:
+
+permissions:
+  # GITHUB_TOKEN only reads. Declaring it keeps this workflow from gaining more permissions than needed
+  # even if the repo default later changes to write (#595).
+  contents: read
+
+# ===================================================================
+# Environment variables
+# ===================================================================
+env:
+  # 🔧 Project settings - change to your real project name
+  PROJECT_NAME: "secbrief"
+  SERVICE_DOMAIN: "__SERVICE_DOMAIN__"  # @wizard ask:example.com
+
+  # ☁️ Spring Boot settings
+  SPRING_PROFILE: "prod"
+  JAVA_VERSION: "21"
+  GRADLE_OPTS: "-Dspring.profiles.active=prod"
+
+  # 📁 Path settings
+  APPLICATION_YML_DIR: "server/SB-Web/src/main/resources"
+  DOCKERFILE_PATH: "./Dockerfile"
+
+  # 🌐 Port and container settings
+  CONTAINER_INTERNAL_PORT: "8080"
+  BLUE_PORT: "8080"
+  GREEN_PORT: "8081"
+
+  # 🔧 Nginx settings
+  NGINX_RP_CONF: "/etc/nginx/sites-enabled/example.conf"
+  NGINX_BACKUP_DIR: "/volume1/project/nginx/backups"
+  NGINX_BACKUP_KEEP: "10"
+
+  # 📦 Volume mount settings
+  ENABLE_VOLUME_MOUNT: "false"
+  VOLUME_HOST_PATH: "/volume1/projects/secbrief"
+  VOLUME_CONTAINER_PATH: "/app"
+
+  # 🔐 SSH auth method: "password" (Synology, regular servers) | "key" (AWS EC2, .pem)
+  #   password → uses the SERVER_PASSWORD secret
+  #   key      → uses the SSH_KEY secret (the full .pem file contents as the secret value)
+  SSH_AUTH_METHOD: "password"
+
+  # 🔌 SSH connection settings
+  SSH_PORT: "2022"
+  SSH_COMMAND_TIMEOUT: "600s"
+  SSH_CONNECTION_TIMEOUT: "60s"
+
+  # ⏱️ Health check settings
+  HEALTHCHECK_PATH: "/actuator/health"
+  HEALTHCHECK_MAX_RETRIES: "120"
+  HEALTHCHECK_RETRY_INTERVAL: "1"
+  DOMAIN_CHECK_RETRIES: "10"
+  DOMAIN_CHECK_INTERVAL: "2"
+  IN_FLIGHT_WAIT: "5"
+
+jobs:
+  # ===================================================================
+  # Build job
+  # ===================================================================
+  build:
+    name: Build Spring Boot application
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Make Gradle Wrapper executable
+        run: chmod +x gradlew
+
+      - name: Create application-prod.yml
+        env:
+          APPLICATION_PROD_YML: ${{ secrets.APPLICATION_PROD_YML }}
+        run: |
+          mkdir -p ${{ env.APPLICATION_YML_DIR }}
+          printf '%s\n' "$APPLICATION_PROD_YML" > ./${{ env.APPLICATION_YML_DIR }}/application-prod.yml
+          echo "✅ application-prod.yml file created (${{ env.APPLICATION_YML_DIR }})"
+
+      - name: Build with Gradle
+        run: ./gradlew clean build -x test ${{ env.GRADLE_OPTS }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('Dockerfile') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE_PATH }}
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.PROJECT_NAME }}:${{ github.ref_name }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      - name: Move Docker cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  # ===================================================================
+  # Deploy job (Blue-Green, zero downtime)
+  # ===================================================================
+  deploy:
+    name: Blue-Green zero-downtime deploy
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
+        env:
+          PROJECT_NAME: ${{ env.PROJECT_NAME }}
+          SERVICE_DOMAIN: ${{ env.SERVICE_DOMAIN }}
+          SPRING_PROFILE: ${{ env.SPRING_PROFILE }}
+          CONTAINER_INTERNAL_PORT: ${{ env.CONTAINER_INTERNAL_PORT }}
+          BLUE_PORT: ${{ env.BLUE_PORT }}
+          GREEN_PORT: ${{ env.GREEN_PORT }}
+          ENABLE_VOLUME_MOUNT: ${{ env.ENABLE_VOLUME_MOUNT }}
+          VOLUME_HOST_PATH: ${{ env.VOLUME_HOST_PATH }}
+          VOLUME_CONTAINER_PATH: ${{ env.VOLUME_CONTAINER_PATH }}
+          NGINX_RP_CONF: ${{ env.NGINX_RP_CONF }}
+          NGINX_BACKUP_DIR: ${{ env.NGINX_BACKUP_DIR }}
+          NGINX_BACKUP_KEEP: ${{ env.NGINX_BACKUP_KEEP }}
+          HEALTHCHECK_MAX_RETRIES: ${{ env.HEALTHCHECK_MAX_RETRIES }}
+          HEALTHCHECK_RETRY_INTERVAL: ${{ env.HEALTHCHECK_RETRY_INTERVAL }}
+          HEALTHCHECK_PATH: ${{ env.HEALTHCHECK_PATH }}
+          DOMAIN_CHECK_RETRIES: ${{ env.DOMAIN_CHECK_RETRIES }}
+          DOMAIN_CHECK_INTERVAL: ${{ env.DOMAIN_CHECK_INTERVAL }}
+          IN_FLIGHT_WAIT: ${{ env.IN_FLIGHT_WAIT }}
+          BRANCH_REF: ${{ github.ref_name }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+          SSH_AUTH_METHOD: ${{ env.SSH_AUTH_METHOD }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ env.SSH_PORT }}
+          command_timeout: ${{ env.SSH_COMMAND_TIMEOUT }}
+          timeout: ${{ env.SSH_CONNECTION_TIMEOUT }}
+          envs: PROJECT_NAME,SERVICE_DOMAIN,SPRING_PROFILE,CONTAINER_INTERNAL_PORT,BLUE_PORT,GREEN_PORT,ENABLE_VOLUME_MOUNT,VOLUME_HOST_PATH,VOLUME_CONTAINER_PATH,NGINX_RP_CONF,NGINX_BACKUP_DIR,NGINX_BACKUP_KEEP,HEALTHCHECK_MAX_RETRIES,HEALTHCHECK_RETRY_INTERVAL,HEALTHCHECK_PATH,DOMAIN_CHECK_RETRIES,DOMAIN_CHECK_INTERVAL,IN_FLIGHT_WAIT,BRANCH_REF,DOCKERHUB_USERNAME,SERVER_PASSWORD,SSH_AUTH_METHOD
+          script: |
+            set -e
+            export PATH=$PATH:/usr/local/bin
+            export PW="${SERVER_PASSWORD}"
+
+            # 🔐 sudo abstraction per SSH auth method
+            SSH_AUTH_METHOD="${SSH_AUTH_METHOD:-password}"
+            if [ "${SSH_AUTH_METHOD}" = "key" ]; then
+              SUDO() { sudo "$@"; }
+            else
+              SUDO() { echo "$PW" | sudo -S "$@"; }
+            fi
+            echo "🔐 SSH auth method: ${SSH_AUTH_METHOD}"
+
+            IMAGE="${DOCKERHUB_USERNAME}/${PROJECT_NAME}:${BRANCH_REF}"
+            BLUE_CONTAINER_NAME="${PROJECT_NAME}-blue"
+            GREEN_CONTAINER_NAME="${PROJECT_NAME}-green"
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🚀 Starting Nginx Blue-Green zero-downtime deploy"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "📦 Project: ${PROJECT_NAME}"
+            echo "🌐 Domain: ${SERVICE_DOMAIN}"
+            echo "🖼️ Image: ${IMAGE}"
+            echo "🎨 Blue=${BLUE_PORT} | Green=${GREEN_PORT}"
+            echo "🔧 Nginx config: ${NGINX_RP_CONF}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            # ============================================================
+            # 1. Pull the latest image
+            # ============================================================
+            echo "📥 Pulling image: ${IMAGE}"
+            SUDO docker pull "${IMAGE}"
+
+            # ============================================================
+            # 2. Back up the nginx config
+            # ============================================================
+            echo "📁 Creating nginx backup directory: ${NGINX_BACKUP_DIR}"
+            SUDO mkdir -p "${NGINX_BACKUP_DIR}"
+
+            BACKUP_FILE="${NGINX_BACKUP_DIR}/server.ReverseProxy.conf.$(date +%Y%m%d_%H%M%S).bak"
+            echo "💾 Backing up nginx config: ${BACKUP_FILE}"
+            SUDO cp "${NGINX_RP_CONF}" "${BACKUP_FILE}"
+
+            # ============================================================
+            # 3. Find the current active port (parse proxy_pass in the nginx config)
+            # ============================================================
+            echo "🔍 Finding the active port in the nginx config"
+            ACTIVE_PORT=$(
+              SUDO awk -v dom="${SERVICE_DOMAIN}" '
+                BEGIN {
+                  inserver=0; depth=0; entry_depth=0;
+                  dom_esc = dom;
+                  gsub(/[.[\]()+*?^$\\|]/, "\\\\&", dom_esc);
+                }
+                {
+                  raw = $0;
+                  line = raw;
+                  sub(/#.*/, "", line);
+                  depth += gsub(/\{/, "{", line);
+                  depth -= gsub(/\}/, "}", line);
+
+                  if (!inserver && line ~ /^[[:space:]]*server_name[[:space:]]+/) {
+                    tmp = line;
+                    sub(/^[[:space:]]*server_name[[:space:]]+/, "", tmp);
+                    sub(/[[:space:]]*;.*/, "", tmp);
+                    if (match(tmp, "(^|[[:space:]])" dom_esc "([[:space:]]|$)")) {
+                      inserver=1; entry_depth=depth;
+                    }
+                  }
+
+                  if (inserver && line ~ /proxy_pass[[:space:]]+https?:\/\/(localhost|127\.0\.0\.1):[0-9]{2,5}/) {
+                    if (match(line, /https?:\/\/(localhost|127\.0\.0\.1):([0-9]{2,5})/, a)) { print a[2]; exit }
+                  }
+
+                  if (inserver && (depth < entry_depth || (depth==0 && entry_depth==0))) inserver=0;
+                }
+              ' "${NGINX_RP_CONF}" || true
+            )
+
+            if [ -z "${ACTIVE_PORT}" ]; then
+              echo "⚠️ No active port found → treating the default (BLUE=${BLUE_PORT}) as active"
+              ACTIVE_PORT="${BLUE_PORT}"
+            fi
+            echo "🎨 Active port: ${ACTIVE_PORT}"
+
+            if [ "${ACTIVE_PORT}" = "${BLUE_PORT}" ]; then
+              NEW_PORT="${GREEN_PORT}"
+              NEW_CONTAINER_NAME="${GREEN_CONTAINER_NAME}"
+              OLD_CONTAINER_NAME="${BLUE_CONTAINER_NAME}"
+            else
+              NEW_PORT="${BLUE_PORT}"
+              NEW_CONTAINER_NAME="${BLUE_CONTAINER_NAME}"
+              OLD_CONTAINER_NAME="${GREEN_CONTAINER_NAME}"
+            fi
+
+            echo "🐳 New deploy → port=${NEW_PORT} container=${NEW_CONTAINER_NAME}"
+            echo "🗑️ Previous container (to be removed) = ${OLD_CONTAINER_NAME}"
+
+            # ============================================================
+            # 4. Clean up a leftover container in the same slot (idle side)
+            # ============================================================
+            if SUDO docker ps -a --format '{{.Names}}' | grep -Eq "^${NEW_CONTAINER_NAME}\$"; then
+              echo "🗑️ Cleaning up idle slot: ${NEW_CONTAINER_NAME}"
+              SUDO docker rm -f "${NEW_CONTAINER_NAME}"
+            fi
+
+            # ============================================================
+            # 5. Build volume mount options
+            # ============================================================
+            VOLUME_MOUNT_OPTION="-v /etc/localtime:/etc/localtime:ro"
+            if [ "${ENABLE_VOLUME_MOUNT}" = "true" ]; then
+              if [ ! -d "${VOLUME_HOST_PATH}" ]; then
+                echo "📁 Creating volume mount directory: ${VOLUME_HOST_PATH}"
+                SUDO mkdir -p "${VOLUME_HOST_PATH}"
+              fi
+              VOLUME_MOUNT_OPTION="${VOLUME_MOUNT_OPTION} -v ${VOLUME_HOST_PATH}:${VOLUME_CONTAINER_PATH}"
+              echo "📦 Volume mount enabled: ${VOLUME_HOST_PATH} → ${VOLUME_CONTAINER_PATH}"
+            else
+              echo "ℹ️ Volume mount disabled"
+            fi
+
+            # ============================================================
+            # 6. Start the new container
+            # ============================================================
+            echo "🐳 Starting new container: ${NEW_CONTAINER_NAME} (port ${NEW_PORT})"
+              # Bring the service back automatically after a server reboot or Docker restart (#727)
+            SUDO docker run -d \
+              -p ${NEW_PORT}:${CONTAINER_INTERNAL_PORT} \
+              --name "${NEW_CONTAINER_NAME}" \
+              --restart unless-stopped \
+              -e TZ=Asia/Seoul \
+              -e "SPRING_PROFILES_ACTIVE=${SPRING_PROFILE}" \
+              ${VOLUME_MOUNT_OPTION} \
+              "${IMAGE}"
+
+            # ============================================================
+            # 7. Container health check (calls the local port directly)
+            # ============================================================
+            echo "⏳ Starting health check (up to ${HEALTHCHECK_MAX_RETRIES} tries × ${HEALTHCHECK_RETRY_INTERVAL}s)"
+            HEALTHCHECK_SUCCESS=false
+            for i in $(seq 1 ${HEALTHCHECK_MAX_RETRIES}); do
+              if curl -fsS "http://127.0.0.1:${NEW_PORT}${HEALTHCHECK_PATH}" >/dev/null 2>&1 || \
+                 curl -fsS "http://127.0.0.1:${NEW_PORT}/" >/dev/null 2>&1 ; then
+                echo "✅ Health check passed (attempt ${i})"
+                HEALTHCHECK_SUCCESS=true
+                break
+              fi
+              echo "⏳ Health check in progress... (${i}/${HEALTHCHECK_MAX_RETRIES})"
+              sleep ${HEALTHCHECK_RETRY_INTERVAL}
+            done
+
+            if [ "${HEALTHCHECK_SUCCESS}" != "true" ]; then
+              echo "❌ Health check failed → stopping the deploy"
+              SUDO docker logs --tail 200 "${NEW_CONTAINER_NAME}" || true
+              echo "🗑️ Removing the new container: ${NEW_CONTAINER_NAME}"
+              SUDO docker rm -f "${NEW_CONTAINER_NAME}" || true
+              exit 1
+            fi
+
+            # ============================================================
+            # 8. Toggle the nginx config port (replace the proxy_pass port)
+            # ============================================================
+            echo "🔧 Switching the nginx config port: ${ACTIVE_PORT} → ${NEW_PORT}"
+            TMP_FILE="$(mktemp)"
+            SUDO awk -v dom="${SERVICE_DOMAIN}" -v new_port="${NEW_PORT}" '
+              BEGIN {
+                inserver=0; depth=0; entry_depth=0;
+                dom_esc = dom;
+                gsub(/[.[\]()+*?^$\\|]/, "\\\\&", dom_esc);
+              }
+              {
+                if ($0 ~ "server_name[[:space:]]+" dom_esc "[[:space:]]*;") {
+                  inserver=1;
+                  entry_depth=depth;
+                }
+
+                line = $0;
+                sub(/#.*/, "", line);
+                depth += gsub(/\{/, "{", line);
+                depth -= gsub(/\}/, "}", line);
+
+                if (inserver && \
+                    $0 !~ /^[[:space:]]*#/ && \
+                    $0 ~ /proxy_pass[[:space:]]+https?:\/\/(localhost|127\.0\.0\.1):[0-9]{2,5}/) {
+                  sub(/:[0-9]{2,5}/, ":" new_port);
+                }
+
+                print;
+
+                if (inserver && (depth < entry_depth || (depth == 0 && entry_depth == 0))) {
+                  inserver=0;
+                }
+              }
+            ' "${NGINX_RP_CONF}" > "${TMP_FILE}"
+
+            # ============================================================
+            # 9. Validate + reload the nginx config (restore the backup on failure)
+            # ============================================================
+            echo "🔧 Applying and validating the nginx config"
+            SUDO cp "${TMP_FILE}" "${NGINX_RP_CONF}"
+            if ! (SUDO nginx -t); then
+              echo "❌ nginx config validation failed → restoring the backup"
+              SUDO cp "${BACKUP_FILE}" "${NGINX_RP_CONF}"
+              SUDO rm -f "${BACKUP_FILE}"
+              rm -f "${TMP_FILE}"
+              echo "🗑️ Removing the new container: ${NEW_CONTAINER_NAME}"
+              SUDO docker rm -f "${NEW_CONTAINER_NAME}" || true
+              exit 1
+            fi
+            echo "✅ nginx config is valid"
+            rm -f "${TMP_FILE}"
+
+            echo "🔄 nginx reload"
+            if ! (SUDO systemctl reload nginx); then
+              echo "⚠️ reload failed → trying restart"
+              if ! (SUDO systemctl restart nginx); then
+                echo "❌ nginx reload/restart failed → restoring the backup"
+                SUDO cp "${BACKUP_FILE}" "${NGINX_RP_CONF}"
+                SUDO systemctl restart nginx
+                SUDO rm -f "${BACKUP_FILE}"
+                echo "🗑️ Removing the new container: ${NEW_CONTAINER_NAME}"
+                SUDO docker rm -f "${NEW_CONTAINER_NAME}" || true
+                exit 1
+              fi
+            fi
+
+            # ============================================================
+            # 10. Verify domain access
+            # ============================================================
+            echo "🌐 Checking domain access (${SERVICE_DOMAIN})"
+            DOMAIN_OK=false
+            for i in $(seq 1 ${DOMAIN_CHECK_RETRIES}); do
+              if curl -fsS "https://${SERVICE_DOMAIN}${HEALTHCHECK_PATH}" >/dev/null 2>&1 || \
+                 curl -fsS "https://${SERVICE_DOMAIN}/" >/dev/null 2>&1 ; then
+                echo "✅ Domain is reachable (attempt ${i})"
+                DOMAIN_OK=true
+                break
+              fi
+              echo "⏳ Checking domain access... (${i}/${DOMAIN_CHECK_RETRIES})"
+              sleep ${DOMAIN_CHECK_INTERVAL}
+            done
+
+            if [ "${DOMAIN_OK}" != "true" ]; then
+              echo "⚠️ Domain check failed: continuing the deploy (DNS propagation may be delayed)"
+            fi
+
+            # ============================================================
+            # 11. Remove the previous container
+            # ============================================================
+            echo "⏱️ Waiting for in-flight requests (${IN_FLIGHT_WAIT}s)"
+            sleep ${IN_FLIGHT_WAIT}
+
+            if SUDO docker ps -a --format '{{.Names}}' | grep -Eq "^${OLD_CONTAINER_NAME}\$"; then
+              echo "🗑️ Removing old=${OLD_CONTAINER_NAME}"
+              # This deploy's previous image ID — only this is removed below (a server-wide prune removes other projects' images, #734)
+              OLD_IMAGE_ID=$(SUDO docker inspect --format '{{.Image}}' "${OLD_CONTAINER_NAME}" 2>/dev/null || true)
+              SUDO docker rm -f "${OLD_CONTAINER_NAME}" || true
+              if [ -n "${OLD_IMAGE_ID}" ]; then
+                if SUDO docker rmi "${OLD_IMAGE_ID}" >/dev/null 2>&1; then
+                  echo "🧹 Removing the previous image: ${OLD_IMAGE_ID}"
+                else
+                  echo "ℹ️ Keeping the previous image, another container uses it"
+                fi
+              fi
+            else
+              echo "ℹ️ No old=${OLD_CONTAINER_NAME} — skipping cleanup"
+            fi
+
+            # ============================================================
+            # 12. Keep backups
+            # ============================================================
+            # No server-wide prune (docker image prune -af): it would remove other projects' images on the same server (#734).
+            # This deploy's previous image was already removed above.
+
+            echo "🧹 Keeping the latest ${NGINX_BACKUP_KEEP} backup files"
+            KEEP_PLUS_ONE=$((NGINX_BACKUP_KEEP + 1))
+            SUDO /bin/bash -c "ls -1t '${NGINX_BACKUP_DIR}'/server.ReverseProxy.conf.*.bak 2>/dev/null | tail -n +${KEEP_PLUS_ONE} | xargs -r rm -f"
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "✅ Zero-downtime deploy complete. active=${NEW_CONTAINER_NAME} (port ${NEW_PORT})"
+            echo "🌐 Domain: https://${SERVICE_DOMAIN}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# ===================================================================
+# 📝 How to use
+# ===================================================================
+#
+# 1) Register GitHub Secrets:
+#    APPLICATION_PROD_YML, DOCKERHUB_USERNAME, DOCKERHUB_TOKEN,
+#    SERVER_HOST, SERVER_USER, SERVER_PASSWORD
+#
+# 2) Edit per-project settings in this workflow's env block:
+#    - PROJECT_NAME, SERVICE_DOMAIN
+#    - APPLICATION_YML_DIR, CONTAINER_INTERNAL_PORT
+#    - BLUE_PORT, GREEN_PORT (different host ports)
+#    - NGINX_RP_CONF, NGINX_BACKUP_DIR
+#    - ENABLE_VOLUME_MOUNT, VOLUME_HOST_PATH, VOLUME_CONTAINER_PATH
+#
+# 3) Prepare the server:
+#    - nginx installed + a sites-enabled config
+#    - the config's server block contains this line:
+#        server_name ${SERVICE_DOMAIN};
+#        proxy_pass http://127.0.0.1:${BLUE_PORT};   # or ${GREEN_PORT}
+#    - the SSH user can run nginx -t / reload and docker commands with sudo
+#
+# 4) Switch to this workflow:
+#    - uncomment push.branches in this file
+#    - comment out the push trigger in PROJECT-SPRING-SIMPLE-CICD.yaml
+#
+# ===================================================================

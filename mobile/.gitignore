@@ -1,0 +1,32 @@
+# 의존성
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# 생성되는 네이티브 폴더 (app.json 과 config plugin 으로만 설정)
+/ios
+/android
+
+# 서명·비밀값
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+.env*.local
+google-services.json
+GoogleService-Info.plist
+
+# 기타
+.kotlin/
+*.orig.*
+.metro-health-check*
+npm-debug.*
+*.tsbuildinfo
+.DS_Store
+coverage/

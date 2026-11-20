@@ -1,0 +1,222 @@
+# ===================================================================
+# PROJECT-COMMON-QA-ISSUE-CREATION-BOT.yaml
+# Automatic QA issue creation workflow
+# ===================================================================
+#
+# Detects an @projectops mention in GitHub issue/PR comments and
+# creates a QA (test request) issue automatically.
+#
+# ===================================================================
+# How it works:
+# 1. Detects "@projectops" + "create" + "qa" in an issue or PR comment (any order)
+# 2. Adds a 👀 reaction to the comment (acknowledgement)
+# 3. Extracts the issue number from the original issue/PR title or branch name
+# 4. Removes unneeded emoji and keywords from the title
+# 5. Creates the QA issue with the QA prefix (e.g. "🔍 [QA]")
+# 6. Generates a body with the test template applied
+# 7. Comments a link to the QA issue on the original issue/PR
+#
+# Features:
+# - Works for both issues and PRs
+# - Extracts the issue number from the PR branch name automatically
+# - Any command order (@projectops create qa and @projectops qa create both work)
+# - Removes emoji automatically (🚀, 🔥, ⌛, etc.)
+# - Removes issue type keywords ([버그], [디자인], [기능요청], [Bug], [Feature], etc.)
+# - Extracts category and content automatically
+# - Applies the QA template automatically
+# - Assigns an assignee automatically
+# - Adds the acknowledgement reaction (👀) automatically
+#
+# Example:
+# Original issue: "🚀 [Feature][Login] Add social login"
+# QA issue: "🔍 [QA][Login] Add social login"
+#
+# How to trigger:
+# Type "@projectops create qa" or "@projectops qa create" in an issue/PR comment
+# ===================================================================
+
+name: PROJECT-CREATE-QA-ISSUE
+
+on:
+  issue_comment:
+    types: [created]
+
+# ===================================================================
+# Settings
+# ===================================================================
+env:
+  # Default assignee for QA issues
+  # - 'default': the comment author becomes the assignee
+  # - GitHub ID (e.g. 'Cassiiopeia'): that user becomes the assignee
+  DEFAULT_QA_ASSIGNEE: 'default'
+
+jobs:
+  create-qa:
+    # Run when @projectops, create and qa are all present (any order)
+    if: |
+      !contains(github.event.comment.body, '<!-- SUH-ISSUE-HELPER -->') &&
+      (
+        github.event.repository.private == true ||
+        contains(fromJSON(vars.PROJECTOPS_TRIGGER_ASSOCIATIONS || '["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+      ) &&
+      contains(github.event.comment.body, '@projectops') && 
+      contains(github.event.comment.body, 'create') &&
+      contains(github.event.comment.body, 'qa')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Add 👀 reaction to the comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const commentId = context.payload.comment.id;
+            
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              content: 'eyes'
+            });
+            
+            console.log('👀 Added reaction to the comment');
+
+      # The posted text is built by .github/scripts/qa_bot_messages.py in the version.yml language (options.language) (#787).
+      # Fetch only the needed files. Settings are read from the default branch, so a PR cannot swap the language.
+      - name: Check out the message module
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            .github/scripts
+            version.yml
+          sparse-checkout-cone-mode: false
+
+      - name: Create QA issue
+        uses: actions/github-script@v7
+        env:
+          DEFAULT_QA_ASSIGNEE: ${{ env.DEFAULT_QA_ASSIGNEE }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const commenter = context.payload.comment.user.login;
+
+            // Assignee: comment author for 'default', otherwise the given GitHub ID
+            const defaultAssignee = process.env.DEFAULT_QA_ASSIGNEE || 'default';
+            const assignee = (defaultAssignee === 'default') ? commenter : defaultAssignee;
+            console.log(`👤 Assignee: ${assignee} (setting: ${defaultAssignee})`);
+            const issueOrPrNumber = issue.number;
+            const isPullRequest = !!issue.pull_request;
+            
+            console.log(`📌 Type: ${isPullRequest ? 'Pull Request' : 'Issue'}`);
+            console.log(`📌 Number: #${issueOrPrNumber}`);
+            
+            let originalIssueNumber = issueOrPrNumber;
+            let title = issue.title;
+            
+            // For a PR, extract the issue number from the branch name
+            if (isPullRequest) {
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: issueOrPrNumber
+              });
+            
+              const branchName = pr.head.ref;
+              console.log(`🌿 Branch: ${branchName}`);
+            
+              // Extract an issue number like #31 from the branch name
+              const issueMatch = branchName.match(/#(\d+)/);
+              if (issueMatch) {
+                originalIssueNumber = parseInt(issueMatch[1]);
+                console.log(`🔍 Extracted issue number: #${originalIssueNumber}`);
+            
+                // Fetch the original issue info
+                try {
+                  const { data: originalIssue } = await github.rest.issues.get({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: originalIssueNumber
+                  });
+                  title = originalIssue.title;
+                  console.log(`📋 Original issue title: ${title}`);
+                } catch (error) {
+                  console.log(`⚠️ Issue #${originalIssueNumber} not found, using the PR title`);
+                }
+              }
+            }
+            
+            console.log('📝 Original title:', title);
+            
+            // 1. Remove emoji
+            title = title.replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
+                        .replace(/[\u{2600}-\u{26FF}]/gu, '')
+                        .replace(/[\u{2700}-\u{27BF}]/gu, '');
+            
+            // 2. Remove everything up to the type keyword
+            const keywordPattern = /^.*?\[(버그|디자인|기능요청|기능추가|기능개선|Bug|Design|Feature Request|Feature|Improvement)\]/i;
+            title = title.replace(keywordPattern, '');
+            
+            // 3. Tidy whitespace
+            title = title.replace(/^\s+/, '').trim();
+            console.log('✨ Cleaned title:', title);
+            
+            // 4. QA issue title and body — the Python module builds language-appropriate text (#787)
+            const { execFileSync } = require('child_process');
+            const messages = (...args) => JSON.parse(execFileSync(
+              'python3', ['.github/scripts/qa_bot_messages.py', ...args], { encoding: 'utf8' }));
+
+            const issueMsg = messages('issue', '--title', title, '--original', String(originalIssueNumber),
+              ...(isPullRequest ? ['--pr', String(issueOrPrNumber)] : []), '--requester', issue.user.login);
+            const qaTitle = issueMsg.title;
+            const qaBody = issueMsg.body;
+            console.log('🎯 QA issue title:', qaTitle);
+
+            try {
+              // Create the QA issue
+              const { data: qaIssue } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: qaTitle,
+                body: qaBody,
+                labels: ['작업전'],
+                assignees: [assignee]
+              });
+            
+              console.log(`✅ Created QA issue: #${qaIssue.number}`);
+            
+              // Comment on the original issue/PR
+              const commentBody = messages('comment', '--qa', String(qaIssue.number),
+                ...(isPullRequest ? ['--original', String(originalIssueNumber)] : [])).comment;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueOrPrNumber,
+                body: commentBody
+              });
+            
+              console.log('💬 Commented on the original');
+              console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+              console.log('🎉 QA issue creation done');
+              console.log(`  • ${isPullRequest ? 'PR' : 'Issue'}: #${issueOrPrNumber}`);
+              console.log(`  • Original issue: #${originalIssueNumber}`);
+              console.log(`  • QA Issue: #${qaIssue.number}`);
+              console.log(`  • Assignee: @${assignee}`);
+              console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            
+            } catch (error) {
+              console.error('❌ Error:', error);
+            
+              // Comment on error
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueOrPrNumber,
+                body: messages('error', '--message', String(error.message)).error
+              });
+            }

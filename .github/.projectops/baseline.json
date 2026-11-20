@@ -1,0 +1,50 @@
+{
+  "templateVersion": "4.107.0",
+  "installedAt": "2026-11-20 07:58:19",
+  "files": {
+    "PROJECT-COMMON-CLOSE-ISSUES-ON-RELEASE.yaml": {
+      "installed": "sha256:779be18ccf55145dc4f91bc8ccf78e8f953f4c11f8721bfa2601bad3dcdd5c62",
+      "rendered": "sha256:779be18ccf55145dc4f91bc8ccf78e8f953f4c11f8721bfa2601bad3dcdd5c62"
+    },
+    "PROJECT-COMMON-QA-ISSUE-CREATION-BOT.yaml": {
+      "installed": "sha256:600ec6bc777c50d2b7c8d725ee9fc4557b79abbca0fb9374312aab2ea8d99afd",
+      "rendered": "sha256:600ec6bc777c50d2b7c8d725ee9fc4557b79abbca0fb9374312aab2ea8d99afd"
+    },
+    "PROJECT-COMMON-README-VERSION-UPDATE.yaml": {
+      "installed": "sha256:2be14addfb978be513aa925641fd0579779752f63a140375266283ffe4c8d8e7",
+      "rendered": "sha256:2be14addfb978be513aa925641fd0579779752f63a140375266283ffe4c8d8e7"
+    },
+    "PROJECT-COMMON-RELEASE-CHANGELOG.yaml": {
+      "installed": "sha256:16ad6de733429379cd2619dc50d54be351855f3a92477ea2f9b1ab4d54d5b9f3",
+      "rendered": "sha256:16ad6de733429379cd2619dc50d54be351855f3a92477ea2f9b1ab4d54d5b9f3"
+    },
+    "PROJECT-COMMON-SUH-ISSUE-HELPER.yaml": {
+      "installed": "sha256:a865b364b384f4b1bb4c4448072fcebd08352fe5d0e2cb0fd56b30aef010c95f",
+      "rendered": "sha256:a865b364b384f4b1bb4c4448072fcebd08352fe5d0e2cb0fd56b30aef010c95f"
+    },
+    "PROJECT-COMMON-SYNC-ISSUE-LABELS.yaml": {
+      "installed": "sha256:cb640bc97a93dfc2a0d977303ce5c72f58a54c402c462468c7ad0f41363f2c49",
+      "rendered": "sha256:cb640bc97a93dfc2a0d977303ce5c72f58a54c402c462468c7ad0f41363f2c49"
+    },
+    "PROJECT-COMMON-VERSION-CONTROL.yaml": {
+      "installed": "sha256:b22044a7adf852607ddeb1ebd01a8c362f3e80b3b943148763a1580d6ac054bf",
+      "rendered": "sha256:b22044a7adf852607ddeb1ebd01a8c362f3e80b3b943148763a1580d6ac054bf"
+    },
+    "PROJECT-SPRING-NONSTOP-NGINX-CICD.yaml": {
+      "installed": "sha256:7f15a7b8496bb1c5d778d3274bb4eca5af54c5316c45bb844565ddbb238aeb11",
+      "rendered": "sha256:7f15a7b8496bb1c5d778d3274bb4eca5af54c5316c45bb844565ddbb238aeb11"
+    },
+    "PROJECT-SPRING-NONSTOP-TRAEFIK-CICD.yaml": {
+      "installed": "sha256:50eff24ab35188b055323d0e917f77b4a374d765eec709a0b0e2809d6c8d6ca7",
+      "rendered": "sha256:50eff24ab35188b055323d0e917f77b4a374d765eec709a0b0e2809d6c8d6ca7"
+    },
+    "PROJECT-SPRING-PR-PREVIEW.yaml": {
+      "installed": "sha256:91cc979008dac096b1ac552ab96b536d1820bc0b9d486d7e384e7359e254415f",
+      "rendered": "sha256:91cc979008dac096b1ac552ab96b536d1820bc0b9d486d7e384e7359e254415f"
+    },
+    "PROJECT-SPRING-SIMPLE-CICD.yaml": {
+      "installed": "sha256:beb302262612d93658fce721ccb9d5af50eca6a6f1b4993f31a4a55d5cdca920",
+      "rendered": "sha256:beb302262612d93658fce721ccb9d5af50eca6a6f1b4993f31a4a55d5cdca920"
+    }
+  }
+}

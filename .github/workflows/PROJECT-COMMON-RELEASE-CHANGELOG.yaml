@@ -1,0 +1,829 @@
+# ===================================================================
+# PROJECT-COMMON-RELEASE-CHANGELOG.yaml
+# Release + changelog management workflow (formerly RELEASE-CHANGELOG)
+# ===================================================================
+#
+# When a release PR (develop->main) is opened against main, this workflow builds release notes,
+# updates CHANGELOG.json / CHANGELOG.md and automerges.
+#
+# The release-notes generator (provider) is chosen with version.yml options.changelog.provider (#455):
+#   - copilot: GitHub Copilot CLI — works with GITHUB_TOKEN alone (no API key; needs copilot-requests: write)
+#   - openai/gemini/claude/groq/mistral/ollama: OpenAI-compatible API (per-service keys: GEMINI_API_KEY etc. The old name MODEL_API_KEY is read too)
+#   - commit: commit analysis (no AI or network) — default when unset (#821)
+#   - coderabbit: respect the CodeRabbit summary in the body (no waiting). Also the value when unset if .coderabbit.yaml exists
+#   - github-ai: service shut down (2026-07-30) — a stored value is absorbed into commit
+# The fallback ladder runs in .github/scripts/changelog_providers/ladder.py:
+#   tries chosen provider -> (external AI if a key exists) -> commit; commit is the last resort that always finishes.
+# CodeRabbit is not waited for (#566) — respected if already in the body, otherwise generation starts at once.
+# On fallback, a PR comment reports "X failed -> Y used".
+#
+# The bump size is chosen with version.yml options.semver_auto (#546):
+#   - key missing or true: classify commit subjects in the release range into major/minor/patch (changelog_manager classify-bump) (#814)
+#   - false: always patch +1 — only repos that turned it off explicitly
+#           `type!` marker -> major, feat -> minor, else -> patch. No AI (deterministic).
+# version_code (build number) is +1 on every release regardless of options.
+#
+# ===================================================================
+# 🔑 GitHub Secrets — all optional (#551)
+# ===================================================================
+# _GITHUB_PAT_TOKEN: without it, runs with GITHUB_TOKEN. With it, (1) --admin merge works even with
+#   branch protection rules and (2) the merge push triggers follow-up workflows automatically.
+#   Without it, dispatch_downstream.py wakes the follow-up workflows directly after the merge.
+# GEMINI_API_KEY / GROQ_API_KEY / MISTRAL_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY: whichever is registered is used
+#   (applied automatically even with the commit default — #569, #566). None -> commit analysis. MODEL_API_KEY is the old name, read only for backward compatibility.
+# ===================================================================
+#
+# How it works:
+# 1. Triggered when a release PR (develop->main) is opened against main
+# 1-1. If the PR head is not develop, the whole pipeline is skipped (protects against a mistaken feature PR)
+# 2. Renames the PR title to the 🚀 Deploy format right away
+# 3. Uses release notes in the PR body if present, else generates them with the provider ladder (no waiting — #566)
+# 4. Parses the release notes and updates the CHANGELOG files
+# 5. Automerges the PR, then triggers deploys
+#
+# API rate limit notes:
+# - GITHUB_TOKEN: 1,000 requests/hour/repo (inside Actions)
+# - PAT: 5,000 requests/hour/account
+# - Expected usage of this workflow: ~130 per run
+# ===================================================================
+
+name: RELEASE CHANGELOG
+
+on:
+  pull_request_target:
+    types: [opened]
+    branches: ["(unknown)"]
+
+permissions:
+  contents: write
+  pull-requests: write
+  # Needed to wake follow-up workflows with workflow_dispatch (#555 — HTTP 403 without it)
+  actions: write
+
+jobs:
+  # Job 1: detect and parse the CodeRabbit Summary
+  detect-and-parse:
+    # Job names may be required status check names in branch protection, so they are not translated (#769)
+    name: CodeRabbit Summary 감지 및 파싱
+    # head guard: main is the default, so a feature PR can be opened against main by mistake.
+    # Only release PRs from this repo's develop take the automerge pipeline. (Later jobs skip in a chain via needs)
+    # pull_request_target also runs for fork PRs, and the fork decides the branch name. Check the source repo too.
+    if: github.event.pull_request.head.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    outputs:
+      summary_found: ${{ steps.detect_summary.outputs.summary_found }}
+      version: ${{ steps.get_version.outputs.version }}
+      project_type: ${{ steps.get_version.outputs.project_type }}
+      project_types: ${{ steps.get_version.outputs.project_types }}
+      changelog_provider: ${{ steps.get_version.outputs.changelog_provider }}
+      changelog_base_url: ${{ steps.get_version.outputs.changelog_base_url }}
+    steps:
+      - name: Reset PR body
+        id: clear_body
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+
+          # Right after PR opened, API replication lag can make the body look empty,
+          # so retry up to 3 times (2 seconds apart) when empty. Once a Summary is caught, the body is kept.
+          CURRENT_BODY=""
+          for attempt in 1 2 3; do
+            CURRENT_BODY=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                                "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}" | \
+                                jq -r '.body // ""')
+            if [ -n "$CURRENT_BODY" ] && [ "$CURRENT_BODY" != "null" ]; then
+              echo "[try $attempt] body length=$(echo -n "$CURRENT_BODY" | wc -c)"
+              break
+            fi
+            echo "[try $attempt] body is empty (possible replication lag), retrying"
+            sleep 2
+          done
+
+          if echo "$CURRENT_BODY" | grep -q "Summary by CodeRabbit"; then
+            echo "✅ Found 'Summary by CodeRabbit', keeping the body"
+            echo "$CURRENT_BODY" > pr_body.md
+            echo "already_found=true" >> $GITHUB_OUTPUT
+          else
+            echo "🗑️ Resetting the body of PR #$PR_NUMBER..."
+            curl -s -H "Authorization: token ${{ secrets._GITHUB_PAT_TOKEN || secrets.GITHUB_TOKEN }}" \
+                 -H "Content-Type: application/json" \
+                 -X PATCH \
+                 -d '{"body": ""}' \
+                 "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}"
+            echo "✅ PR body reset"
+            echo "already_found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Make version script executable
+        run: |
+          if [ -f ".github/scripts/version_manager.sh" ]; then
+            chmod +x .github/scripts/version_manager.sh
+            echo "✅ Version script is executable"
+          fi
+
+      - name: Read version info
+        id: get_version
+        run: |
+          VERSION="1.0.0"
+          PROJECT_TYPE="unknown"
+
+          # Use the version script
+          if [ -f ".github/scripts/version_manager.sh" ]; then
+            VERSION=$(./.github/scripts/version_manager.sh get | tail -n 1)
+          elif [ -f "version.yml" ]; then
+            VERSION=$(grep "^version:" version.yml | sed 's/version: *"\([^"]*\)".*/\1/')
+          # Fallback: per-project-type version file
+          elif [ -f "build.gradle" ]; then
+            VERSION=$(grep "version = '" build.gradle | sed "s/version = '//" | sed "s/'//")
+            PROJECT_TYPE="spring"
+          elif [ -f "pubspec.yaml" ]; then
+            VERSION=$(grep "^version:" pubspec.yaml | sed 's/version: *\([0-9.]*\).*/\1/')
+            PROJECT_TYPE="flutter"
+          elif [ -f "package.json" ]; then
+            VERSION=$(jq -r '.version' package.json)
+            PROJECT_TYPE="node"
+          elif [ -f "pyproject.toml" ]; then
+            VERSION=$(grep "^version = " pyproject.toml | sed 's/version = *"\([^"]*\)".*/\1/')
+            PROJECT_TYPE="python"
+          fi
+
+          # Multi-type — extract the project_types array as csv (v4.1.0 SSOT: the singular project_type key is not read)
+          if [ -f ".github/scripts/version_manager.py" ]; then
+            PROJECT_TYPES=$(python3 .github/scripts/version_manager.py get-types 2>/dev/null || true)
+            # #851 — version_manager interprets block lists, nested keys and comments in one place
+          else
+            PROJECT_TYPES=$(grep "^project_types:" version.yml 2>/dev/null | sed -E 's/.*\[([^]]*)\].*/\1/' | tr -d '" ' || echo "")
+          fi
+          # primary type = first array item (without the array, keep the value detected by the fallback above)
+          if [ -n "$PROJECT_TYPES" ]; then
+            PROJECT_TYPE=$(echo "$PROJECT_TYPES" | cut -d',' -f1)
+          fi
+          [ -z "$PROJECT_TYPES" ] && PROJECT_TYPES="$PROJECT_TYPE"
+
+          # Read the changelog provider (#455) — version.yml options.changelog.provider.
+          # Unset -> 3-step decision (#821), same rule as the skill's detect-release-context:
+          #   explicit value -> coderabbit (if .coderabbit.yaml exists) -> commit.
+          # Keeps existing behavior for repos using CodeRabbit and matches the canonical default (commit) otherwise.
+          # Polling was removed in #566, so coderabbit also flows "respect body -> AI/commit" on the ladder.
+          if [ -f ".github/scripts/version_manager.py" ]; then
+            CHANGELOG_PROVIDER=$(python3 .github/scripts/version_manager.py get-option changelog.provider 2>/dev/null || true)
+            # #851 — version_manager interprets block lists, nested keys and comments in one place
+          else
+            CHANGELOG_PROVIDER=$(grep -A5 "changelog:" version.yml 2>/dev/null | grep "provider:" | head -1 | sed -E 's/.*provider: *"?([a-z-]+)"?.*/\1/' || true)
+          fi
+          if [ -z "$CHANGELOG_PROVIDER" ]; then
+            if [ -f ".coderabbit.yaml" ]; then CHANGELOG_PROVIDER="coderabbit"; else CHANGELOG_PROVIDER="commit"; fi
+          fi
+          # base_url for self-hosted providers such as ollama (#455) — empty if missing
+          if [ -f ".github/scripts/version_manager.py" ]; then
+            CHANGELOG_BASE_URL=$(python3 .github/scripts/version_manager.py get-option changelog.base_url 2>/dev/null || true)
+            # #851 — version_manager interprets block lists, nested keys and comments in one place
+          else
+            CHANGELOG_BASE_URL=$(grep -A5 "changelog:" version.yml 2>/dev/null | grep "base_url:" | head -1 | sed -E 's/.*base_url: *"?([^" ]*)"?.*/\1/' || true)
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "project_type=$PROJECT_TYPE" >> $GITHUB_OUTPUT
+          echo "project_types=$PROJECT_TYPES" >> $GITHUB_OUTPUT
+          echo "changelog_provider=$CHANGELOG_PROVIDER" >> $GITHUB_OUTPUT
+          echo "changelog_base_url=$CHANGELOG_BASE_URL" >> $GITHUB_OUTPUT
+          echo "✅ Version: $VERSION, project type: $PROJECT_TYPE (all: $PROJECT_TYPES), changelog: $CHANGELOG_PROVIDER"
+
+      - name: Rename PR title
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          VERSION="${{ steps.get_version.outputs.version }}"
+          TODAY=$(date '+%Y%m%d')
+          NEW_TITLE="🚀 Deploy ${TODAY}-v${VERSION}"
+
+          curl -s -H "Authorization: token ${{ secrets._GITHUB_PAT_TOKEN || secrets.GITHUB_TOKEN }}" \
+               -H "Content-Type: application/json" \
+               -X PATCH \
+               -d "{\"title\": \"${NEW_TITLE}\"}" \
+               "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}"
+
+          echo "✅ PR title changed: $NEW_TITLE"
+
+      # No waiting (#566). It used to send @coderabbitai summary and poll for up to 10 minutes.
+      # Without a response those 10 minutes were wasted, and there was no way to tell if silence was a rate limit.
+      # Now it only does "respect it if already in the body, else generate at once" — nothing to judge, so no ambiguity.
+      # If CodeRabbit left a summary, the already_found path below uses it as is.
+      - name: Check existing summary
+        id: detect_summary
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          if [ "${{ steps.clear_body.outputs.already_found }}" = "true" ]; then
+            echo "✅ The body already has release notes, using them as they are"
+            # The pr_body.md made by clear_body disappears on the next checkout, so fetch and save it again here
+            curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                 "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}" | \
+                 jq -r '.body // ""' > pr_body.md
+            echo "summary_found=true" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️ No release notes in the body, handing over to the generation ladder"
+            echo "summary_found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload summary file
+        if: steps.detect_summary.outputs.summary_found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-content
+          path: pr_body.md
+          retention-days: 1
+
+  # Job 1-B: provider ladder — builds release notes when the PR body has none (#455, reworked in #566).
+  #   Ladder: chosen provider -> (external AI if a per-service AI key exists) -> commit.
+  #   copilot is the Copilot CLI — works with copilot-requests: write in the permissions below + GITHUB_TOKEN
+  #   (no API key). commit needs no AI or network, so it is the last resort that always finishes and
+  #   "empty release notes" never happen.
+  fallback-summary:
+    # Job names may be required status check names in branch protection, so they are not translated (#769)
+    name: 릴리스 노트 생성 (provider 사다리)
+    runs-on: ubuntu-latest
+    needs: detect-and-parse
+    if: needs.detect-and-parse.outputs.summary_found == 'false'
+    # Job-level permissions replace workflow-level ones — needed for Copilot CLI auth
+    permissions:
+      contents: read
+      pull-requests: write
+      copilot-requests: write
+    outputs:
+      summary_found: ${{ steps.generate.outputs.summary_found }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      # CLI used by the copilot provider. Not blocking if install fails, since the ladder drops to the next step.
+      - name: Install Copilot CLI
+        continue-on-error: true
+        run: npm install -g @github/copilot
+
+      - name: Generate release notes with the provider ladder
+        id: generate
+        env:
+          CHANGELOG_PROVIDER: ${{ needs.detect-and-parse.outputs.changelog_provider }}
+          CHANGELOG_BASE_URL: ${{ needs.detect-and-parse.outputs.changelog_base_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Dedicated per-service names — only registered ones get values. The ladder picks (#569).
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          MODEL_API_KEY: ${{ secrets.MODEL_API_KEY }}   # old name — backward compatible
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          # Fetch the base so commits are analyzed against the release PR base — HEAD is the development branch checkout
+          git fetch origin "${{ github.event.pull_request.base.ref }}" 2>/dev/null || true
+          # Pass it so the range is not empty in repos whose base is not main (#1114)
+          export COMMIT_RANGE="origin/${{ github.event.pull_request.base.ref }}..HEAD"
+
+          echo "🪜 Running the changelog provider ladder (provider=$CHANGELOG_PROVIDER)"
+          python3 .github/scripts/changelog_providers/ladder.py
+
+          if [ ! -f pr_body.md ]; then
+            echo "❌ Provider ladder did not finish (no pr_body.md)"
+            echo "summary_found=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # Update the PR body
+          ESCAPED=$(cat pr_body.md | jq -Rs .)
+          curl -s -H "Authorization: token ${{ secrets._GITHUB_PAT_TOKEN || secrets.GITHUB_TOKEN }}" \
+               -H "Content-Type: application/json" \
+               -X PATCH \
+               -d "{\"body\": $ESCAPED}" \
+               "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}"
+
+          echo "✅ Release notes generated and PR body updated ($(jq -r '.provider // "?"' provider_result.json 2>/dev/null))"
+          echo "summary_found=true" >> $GITHUB_OUTPUT
+
+      # Record which path produced them in the Job Summary, and comment on the PR only
+      # when no AI could be used (#566). The comment is updated by marker, so email goes out only once.
+      # A failed notice never blocks the release (the script always ends with 0).
+      - name: Report generation result
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets._GITHUB_PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          python3 .github/scripts/changelog_notice.py \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --result provider_result.json
+
+      - name: Upload fallback summary file
+        if: steps.generate.outputs.summary_found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-content
+          path: pr_body.md
+          retention-days: 1
+
+  # Job 2: update CHANGELOG
+  update-changelog:
+    # Job names may be required status check names in branch protection, so they are not translated (#769)
+    name: CHANGELOG 업데이트
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump_version.outputs.new_version }}
+    needs: [detect-and-parse, fallback-summary]
+    if: |
+      always() &&
+      (needs.detect-and-parse.outputs.summary_found == 'true' ||
+       needs.fallback-summary.outputs.summary_found == 'true')
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Configure Git
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          HEAD_BRANCH="$PR_HEAD_REF"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git pull origin $HEAD_BRANCH
+
+      # Unpacked at the working tree root it would ride along with git add -A in "commit and push changes" below and
+      # pollute the repo (#564 — pr_body.md was committed on every release since v4.4.1).
+      - name: Download summary file
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-content
+          path: ${{ runner.temp }}/pr-content
+
+      # semver auto bump option (issue #546)
+      # true when the key is missing — new and existing repos bump from commit subjects. Set semver_auto: false to turn it off.
+      - name: Read semver auto bump option
+        id: semver_options
+        run: |
+          SEMVER_AUTO=$(python3 .github/scripts/version_manager.py get-option semver_auto true 2>/dev/null || echo "true")
+          echo "semver_auto=$SEMVER_AUTO" >> $GITHUB_OUTPUT
+          echo "ℹ️ semver auto bump: $SEMVER_AUTO"
+
+      # Collect commits in the release range — kept in RUNNER_TEMP, not the working tree.
+      # The "commit and push changes" step below runs git add -A, so in the working tree it would ride along with the release commit.
+      - name: Collect release range commits
+        if: steps.semver_options.outputs.semver_auto == 'true'
+        run: |
+          # Based on the release PR base (#1114) — pinning main gives 0 commits > always patch in repos with another default branch
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          git fetch origin "$BASE_REF"
+          git log --pretty=%s "origin/${BASE_REF}..HEAD" > "$RUNNER_TEMP/commits.txt"
+          echo "ℹ️ Collected commits: $(wc -l < "$RUNNER_TEMP/commits.txt") lines"
+
+      - name: Finalize release version
+        id: bump_version
+        run: |
+          chmod +x .github/scripts/version_manager.sh
+
+          if [ "${{ steps.semver_options.outputs.semver_auto }}" = "true" ]; then
+            BUMP=$(python3 .github/scripts/changelog_manager.py classify-bump \
+                     --commits-file "$RUNNER_TEMP/commits.txt" | tail -n 1)
+          else
+            BUMP="patch"
+          fi
+          echo "ℹ️ Bump level: $BUMP"
+
+          NEW_VERSION=$(./.github/scripts/version_manager.sh increment --bump "$BUMP" | tail -n 1)
+          if [ -z "$NEW_VERSION" ]; then
+            echo "❌ Version bump failed"
+            exit 1
+          fi
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Release version finalized: $NEW_VERSION"
+
+      - name: Update PR title to the final version
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          VERSION="${{ steps.bump_version.outputs.new_version }}"
+          TODAY=$(date '+%Y%m%d')
+          NEW_TITLE="🚀 Deploy ${TODAY}-v${VERSION}"
+
+          curl -s -H "Authorization: token ${{ secrets._GITHUB_PAT_TOKEN || secrets.GITHUB_TOKEN }}" \
+               -H "Content-Type: application/json" \
+               -X PATCH \
+               -d "{\"title\": \"${NEW_TITLE}\"}" \
+               "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}"
+
+          echo "✅ PR title updated to the final version: $NEW_TITLE"
+
+      - name: Update CHANGELOG
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          VERSION="${{ steps.bump_version.outputs.new_version }}"
+          PROJECT_TYPE="${{ needs.detect-and-parse.outputs.project_type }}"
+          PROJECT_TYPES="${{ needs.detect-and-parse.outputs.project_types }}"
+          TODAY=$(date '+%Y-%m-%d')
+          TIMESTAMP=$(date '+%Y-%m-%dT%H:%M:%SZ')
+
+          echo "📝 Updating CHANGELOG..."
+          echo "📋 Project: $PROJECT_TYPE v$VERSION"
+
+          # Make the Python scripts executable
+          if [ -f ".github/scripts/changelog_manager.py" ]; then
+            chmod +x .github/scripts/changelog_manager.py
+          else
+            echo "❌ changelog_manager.py not found"
+            exit 1
+          fi
+
+          # Set env vars, then run the Python script
+          export VERSION="$VERSION"
+          export PROJECT_TYPE="$PROJECT_TYPE"
+          export PROJECT_TYPES="$PROJECT_TYPES"
+          export TODAY="$TODAY"
+          export PR_NUMBER="$PR_NUMBER"
+          export TIMESTAMP="$TIMESTAMP"
+          # The input file is outside the working tree (#564 — so it does not ride along with the commit)
+          export PR_BODY_PATH="$RUNNER_TEMP/pr-content/pr_body.md"
+
+          python3 .github/scripts/changelog_manager.py update-from-summary
+
+          echo "📄 Regenerating CHANGELOG.md..."
+          python3 .github/scripts/changelog_manager.py generate-md
+
+      - name: Commit and push changes
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          HEAD_BRANCH="$PR_HEAD_REF"
+          # bump also edits version.yml + project version files (differ per type), so stage everything.
+          # ⚠️ Every temp file made in the working tree rides along here — keep work files in $RUNNER_TEMP (#564).
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "📝 No changes"
+          else
+            REPO_NAME=$(basename "${{ github.repository }}")
+            VERSION="${{ steps.bump_version.outputs.new_version }}"
+
+            # Why no [skip ci]: this commit must become main HEAD via the develop->main merge so that
+            # deploy/sync workflows (CICD, NPM-PUBLISH, README-UPDATE, PLUGIN-SYNC) trigger on the main push.
+            # The VERSION-CONTROL safety net recognizes this commit as a release via paths-ignore(version.yml) + release_guard (version.yml change detection)
+            # and skips re-bumping, so there is no infinite loop.
+            # No workflow triggers on develop, so a develop push causes no duplicate CI.
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+            # The commit message uses the version.yml language (#787). Old installs without the catalog fall back to the old Korean text.
+            COMMIT_TITLE=$(python3 .github/scripts/i18n/messages.py get release.commit.finalize --var repo="$REPO_NAME" --var version="$VERSION" --var pr="$PR_NUMBER" 2>/dev/null) \
+              || COMMIT_TITLE="$REPO_NAME 버전 관리 : chore : v$VERSION 릴리즈 버전 확정 및 릴리즈 문서 업데이트 (PR #$PR_NUMBER)"
+            git commit -m "$COMMIT_TITLE"
+
+            # Prevent race conditions: pull-rebase, then push (up to 3 retries)
+            MAX_RETRIES=3
+            RETRY_COUNT=0
+            PUSH_SUCCESS=false
+
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              echo "🔄 Push attempt $RETRY_COUNT/$MAX_RETRIES..."
+
+              if git push origin HEAD:$HEAD_BRANCH; then
+                PUSH_SUCCESS=true
+                echo "✅ Changes committed"
+                break
+              else
+                echo "⚠️ Push failed, syncing remote changes..."
+                if git pull --rebase origin $HEAD_BRANCH; then
+                  echo "✅ Rebase succeeded, retrying push..."
+                else
+                  echo "❌ Rebase failed, resolve the conflict"
+                  git rebase --abort 2>/dev/null || true
+                  exit 1
+                fi
+              fi
+            done
+
+            if [ "$PUSH_SUCCESS" = false ]; then
+              echo "❌ Push failed after $MAX_RETRIES attempts"
+              exit 1
+            fi
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets._GITHUB_PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Merge PR branch into base
+        env:
+          GH_TOKEN: ${{ secrets._GITHUB_PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          PR_HEAD=$(gh pr view ${{ github.event.pull_request.number }} --json headRefName -q .headRefName)
+          PR_BASE=$(gh pr view ${{ github.event.pull_request.number }} --json baseRefName -q .baseRefName)
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📋 PR info:"
+          echo "  • HEAD branch: $PR_HEAD"
+          echo "  • BASE branch: $PR_BASE"
+          echo "  • Goal: merge $PR_HEAD into $PR_BASE"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # Update remote branches
+          echo "🔄 Fetching remote branches..."
+          git fetch origin $PR_HEAD
+          git fetch origin $PR_BASE
+
+          # Check out the BASE branch (main)
+          echo "📦 Checking out $PR_BASE..."
+          git checkout $PR_BASE
+          git pull origin $PR_BASE
+
+          # Fetch the latest HEAD branch (develop) changes again (prevents race conditions)
+          echo "🔄 Fetching the latest $PR_HEAD..."
+          git fetch origin $PR_HEAD
+
+          # Merge HEAD branch (develop) changes into BASE (main)
+          echo "🔀 Merging $PR_HEAD into $PR_BASE..."
+          if git merge --no-edit origin/$PR_HEAD; then
+            echo "✅ Merge succeeded"
+          else
+            echo "⚠️ Merge conflict"
+            echo "Conflicting files:"
+            git diff --name-only --diff-filter=U || true
+            echo "❌ Failed because of a merge conflict. Resolve it manually and try again."
+            exit 1
+          fi
+
+          # Push to main (triggers other workflows)
+          # Prevent race conditions: pull-rebase, then push (up to 3 retries)
+          echo "🚀 Pushing to $PR_BASE..."
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          PUSH_SUCCESS=false
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            echo "🔄 Push attempt $RETRY_COUNT/$MAX_RETRIES..."
+
+            if git push origin $PR_BASE; then
+              PUSH_SUCCESS=true
+              echo "✅ Pushed to $PR_BASE (deploy workflows triggered)"
+              break
+            else
+              echo "⚠️ Push failed, syncing remote changes..."
+              if git pull --rebase origin $PR_BASE; then
+                echo "✅ Rebase succeeded, retrying push..."
+              else
+                echo "❌ Rebase failed, resolve the conflict"
+                git rebase --abort 2>/dev/null || true
+                exit 1
+              fi
+            fi
+          done
+
+          if [ "$PUSH_SUCCESS" = false ]; then
+            echo "❌ Push failed after $MAX_RETRIES attempts"
+            exit 1
+          fi
+
+      - name: Auto merge PR
+        id: merge_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          
+          # Check whether a PAT token exists
+          if [ -z "${{ secrets._GITHUB_PAT_TOKEN }}" ]; then
+            PAT_AVAILABLE="false"
+          else
+            PAT_AVAILABLE="true"
+          fi
+          # Follow-up trigger criterion (#555): not "merged with a PAT" but "a PAT is registered".
+          # With a PAT, pushes in other steps such as branch sync go out as the PAT identity and already
+          # trigger follow-ups — adding dispatch on top would run the same workflow twice.
+          echo "pat_available=$PAT_AVAILABLE" >> $GITHUB_OUTPUT
+          
+          # Check PR state
+          PR_STATE=$(gh pr view $PR_NUMBER --json state,mergeable -q '.state + "," + (.mergeable | tostring)')
+          PR_STATE_VALUE=$(echo "$PR_STATE" | cut -d',' -f1)
+          PR_MERGEABLE=$(echo "$PR_STATE" | cut -d',' -f2)
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📋 PR status:"
+          echo "  • State: $PR_STATE_VALUE"
+          echo "  • Mergeable: $PR_MERGEABLE"
+          echo "  • PAT available: $PAT_AVAILABLE"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          if [ "$PR_STATE_VALUE" = "CLOSED" ] || [ "$PR_STATE_VALUE" = "MERGED" ]; then
+            echo "✅ The PR is already closed or merged"
+            exit 0
+          fi
+
+          if [ "$PR_MERGEABLE" != "true" ]; then
+            echo "⚠️ The PR cannot be merged through the GitHub API"
+            echo "💡 The 'Merge PR branch into base' step already applied the changes to ${{ github.event.pull_request.base.ref }}"
+            echo "📝 Updating the PR..."
+            
+            # Add a PR comment — text follows the version.yml language (options.language) (#769).
+            # Old installs without the catalog fall back to the old Korean text.
+            export GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
+            APPLIED_COMMENT=$(python3 .github/scripts/i18n/messages.py get release.comment.applied_to_base --var base="${{ github.event.pull_request.base.ref }}" 2>/dev/null) \
+              || APPLIED_COMMENT="✅ 변경사항이 자동으로 ${{ github.event.pull_request.base.ref }} 브랜치에 적용되었습니다. PR을 수동으로 닫아주세요."
+            gh pr comment $PR_NUMBER --body "$APPLIED_COMMENT"
+            
+            echo "✅ PR updated"
+            exit 0
+          fi
+
+          # Tracks whether the merge succeeded
+          MERGE_SUCCESS="false"
+
+          # Attempt 1: merge with GITHUB_TOKEN (without --admin)
+          echo ""
+          echo "🔀 Attempt 1: merging the PR with GITHUB_TOKEN..."
+          export GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
+          
+          MERGE_OUTPUT=$(gh pr merge $PR_NUMBER --merge --delete-branch=false 2>&1)
+          MERGE_EXIT_CODE=$?
+          
+          if [ $MERGE_EXIT_CODE -eq 0 ] && echo "$MERGE_OUTPUT" | grep -q "merged\|Merged"; then
+            echo "✅ Merged the PR with GITHUB_TOKEN"
+            MERGE_SUCCESS="true"
+          else
+            echo "⚠️ Merge with GITHUB_TOKEN failed"
+            echo "   Output: $MERGE_OUTPUT"
+            
+            # Recheck PR state (another process may have merged it)
+            PR_STATE_CHECK=$(gh pr view $PR_NUMBER --json state -q .state)
+            if [ "$PR_STATE_CHECK" = "MERGED" ]; then
+              echo "✅ The PR is already merged"
+              MERGE_SUCCESS="true"
+            fi
+          fi
+
+          # Attempt 2: retry with the PAT token (with the --admin flag)
+          if [ "$MERGE_SUCCESS" = "false" ] && [ "$PAT_AVAILABLE" = "true" ]; then
+            echo ""
+            echo "🔀 Attempt 2: merging the PR with the PAT (--admin)..."
+            export GH_TOKEN=${{ secrets._GITHUB_PAT_TOKEN }}
+            
+            MERGE_OUTPUT=$(gh pr merge $PR_NUMBER --merge --admin --delete-branch=false 2>&1)
+            MERGE_EXIT_CODE=$?
+            
+            if [ $MERGE_EXIT_CODE -eq 0 ] && echo "$MERGE_OUTPUT" | grep -q "merged\|Merged"; then
+              echo "✅ Merged the PR with the PAT"
+              MERGE_SUCCESS="true"
+              # A PAT push triggers follow-up workflows normally -> no explicit dispatch needed (#551)
+              echo "merged_with_pat=true" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Merge with the PAT failed too"
+              echo "   Output: $MERGE_OUTPUT"
+              
+              # Recheck PR state
+              PR_STATE_CHECK=$(gh pr view $PR_NUMBER --json state -q .state)
+              if [ "$PR_STATE_CHECK" = "MERGED" ]; then
+                echo "✅ The PR is already merged"
+                MERGE_SUCCESS="true"
+              fi
+            fi
+          fi
+
+          # Final failure handling
+          if [ "$MERGE_SUCCESS" = "false" ]; then
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "❌ PR auto merge failed"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            if [ "$PAT_AVAILABLE" = "false" ]; then
+              echo ""
+              echo "⚠️ No PAT is configured."
+              echo ""
+              echo "📋 How to fix:"
+              echo "1. Create a Personal Access Token on GitHub"
+              echo "   - https://github.com/settings/tokens"
+              echo "   - Scope: repo (full)"
+              echo ""
+              echo "2. Add it to Repository Secrets"
+              echo "   - Settings > Secrets and variables > Actions"
+              echo "   - New repository secret"
+              echo "   - Name: _GITHUB_PAT_TOKEN"
+              echo "   - Value: the token you created"
+              echo ""
+              echo "or"
+              echo ""
+              echo "3. Adjust Branch Protection Rules"
+              echo "   - Settings > Branches > Branch protection rules"
+              echo "   - 'Allow specified actors to bypass required pull requests'"
+              echo "   - Add the GitHub Actions bot as an exception"
+              echo ""
+            else
+              echo ""
+              echo "⚠️ Merge failed with both GITHUB_TOKEN and the PAT."
+              echo ""
+              echo "📋 Possible causes:"
+              echo "1. Branch Protection Rules are too strict"
+              echo "2. The PR has conflicts"
+              echo "3. Required status checks have not passed"
+              echo "4. Required review approval is missing"
+              echo ""
+            fi
+            
+            # Add a PR comment — per-language text; old Korean text when the catalog is missing (#769)
+            export GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
+            ERROR_COMMENT=$(python3 .github/scripts/i18n/messages.py get release.comment.merge_failed 2>/dev/null) \
+              || ERROR_COMMENT="❌ 자동 병합 실패. 수동으로 병합해주세요."
+            if [ "$PAT_AVAILABLE" = "false" ]; then
+              ERROR_COMMENT=$(python3 .github/scripts/i18n/messages.py get release.comment.merge_failed_no_pat 2>/dev/null) \
+                || ERROR_COMMENT="❌ 자동 병합 실패: PAT 토큰이 설정되어 있지 않습니다. Settings > Secrets에 \`_GITHUB_PAT_TOKEN\`을 등록하거나 Branch Protection Rules에서 GitHub Actions bot을 예외로 추가해주세요."
+            fi
+            gh pr comment $PR_NUMBER --body "$ERROR_COMMENT"
+            
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ PR auto merge done"
+
+      - name: Trigger follow-up workflows (merged without PAT)
+        # Pushes made by GITHUB_TOKEN do not re-trigger workflows (prevents infinite loops).
+        # workflow_dispatch triggers with GITHUB_TOKEN too, so wake them directly that way (#551).
+        # Repos with a registered PAT push as the PAT identity and follow-ups are already triggered -> skip (#555).
+        if: steps.merge_pr.outputs.pat_available != 'true'
+        continue-on-error: true   # the release is already done — a failure here must not block the pipeline
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}   # for the all-failed notice (#555)
+        run: |
+          python3 .github/scripts/dispatch_downstream.py dispatch \
+            --repo "${{ github.repository }}" \
+            --branch "${{ github.event.pull_request.base.ref }}"
+
+      - name: Create release tag
+        run: |
+          # ⚠️ This step is **inside** the update-changelog job. Reading its own job via needs
+          # always gives an empty string and the tag becomes "v" — in fact from v4.8.0
+          # 11 releases silently lost their tags that way (#545). Outputs of the same job
+          # are read via steps.<id>.outputs.
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
+
+          # An empty version makes TAG_NAME "v", pushing a tag named just v
+          # and reporting **success** as "Created release tag: v". That path silently loses
+          # a release, so stop here (#545 — "a missing tag shows as failure").
+          if [ -z "$NEW_VERSION" ]; then
+            echo "::error::Release version is empty, stopping without creating a tag."
+            echo "Check the version finalize step of the update-changelog job."
+            exit 1
+          fi
+          if ! printf '%s' "$NEW_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Release version is not semver: '$NEW_VERSION'"
+            exit 1
+          fi
+
+          TAG_NAME="v$NEW_VERSION"
+          BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+
+          git fetch origin $BASE_BRANCH
+          git checkout $BASE_BRANCH
+          git pull origin $BASE_BRANCH
+
+          if git tag -l | grep -q "^$TAG_NAME$"; then
+            echo "⚠️ Tag $TAG_NAME already exists, skipping"
+          else
+            git tag "$TAG_NAME"
+            git push origin "$TAG_NAME"
+            echo "✅ Created release tag: $TAG_NAME"
+          fi
+
+          # Check that what was pushed actually exists on the remote. If push fails silently,
+          # everything up to here is green but the tag is missing.
+          if ! git ls-remote --tags origin "refs/tags/$TAG_NAME" | grep -q "$TAG_NAME"; then
+            echo "::error::Tag $TAG_NAME is not on the remote, the release is missing."
+            exit 1
+          fi
+
+      - name: Report release completion
+        run: |
+          echo "🎉 Changelog updated and deploy triggered"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📋 Release info:"
+          echo "  • Version: ${{ steps.bump_version.outputs.new_version }}"
+          echo "  • Project: ${{ needs.detect-and-parse.outputs.project_type }}"
+          echo "  • PR: #${{ github.event.pull_request.number }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -1,0 +1,18 @@
+plugins {
+    id 'java-library'
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+dependencies {
+    api project(':SB-Common')
+    api project(':SB-Domain-Member')
+    api project(':SB-Domain-Advisory')
+    api project(':SB-Application')
+}
+
+tasks.named('bootJar') {
+    archiveFileName = 'app.jar'
+    // 비밀 설정 jar 제외 (이미지 유출 방지): 운영은 호스트 config/ 를 /app/config 로 마운트해 읽음
+    exclude 'application-prod.yml', 'application-dev.yml'
+}

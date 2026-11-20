@@ -1,0 +1,56 @@
+# ===================================================================
+# PROJECT-COMMON-CLOSE-ISSUES-ON-RELEASE.yaml
+# Close finished issues when a release ships (#771)
+# ===================================================================
+#
+# The policy "finished issues get a label but stay open" came from Projects sync being label-based,
+# but open issues piled up and visitors saw an abandoned project. So instead of people closing them,
+# this workflow closes them when the release is merged into main. The label still marks completion.
+#
+# Close conditions (all must hold)
+#   1. metadata.template.options.close_on_release in version.yml is true
+#      (without the key it does nothing — existing installs keep the current behavior)
+#   2. a commit message in the release range references the issue URL
+#   3. the issue has a done label (status: done or 작업완료)
+#
+# Projects sync runs on the label's labeled event, so it does not clash with closing issues.
+# A release merged without a PAT fires no push trigger, so dispatch_downstream.py
+# wakes this workflow with workflow_dispatch (#551) — then the range is the merged release PR's commits (#791).
+# Tags are not used to guess: the release workflow creates this release's tag first and then wakes us.
+# ===================================================================
+
+name: CLOSE ISSUES ON RELEASE
+
+on:
+  push:
+    branches: ["(unknown)"]
+  workflow_dispatch:
+
+concurrency:
+  group: close-issues-on-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read   # list the release PR's commits (#791)
+
+jobs:
+  close-done-issues:
+    runs-on: ubuntu-latest
+    # No need to run on pushes made by the automatic version commit ([skip ci])
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Close completed issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 .github/scripts/close_issues_on_release.py \
+            --repo "${{ github.repository }}" \
+            --before "${{ github.event.before }}" \
+            --after "${{ github.sha }}"

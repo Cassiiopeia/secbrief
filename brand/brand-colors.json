@@ -1,0 +1,40 @@
+{
+  "_source": "E 스트림 시안 확정값 (2026-11-20). app/lib/presentation/design/tokens/sb_colors.dart 와 함께 바꾼다",
+  "accent": {
+    "light": "#3CFFD0",
+    "dark": "#3CFFD0"
+  },
+  "onAccent": {
+    "light": "#131313",
+    "dark": "#131313"
+  },
+  "feature": {
+    "light": "#5200FF",
+    "dark": "#5200FF"
+  },
+  "onFeature": {
+    "light": "#FFFFFF",
+    "dark": "#FFFFFF"
+  },
+  "background": {
+    "light": "#F4F4F0",
+    "dark": "#131313"
+  },
+  "surface": {
+    "light": "#FFFFFF",
+    "dark": "#1D1D1D"
+  },
+  "surfaceRaised": {
+    "light": "#E9E9E4",
+    "dark": "#2D2D2D"
+  },
+  "label": {
+    "light": "#131313",
+    "dark": "#FFFFFF"
+  },
+  "appIconBackground": "#131313",
+  "splashBackground": {
+    "light": "#F4F4F0",
+    "dark": "#131313"
+  }
+}

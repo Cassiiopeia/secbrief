@@ -1,0 +1,465 @@
+# ===================================================================
+# Spring Boot zero-downtime deploy (Traefik Blue-Green, SSH + Docker)
+# ===================================================================
+#
+# On a push to the deploy branch, builds the Docker image and
+# deploys with zero downtime to a server (an SSH-reachable host) via a Traefik label-based Blue-Green toggle.
+#
+# This workflow is the zero-downtime deploy option.
+# The default deploy is PROJECT-SPRING-SIMPLE-CICD.yaml.
+# To switch, uncomment push.branches below + comment out the push trigger in SIMPLE-CICD.
+#
+# ===================================================================
+# 🔑 Required GitHub Secrets
+# ===================================================================
+# APPLICATION_PROD_YML (optional): contents of application-prod.yml
+# DOCKERHUB_USERNAME: DockerHub user name
+# DOCKERHUB_TOKEN: DockerHub access token
+# SERVER_HOST: deploy server address
+# SERVER_USER: SSH user name
+# SERVER_PASSWORD: SSH password (when SSH_AUTH_METHOD=password)
+# SSH_KEY: SSH private key .pem contents (when SSH_AUTH_METHOD=key, AWS EC2 etc.)
+# ===================================================================
+#
+# 🔧 Environment settings (set in the env section)
+# ===================================================================
+#
+# 🌐 Ports and container:
+# PROJECT_NAME: project name (container/image/Traefik router name)
+# SERVICE_DOMAIN: external entry domain
+# CONTAINER_INTERNAL_PORT: Spring Boot internal port (default: 8080)
+#
+# 🚦 Traefik:
+# TRAEFIK_NETWORK: Traefik docker network (default: traefik-network)
+# TRAEFIK_ENTRYPOINT: Traefik entrypoint name (default: web)
+# TRAEFIK_INTERNAL_PORT: Traefik entry port on the NAS host (default: 8079)
+# EXTRA_NETWORKS: extra docker networks (space-separated, e.g. selenium-chrome-network)
+#
+# 📦 Volume/storage:
+# ENABLE_VOLUME_MOUNT: whether to mount a volume (true/false)
+# VOLUME_HOST_PATH: host volume path
+# VOLUME_CONTAINER_PATH: mount path inside the container
+#
+# 🔌 SSH connection:
+# SSH_PORT: SSH port (default: 2022)
+# SSH_COMMAND_TIMEOUT: command timeout (default: 600s)
+# SSH_CONNECTION_TIMEOUT: connection timeout (default: 60s)
+#
+# ⏱️ Health check:
+# HEALTHCHECK_PATH: GET path called through Traefik (default: /)
+# HEALTHCHECK_ACCEPT_CODES: HTTP codes accepted as passing (| separated, default: 200|301|302|308)
+# HEALTHCHECK_MAX_RETRIES: max attempts (default: 36)
+# HEALTHCHECK_RETRY_INTERVAL: retry interval in seconds (default: 5)
+# IN_FLIGHT_WAIT: seconds to wait before removing the old container (default: 10)
+#
+# 💡 Prerequisites:
+#   - a Traefik container must be running on traefik-network on the deploy server
+#   - reverse proxy: ${SERVICE_DOMAIN}:443 → localhost:${TRAEFIK_INTERNAL_PORT}
+#     (e.g. Synology DSM reverse proxy, Nginx, Caddy)
+# ===================================================================
+
+name: PROJECT-SPRING-NONSTOP-TRAEFIK-CICD
+
+# ===================================================================
+# Trigger settings
+# ===================================================================
+# The automatic trigger on deploy branch push is commented out.
+# To switch to this workflow, uncomment push.branches below.
+on:
+  # push:
+  #   branches:
+  #     - main
+  workflow_dispatch:
+
+permissions:
+  # GITHUB_TOKEN only reads. Declaring it keeps this workflow from gaining more permissions than needed
+  # even if the repo default later changes to write (#595).
+  contents: read
+
+# ===================================================================
+# Environment variables
+# ===================================================================
+env:
+  # 🔧 Project settings - change to your real project name
+  PROJECT_NAME: "secbrief"
+  SERVICE_DOMAIN: "__SERVICE_DOMAIN__"  # @wizard ask:example.com
+
+  # ☁️ Spring Boot settings
+  SPRING_PROFILE: "prod"
+  JAVA_VERSION: "21"
+  GRADLE_OPTS: "-Dspring.profiles.active=prod"
+
+  # 📁 Path settings
+  APPLICATION_YML_DIR: "server/SB-Web/src/main/resources"
+  DOCKERFILE_PATH: "./Dockerfile"
+
+  # 🌐 Port and container settings
+  CONTAINER_INTERNAL_PORT: "8080"
+
+  # 🚦 Traefik settings (do not change after the server's Traefik environment is set up)
+  TRAEFIK_NETWORK: "traefik-network"
+  TRAEFIK_ENTRYPOINT: "web"
+  TRAEFIK_INTERNAL_PORT: "8079"
+  EXTRA_NETWORKS: ""
+
+  # 📦 Volume mount settings
+  ENABLE_VOLUME_MOUNT: "false"
+  VOLUME_HOST_PATH: "/volume1/projects/secbrief"
+  VOLUME_CONTAINER_PATH: "/mnt/secbrief"
+
+  # 🔐 SSH auth method: "password" (Synology, regular servers) | "key" (AWS EC2, .pem)
+  #   password → uses the SERVER_PASSWORD secret
+  #   key      → uses the SSH_KEY secret (the full .pem file contents as the secret value)
+  SSH_AUTH_METHOD: "password"
+
+  # 🔌 SSH connection settings
+  SSH_PORT: "2022"
+  SSH_COMMAND_TIMEOUT: "600s"
+  SSH_CONNECTION_TIMEOUT: "60s"
+
+  # ⏱️ Health check settings
+  HEALTHCHECK_PATH: "/"
+  HEALTHCHECK_ACCEPT_CODES: "200|301|302|308"
+  HEALTHCHECK_MAX_RETRIES: "36"
+  HEALTHCHECK_RETRY_INTERVAL: "5"
+  IN_FLIGHT_WAIT: "10"
+
+jobs:
+  # ===================================================================
+  # Build job
+  # ===================================================================
+  build:
+    name: Build Spring Boot application
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Make Gradle Wrapper executable
+        run: chmod +x gradlew
+
+      - name: Create application-prod.yml
+        env:
+          APPLICATION_PROD_YML: ${{ secrets.APPLICATION_PROD_YML }}
+        run: |
+          mkdir -p ${{ env.APPLICATION_YML_DIR }}
+          printf '%s\n' "$APPLICATION_PROD_YML" > ./${{ env.APPLICATION_YML_DIR }}/application-prod.yml
+          echo "✅ application-prod.yml file created (${{ env.APPLICATION_YML_DIR }})"
+
+      - name: Build with Gradle
+        run: ./gradlew clean build -x test ${{ env.GRADLE_OPTS }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('Dockerfile') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE_PATH }}
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.PROJECT_NAME }}:${{ github.ref_name }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      - name: Move Docker cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  # ===================================================================
+  # Deploy job (Blue-Green, zero downtime)
+  # ===================================================================
+  deploy:
+    name: Blue-Green zero-downtime deploy
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
+        env:
+          PROJECT_NAME: ${{ env.PROJECT_NAME }}
+          SERVICE_DOMAIN: ${{ env.SERVICE_DOMAIN }}
+          CONTAINER_INTERNAL_PORT: ${{ env.CONTAINER_INTERNAL_PORT }}
+          SPRING_PROFILE: ${{ env.SPRING_PROFILE }}
+          ENABLE_VOLUME_MOUNT: ${{ env.ENABLE_VOLUME_MOUNT }}
+          VOLUME_HOST_PATH: ${{ env.VOLUME_HOST_PATH }}
+          VOLUME_CONTAINER_PATH: ${{ env.VOLUME_CONTAINER_PATH }}
+          EXTRA_NETWORKS: ${{ env.EXTRA_NETWORKS }}
+          TRAEFIK_NETWORK: ${{ env.TRAEFIK_NETWORK }}
+          TRAEFIK_ENTRYPOINT: ${{ env.TRAEFIK_ENTRYPOINT }}
+          TRAEFIK_INTERNAL_PORT: ${{ env.TRAEFIK_INTERNAL_PORT }}
+          HEALTHCHECK_PATH: ${{ env.HEALTHCHECK_PATH }}
+          HEALTHCHECK_ACCEPT_CODES: ${{ env.HEALTHCHECK_ACCEPT_CODES }}
+          HEALTHCHECK_MAX_RETRIES: ${{ env.HEALTHCHECK_MAX_RETRIES }}
+          HEALTHCHECK_RETRY_INTERVAL: ${{ env.HEALTHCHECK_RETRY_INTERVAL }}
+          IN_FLIGHT_WAIT: ${{ env.IN_FLIGHT_WAIT }}
+          BRANCH_REF: ${{ github.ref_name }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+          SSH_AUTH_METHOD: ${{ env.SSH_AUTH_METHOD }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ env.SSH_PORT }}
+          command_timeout: ${{ env.SSH_COMMAND_TIMEOUT }}
+          timeout: ${{ env.SSH_CONNECTION_TIMEOUT }}
+          envs: PROJECT_NAME,SERVICE_DOMAIN,CONTAINER_INTERNAL_PORT,SPRING_PROFILE,ENABLE_VOLUME_MOUNT,VOLUME_HOST_PATH,VOLUME_CONTAINER_PATH,EXTRA_NETWORKS,TRAEFIK_NETWORK,TRAEFIK_ENTRYPOINT,TRAEFIK_INTERNAL_PORT,HEALTHCHECK_PATH,HEALTHCHECK_ACCEPT_CODES,HEALTHCHECK_MAX_RETRIES,HEALTHCHECK_RETRY_INTERVAL,IN_FLIGHT_WAIT,BRANCH_REF,DOCKERHUB_USERNAME,SERVER_PASSWORD,SSH_AUTH_METHOD
+          script: |
+            set -e
+            export PATH=$PATH:/usr/local/bin
+            export PW="${SERVER_PASSWORD}"
+
+            # 🔐 sudo abstraction per SSH auth method
+            SSH_AUTH_METHOD="${SSH_AUTH_METHOD:-password}"
+            if [ "${SSH_AUTH_METHOD}" = "key" ]; then
+              SUDO() { sudo "$@"; }
+            else
+              SUDO() { echo "$PW" | sudo -S "$@"; }
+            fi
+            echo "🔐 SSH auth method: ${SSH_AUTH_METHOD}"
+
+            IMAGE="${DOCKERHUB_USERNAME}/${PROJECT_NAME}:${BRANCH_REF}"
+            ROUTER_NAME="${PROJECT_NAME}"
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🚀 Starting Blue-Green zero-downtime deploy"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "📦 Project: ${PROJECT_NAME}"
+            echo "🌐 Domain: ${SERVICE_DOMAIN}"
+            echo "🖼️ Image: ${IMAGE}"
+            echo "🔧 Traefik entry: localhost:${TRAEFIK_INTERNAL_PORT} (entrypoint=${TRAEFIK_ENTRYPOINT})"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            # ============================================================
+            # 1. Pull the latest image
+            # ============================================================
+            echo "📥 Pulling image: ${IMAGE}"
+            SUDO docker pull "${IMAGE}"
+
+            # ============================================================
+            # 2. Find the current active container color (by whether it has Traefik labels)
+            # ============================================================
+            ACTIVE=$(SUDO docker ps \
+              --filter "label=traefik.http.routers.${ROUTER_NAME}.rule" \
+              --filter "name=${PROJECT_NAME}-" \
+              --format "{{.Names}}" | head -1 || echo "")
+
+            if [ "$ACTIVE" = "${PROJECT_NAME}-blue" ]; then
+              NEW_COLOR="green"
+              OLD_COLOR="blue"
+            elif [ "$ACTIVE" = "${PROJECT_NAME}-green" ]; then
+              NEW_COLOR="blue"
+              OLD_COLOR="green"
+            else
+              # First deploy or no active one → start from blue
+              NEW_COLOR="blue"
+              OLD_COLOR="green"
+            fi
+
+            NEW_NAME="${PROJECT_NAME}-${NEW_COLOR}"
+            OLD_NAME="${PROJECT_NAME}-${OLD_COLOR}"
+
+            echo "🎨 active=${ACTIVE:-none} → new=${NEW_NAME}, old=${OLD_NAME}"
+
+            # ============================================================
+            # 3. Clean up a leftover container in the same slot (idle side)
+            # ============================================================
+            echo "🗑️ Cleaning up idle slot: ${NEW_NAME}"
+            SUDO docker rm -f "${NEW_NAME}" 2>/dev/null || true
+
+            # ============================================================
+            # 4. Build volume mount options
+            # ============================================================
+            VOLUME_MOUNT_OPTION="-v /etc/localtime:/etc/localtime:ro"
+            if [ "${ENABLE_VOLUME_MOUNT}" = "true" ]; then
+              if [ ! -d "${VOLUME_HOST_PATH}" ]; then
+                echo "📁 Creating volume mount directory: ${VOLUME_HOST_PATH}"
+                SUDO mkdir -p "${VOLUME_HOST_PATH}"
+              fi
+              VOLUME_MOUNT_OPTION="${VOLUME_MOUNT_OPTION} -v ${VOLUME_HOST_PATH}:${VOLUME_CONTAINER_PATH}"
+              echo "📦 Volume mount enabled: ${VOLUME_HOST_PATH} → ${VOLUME_CONTAINER_PATH}"
+            else
+              echo "ℹ️ Volume mount disabled"
+            fi
+
+            # ============================================================
+            # 5. Start the new container (with Traefik labels)
+            # ============================================================
+            # Traefik takes containers out of routing until Docker HEALTHCHECK reports healthy.
+            # Without it, traffic arrives right after docker run (the seconds while the app starts) and gives Bad Gateway (#733 measured).
+            # It is container config, not a label, so the old container and Traefik config never disagree (the first deploy after an upgrade is safe too).
+            # Uses curl → wget → bash TCP in that order, and passes if no tool exists (no check, old behavior).
+            HEALTH_URL="http://127.0.0.1:${CONTAINER_INTERNAL_PORT}${HEALTHCHECK_PATH}"
+            # With /tmp/.pops-drain present it is deliberately unhealthy — so Traefik drops the old container from routing first during a swap
+            HEALTH_CMD="[ -f /tmp/.pops-drain ] && exit 1; if command -v curl >/dev/null 2>&1; then curl -fsS -o /dev/null ${HEALTH_URL}; elif command -v wget >/dev/null 2>&1; then wget -q -O /dev/null ${HEALTH_URL}; elif command -v bash >/dev/null 2>&1; then bash -c 'exec 3<>/dev/tcp/127.0.0.1/${CONTAINER_INTERNAL_PORT}'; else exit 0; fi"
+
+            echo "🐳 Starting new container: ${NEW_NAME}"
+              # Bring the service back automatically after a server reboot or Docker restart (#727)
+            SUDO docker run -d \
+              --name "${NEW_NAME}" \
+              --restart unless-stopped \
+              --health-cmd "${HEALTH_CMD}" \
+              --health-interval 2s \
+              --health-timeout 3s \
+              --health-retries 3 \
+              --network "${TRAEFIK_NETWORK}" \
+              --label "traefik.enable=true" \
+              --label "traefik.http.routers.${ROUTER_NAME}.rule=Host(\`${SERVICE_DOMAIN}\`)" \
+              --label "traefik.http.routers.${ROUTER_NAME}.entrypoints=${TRAEFIK_ENTRYPOINT}" \
+              --label "traefik.http.services.${ROUTER_NAME}.loadbalancer.server.port=${CONTAINER_INTERNAL_PORT}" \
+              -e TZ=Asia/Seoul \
+              -e "SPRING_PROFILES_ACTIVE=${SPRING_PROFILE}" \
+              ${VOLUME_MOUNT_OPTION} \
+              "${IMAGE}"
+
+            # ============================================================
+            # 6. Connect extra networks (EXTRA_NETWORKS, space-separated)
+            # ============================================================
+            if [ -n "${EXTRA_NETWORKS}" ]; then
+              for net in ${EXTRA_NETWORKS}; do
+                echo "🔗 Connecting extra network: ${net}"
+                SUDO docker network connect "${net}" "${NEW_NAME}" 2>/dev/null || true
+              done
+            fi
+
+            # ============================================================
+            # 7. Debug-print Traefik labels (to verify escaping)
+            # ============================================================
+            echo "🔍 Traefik labels:"
+            SUDO docker inspect "${NEW_NAME}" --format '{{range $k, $v := .Config.Labels}}  {{$k}} = {{$v}}{{"\n"}}{{end}}' | grep traefik || true
+
+            # ============================================================
+            # 8. Health check — confirm routing through Traefik
+            # ============================================================
+            MAX_WAIT=$((HEALTHCHECK_MAX_RETRIES * HEALTHCHECK_RETRY_INTERVAL))
+            echo "⏳ Starting health check (up to ${MAX_WAIT}s, ${HEALTHCHECK_MAX_RETRIES} tries × ${HEALTHCHECK_RETRY_INTERVAL}s)"
+
+            RETRY_COUNT=0
+            HEALTHCHECK_SUCCESS=false
+
+            while [ $RETRY_COUNT -lt $HEALTHCHECK_MAX_RETRIES ]; do
+              sleep ${HEALTHCHECK_RETRY_INTERVAL}
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+
+              STATUS=$(SUDO docker inspect --format='{{.State.Status}}' "${NEW_NAME}" 2>/dev/null || echo "not_found")
+
+              if [ "$STATUS" = "exited" ]; then
+                echo "❌ Container exited unexpectedly. Last 200 log lines:"
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                SUDO docker logs --tail 200 "${NEW_NAME}"
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo "ℹ️ Keeping container ${NEW_NAME} (not removed automatically) — for manual checks and debugging"
+                echo "ℹ️ old=${OLD_NAME} stays as it is if present → effectively an automatic rollback"
+                exit 1
+              fi
+
+              if [ "$STATUS" = "running" ]; then
+                HTTP_CODE=$(curl -sm 5 -o /dev/null -w "%{http_code}" \
+                  -H "Host: ${SERVICE_DOMAIN}" \
+                  "http://localhost:${TRAEFIK_INTERNAL_PORT}${HEALTHCHECK_PATH}" 2>/dev/null || echo "000")
+
+                if echo "$HTTP_CODE" | grep -Eq "^(${HEALTHCHECK_ACCEPT_CODES})$"; then
+                  echo "✅ Health check passed (${RETRY_COUNT}/${HEALTHCHECK_MAX_RETRIES}) HTTP=${HTTP_CODE}"
+                  HEALTHCHECK_SUCCESS=true
+                  break
+                fi
+              fi
+
+              echo "⏳ Waiting (${RETRY_COUNT}/${HEALTHCHECK_MAX_RETRIES}) status=${STATUS} http=${HTTP_CODE:-?}"
+            done
+
+            if [ "$HEALTHCHECK_SUCCESS" = "false" ]; then
+              echo "❌ Health check timed out (${MAX_WAIT}s)"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "🔍 Last 200 log lines of ${NEW_NAME}:"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              SUDO docker logs --tail 200 "${NEW_NAME}"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "ℹ️ Keeping container ${NEW_NAME} (not removed automatically) — for manual checks and debugging"
+              echo "ℹ️ old=${OLD_NAME} stays as it is if present → effectively an automatic rollback"
+              exit 1
+            fi
+
+            # ============================================================
+            # 9. Handle in-flight requests + remove the old container automatically
+            # ============================================================
+            if SUDO docker ps -a --format '{{.Names}}' | grep -Eq "^${OLD_NAME}$"; then
+              # This deploy's previous image ID — only this is removed below (a server-wide prune removes other projects' images, #734)
+              OLD_IMAGE_ID=$(SUDO docker inspect --format '{{.Image}}' "${OLD_NAME}" 2>/dev/null || true)
+              # Make the old container unhealthy so Traefik drops it from routing first (applies to containers deployed by this template;
+              # older containers have no health check, so nothing happens and the old behavior applies). Reduces 502s at removal (#733).
+              SUDO docker exec "${OLD_NAME}" touch /tmp/.pops-drain >/dev/null 2>&1 || true
+              echo "⏱️ Waiting for in-flight requests (${IN_FLIGHT_WAIT}s)"
+              sleep ${IN_FLIGHT_WAIT}
+              echo "🗑️ Removing old=${OLD_NAME}"
+              SUDO docker rm -f "${OLD_NAME}"
+              if [ -n "${OLD_IMAGE_ID}" ]; then
+                if SUDO docker rmi "${OLD_IMAGE_ID}" >/dev/null 2>&1; then
+                  echo "🧹 Removing the previous image: ${OLD_IMAGE_ID}"
+                else
+                  echo "ℹ️ Keeping the previous image, another container uses it"
+                fi
+              fi
+            else
+              echo "ℹ️ No old=${OLD_NAME} — skipping cleanup"
+            fi
+
+            # Image cleanup above removed only this deploy's previous image.
+            # No server-wide prune (docker image prune -af): it would remove other projects' images on the same server (#734).
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "✅ Zero-downtime deploy complete. active=${NEW_NAME}"
+            echo "🌐 Domain: https://${SERVICE_DOMAIN}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# ===================================================================
+# 📝 How to use
+# ===================================================================
+#
+# 1) Register GitHub Secrets:
+#    APPLICATION_PROD_YML, DOCKERHUB_USERNAME, DOCKERHUB_TOKEN,
+#    SERVER_HOST, SERVER_USER, SERVER_PASSWORD
+#
+# 2) Edit per-project settings in this workflow's env block:
+#    - PROJECT_NAME, SERVICE_DOMAIN
+#    - APPLICATION_YML_DIR, CONTAINER_INTERNAL_PORT
+#    - ENABLE_VOLUME_MOUNT, VOLUME_HOST_PATH, VOLUME_CONTAINER_PATH
+#    - EXTRA_NETWORKS (e.g. selenium-chrome-network)
+#    - HEALTHCHECK_PATH, HEALTHCHECK_ACCEPT_CODES
+#
+# 3) Prepare the server:
+#    - a Traefik container must be running on traefik-network
+#    - reverse proxy: ${SERVICE_DOMAIN}:443 → localhost:${TRAEFIK_INTERNAL_PORT}
+#      (e.g. Synology DSM reverse proxy, Nginx, Caddy)
+#
+# 4) Switch to this workflow:
+#    - uncomment push.branches in this file
+#    - comment out the push trigger in PROJECT-SPRING-SIMPLE-CICD.yaml
+#
+# ===================================================================
