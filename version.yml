@@ -40,15 +40,15 @@
 # - 버전은 항상 높은 버전으로 자동 동기화됩니다
 # ===================================================================
 
-version: "0.0.1"
-version_code: 1 # app build number
+version: "0.0.2"
+version_code: 2 # app build number
 project_types: ["spring","react-native-expo"]   # 멀티타입 배열 — 첫 항목이 primary, 직접 편집 가능
 project_paths:                # 타입별 프로젝트 폴더 (레포 루트 기준 상대경로)
   spring: "server"   # server/build.gradle
   react-native-expo: "mobile"   # mobile/app.json
 metadata:
-  last_updated: "2026-11-20 07:58:19"
-  last_updated_by: "SUH SAECHAN"
+  last_updated: "2026-11-20 08:51:06"
+  last_updated_by: "Cassiiopeia"
   default_branch: "main"
   development_branch: "main"
   deploy_branch: "main"   # development_branch 의 구 이름 — 구버전 스킬용으로 같은 값 유지
