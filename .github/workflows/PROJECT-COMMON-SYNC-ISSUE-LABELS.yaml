@@ -20,7 +20,7 @@ on:
     # The paths filter is not evaluated on a new repo's first push (#668 measured: no labels in org or personal repos),
     # so labels were never created right after install. Keep only the branch condition and run on every main push.
     # The sync is idempotent (skip-delete) and serialized by concurrency, so repeated runs are safe.
-    branches: [(unknown)]
+    branches: [main]
 
 # If main and develop are pushed at once, both try to create the same label and one fails — run in order (wait)
 concurrency:

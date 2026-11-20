@@ -23,7 +23,7 @@ name: CLOSE ISSUES ON RELEASE
 
 on:
   push:
-    branches: ["(unknown)"]
+    branches: ["main"]
   workflow_dispatch:
 
 concurrency:

@@ -52,7 +52,7 @@ name: RELEASE CHANGELOG
 on:
   pull_request_target:
     types: [opened]
-    branches: ["(unknown)"]
+    branches: ["main"]
 
 permissions:
   contents: write

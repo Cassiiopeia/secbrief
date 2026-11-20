@@ -39,7 +39,7 @@ concurrency:
 
 on:
   push:
-    branches: ["(unknown)"]
+    branches: ["main"]
     paths-ignore:
       - 'CHANGELOG.md'
       - 'CHANGELOG.json'
