@@ -50,8 +50,8 @@ metadata:
   last_updated: "2026-11-21 02:02:11"
   last_updated_by: "Cassiiopeia"
   default_branch: "main"
-  development_branch: "main"
-  deploy_branch: "main"   # development_branch 의 구 이름 — 구버전 스킬용으로 같은 값 유지
+  development_branch: "develop"
+  deploy_branch: "develop"   # development_branch 의 구 이름 — 구버전 스킬용으로 같은 값 유지
   integrated_from: "projectops"
   integration_date: "2026-11-20"
   template:

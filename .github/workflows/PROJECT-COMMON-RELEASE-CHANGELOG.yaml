@@ -68,7 +68,7 @@ jobs:
     # head guard: main is the default, so a feature PR can be opened against main by mistake.
     # Only release PRs from this repo's develop take the automerge pipeline. (Later jobs skip in a chain via needs)
     # pull_request_target also runs for fork PRs, and the fork decides the branch name. Check the source repo too.
-    if: github.event.pull_request.head.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.ref == 'develop' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     outputs:
       summary_found: ${{ steps.detect_summary.outputs.summary_found }}

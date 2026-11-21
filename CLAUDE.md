@@ -20,12 +20,16 @@
 ```
 이슈 브랜치 (YYYYMMDD_#번호_제목)
   ↓ PR
-main     ← 기본 브랜치 (배포 안 됨)
-  ↓ 릴리스 PR
-deploy   ← 배포 브랜치 (푸시되면 스토어 업로드·서버 배포)
+develop  ← 작업 브랜치 (이슈 PR이 모이는 곳, RN CI 실행)
+  ↓ 릴리스 PR (/pro-changelog-deploy)
+main     ← 기본 브랜치 (버전 확정·릴리스 노트, 배포 안 됨)
+  ↓ main 을 deploy 로 올림
+deploy   ← 배포 브랜치 (푸시되면 Play 스토어·TestFlight 업로드·서버 배포)
 ```
 
-- `main`·`deploy`에 직접 커밋하지 않는다.
+- 이슈 브랜치는 `develop`에서 따고, PR도 `develop`으로 보낸다.
+- `develop`·`main`·`deploy`에 직접 커밋하지 않는다.
+- `deploy` 푸시는 곧 스토어 배포다. 사용자가 "배포해줘"라고 할 때만 올린다.
 - `version.yml`이 버전의 단일 원본이다. 워크플로가 올리며 손으로 고치지 않는다.
 - 루트 `README.md`의 `## 최신 버전 :` 줄도 워크플로가 관리한다.
 

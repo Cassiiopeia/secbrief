@@ -10,7 +10,7 @@ on:
   pull_request:
     paths: ["mobile/**", ".github/workflows/PROJECT-REACT-NATIVE-EXPO-CI.yaml"]
   push:
-    branches: ["main"]
+    branches: ["develop"]
     paths: ["mobile/**"]
   workflow_dispatch:
 
