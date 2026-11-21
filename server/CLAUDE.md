@@ -35,3 +35,15 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 ```
 
 서버 기동에는 PostgreSQL 이 필요하다 (`DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`).
+
+## 배포 (Synology)
+
+| 항목 | 값 |
+|---|---|
+| 워크플로 | `.github/workflows/PROJECT-SPRING-SYNOLOGY-SECBRIEF-CICD.yaml` (`deploy` 푸시, `server/**` 변경 시) |
+| 이미지 | Docker Hub `{DOCKERHUB_USERNAME}/secbrief-back` (태그: 브랜치, 버전, `sha-짧은해시`) |
+| 컨테이너 | `secbrief-back-blue` / `secbrief-back-green` (Traefik Blue-Green, 헬스 `/actuator/health`) |
+| 도메인 | `api.secbrief.suhsaechan.kr` > DSM 리버스 프록시 > Traefik 8079 |
+| 운영 설정 | Secret `APPLICATION_PROD_YML` > NAS `/volume1/projects/secbrief/backend/config/application-prod.yml` > `/app/config` |
+| DB | NAS 공용 PostgreSQL, DB·계정 `secbrief` (접속 정보는 운영 설정에만) |
+| 롤백 | 워크플로 수동 실행 `rollback_image_tag` 에 이전 태그 입력 |

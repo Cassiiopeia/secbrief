@@ -70,6 +70,8 @@ metadata:
       language: ko   # 이슈/PR 템플릿 언어 (en | ko)
       label_style: ko   # 상태 라벨 표기 (en: status: todo / ko: 작업전)
       deploy_trigger_branch: "deploy"   # branch whose push runs the deploy workflows (missing = the default branch)
+      # 설치기 업데이트가 다시 넣지 않을 워크플로: 서버 배포는 PROJECT-SPRING-SYNOLOGY-SECBRIEF-CICD 로 대체 (#10)
+      excluded_workflows: ["PROJECT-SPRING-SIMPLE-CICD.yaml"]
       code_review:
         coderabbit: false
         ai_summary: true
