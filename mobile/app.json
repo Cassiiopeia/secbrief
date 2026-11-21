@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "kr.suhsaechan.secbrief"
+      "bundleIdentifier": "kr.suhsaechan.secbrief",
+      "appleTeamId": "CUK22HY6YC",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
