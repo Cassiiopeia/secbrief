@@ -27,16 +27,8 @@ out/
 HELP.md
 
 # ===========================
-# Flutter
+# 앱 빌드 산출물
 # ===========================
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-app/ios/Pods/
-app/ios/.symlinks/
-app/android/local.properties
 *.apk
 *.aab
 *.ipa
