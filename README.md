@@ -15,4 +15,4 @@ KISA 등 공개 보안 공지를 모아 한국어로 정리하고, 내가 쓰는
 작업 규칙은 [CLAUDE.md](./CLAUDE.md), 스택별 규칙은 `mobile/CLAUDE.md`, `server/CLAUDE.md`.
 
 <!-- AUTO-VERSION-SECTION: DO NOT EDIT MANUALLY -->
-## 최신 버전 : v0.0.2 (2026-11-20)
+## 최신 버전 : v0.0.3 (2026-11-21)
