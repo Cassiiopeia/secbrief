@@ -1,6 +1,6 @@
 {
-  "templateVersion": "4.107.0",
-  "installedAt": "2026-11-20 07:58:19",
+  "templateVersion": "4.108.0",
+  "installedAt": "2026-11-21 04:01:51",
   "files": {
     "PROJECT-COMMON-CLOSE-ISSUES-ON-RELEASE.yaml": {
       "installed": "sha256:779be18ccf55145dc4f91bc8ccf78e8f953f4c11f8721bfa2601bad3dcdd5c62",
@@ -45,6 +45,14 @@
     "PROJECT-SPRING-SIMPLE-CICD.yaml": {
       "installed": "sha256:beb302262612d93658fce721ccb9d5af50eca6a6f1b4993f31a4a55d5cdca920",
       "rendered": "sha256:beb302262612d93658fce721ccb9d5af50eca6a6f1b4993f31a4a55d5cdca920"
+    },
+    "PROJECT-REACT-NATIVE-EXPO-PROJECTOPS-APP-BUILD-TRIGGER.yaml": {
+      "installed": "sha256:a02e81a20afcbe17582a8f8c9049afd173f19221b0d152d0be6445f404762b1e",
+      "rendered": "sha256:a02e81a20afcbe17582a8f8c9049afd173f19221b0d152d0be6445f404762b1e"
+    },
+    "PROJECT-COMMON-AI-PR-SUMMARY.yaml": {
+      "installed": "sha256:d191554ac6e4720e9b4bc0574dbefdece007294664dcb3d730d455794e348f50",
+      "rendered": "sha256:d191554ac6e4720e9b4bc0574dbefdece007294664dcb3d730d455794e348f50"
     }
   }
 }
