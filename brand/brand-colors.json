@@ -1,5 +1,5 @@
 {
-  "_source": "E 스트림 시안 확정값 (2026-11-20). app/lib/presentation/design/tokens/sb_colors.dart 와 함께 바꾼다",
+  "_source": "E 스트림 시안 확정값 (2026-11-20). mobile/src/design/tokens/sb-colors.ts 와 함께 바꾼다",
   "accent": {
     "light": "#3CFFD0",
     "dark": "#3CFFD0"
