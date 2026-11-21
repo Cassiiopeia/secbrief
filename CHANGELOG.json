@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "lastUpdated": "2026-11-21T07:25:01Z",
+    "currentVersion": "0.3.0",
+    "projectType": "spring",
+    "projectTypes": [
+      "spring",
+      "react-native-expo"
+    ],
+    "totalReleases": 1
+  },
+  "releases": [
+    {
+      "version": "0.3.0",
+      "project_type": "spring",
+      "project_types": [
+        "spring",
+        "react-native-expo"
+      ],
+      "date": "2026-11-21",
+      "pr_number": 14,
+      "raw_summary": "## Summary by CodeRabbit\n\n## 릴리스 노트\n\n* **새 기능**\n  * 서버를 시놀로지에 무중단으로 배포하고 api.secbrief.suhsaechan.kr 로 연결했어요\n\n* **기타**\n  * 남아 있던 Flutter 흔적을 정리했어요",
+      "parsed_changes": {
+        "새_기능": {
+          "title": "새 기능",
+          "items": [
+            "서버를 시놀로지에 무중단으로 배포하고 api.secbrief.suhsaechan.kr 로 연결했어요"
+          ]
+        },
+        "기타": {
+          "title": "기타",
+          "items": [
+            "남아 있던 Flutter 흔적을 정리했어요"
+          ]
+        }
+      },
+      "parse_method": "markdown"
+    }
+  ]
+}

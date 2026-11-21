@@ -2,7 +2,7 @@
   "expo": {
     "name": "시큐브리프",
     "slug": "secbrief",
-    "version": "0.2.2",
+    "version": "0.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "secbrief",
@@ -24,7 +24,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "kr.suhsaechan.secbrief",
-      "versionCode": 7
+      "versionCode": 8
     },
     "web": {
       "output": "single",
