@@ -1,0 +1,18 @@
+/* 브랜드 색: secbrief/brand/brand-colors.json 과 맞춤 (#131313 / #F4F4F0) */
+:root { --bg:#F4F4F0; --fg:#131313; --muted:#5b5b57; --card:#fff; --line:#e2e2dc; --accent:#2F4BFF; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#131313; --fg:#F4F4F0; --muted:#a8a8a2; --card:#1c1c1c; --line:#2a2a2a; --accent:#8ea0ff; }
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); line-height:1.75;
+  font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif; }
+main { max-width:720px; margin:0 auto; padding:48px 20px 80px; }
+h1 { font-size:1.9rem; margin:0 0 8px; letter-spacing:-0.02em; }
+h2 { font-size:1.2rem; margin:36px 0 8px; }
+p, li { color:var(--fg); } .muted { color:var(--muted); font-size:.9rem; }
+a { color:var(--accent); } ul { padding-left:20px; }
+nav { display:flex; gap:16px; flex-wrap:wrap; margin:20px 0 32px; font-size:.95rem; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin:16px 0; }
+table { width:100%; border-collapse:collapse; font-size:.92rem; background:var(--card); }
+th, td { border:1px solid var(--line); padding:10px; text-align:left; vertical-align:top; }
+footer { margin-top:56px; color:var(--muted); font-size:.85rem; }

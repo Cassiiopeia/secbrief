@@ -1,0 +1,36 @@
+# 소개·개인정보처리방침 정적 사이트(site/) > GitHub Pages 배포
+# 주소: https://cassiiopeia.github.io/secbrief/ (Play Console 개인정보처리방침 URL로 사용)
+name: PROJECT-SITE-GITHUB-PAGES
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/PROJECT-SITE-GITHUB-PAGES.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 배포 중복 방지 (진행 중인 배포는 끝까지 둠)
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
