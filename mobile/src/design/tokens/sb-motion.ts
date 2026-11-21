@@ -2,7 +2,6 @@ import { Easing } from 'react-native-reanimated';
 
 /**
  * 움직임 토큰: 지속시간·지연(단위: 밀리초)·곡선·크기. 애니메이션 값은 여기서만 정한다
- * 곡선은 Flutter 판의 easeOutCubic / easeOut / easeInOut 에 대응
  */
 export const sbMotion = {
   /** 첫 진입 등장 (아래에서 올라오며 나타남) */

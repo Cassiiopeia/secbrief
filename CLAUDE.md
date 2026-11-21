@@ -29,7 +29,15 @@ deploy   ← 배포 브랜치 (푸시되면 Play 스토어·TestFlight 업로드
 
 - 이슈 브랜치는 `develop`에서 따고, PR도 `develop`으로 보낸다.
 - `develop`·`main`·`deploy`에 직접 커밋하지 않는다.
-- `deploy` 푸시는 곧 스토어 배포다. 사용자가 "배포해줘"라고 할 때만 올린다.
+- `deploy` 푸시는 곧 스토어·서버 배포다. 사용자가 "배포해줘"라고 할 때만 올린다.
+- `main` > `deploy` 승격은 **PR 병합**으로 한다. main 최신 커밋은 대개 `[skip ci]` 버전 커밋이라, 직접 푸시하면 푸시로 도는 배포가 전부 건너뛰어진다.
+
+## 비밀값 관리 (공개 레포)
+
+- 워크플로가 쓰는 값은 GitHub Secret 하나에 값 하나: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `SERVER_HOST`, `SERVER_USER`, `SERVER_PASSWORD`, 스토어 서명 키.
+- 서버 실행 설정은 파일 통째로 Secret 하나: `APPLICATION_PROD_YML` (= `application-prod.yml` 전체). 키가 늘면 파일을 고쳐 Secret 을 통째로 바꾼다.
+- 배포 때 NAS `/volume1/projects/secbrief/backend/config/`에 기록하고 컨테이너 `/app/config`에 읽기 전용으로 마운트한다. 이미지는 공개라 jar 에 넣지 않는다.
+- `PROJECT-COMMON-SYNOLOGY-SECRET-FILE-UPLOAD`가 main 푸시마다 Secret 파일을 NAS `github_secret/`에 백업한다.
 - `version.yml`이 버전의 단일 원본이다. 워크플로가 올리며 손으로 고치지 않는다.
 - 루트 `README.md`의 `## 최신 버전 :` 줄도 워크플로가 관리한다.
 
