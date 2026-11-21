@@ -45,5 +45,5 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 | 컨테이너 | `secbrief-back-blue` / `secbrief-back-green` (Traefik Blue-Green, 헬스 `/actuator/health`) |
 | 도메인 | `api.secbrief.suhsaechan.kr` > DSM 리버스 프록시 > Traefik 8079 |
 | 운영 설정 | Secret `APPLICATION_PROD_YML` > NAS `/volume1/projects/secbrief/backend/config/application-prod.yml` > `/app/config` |
-| DB | NAS 공용 PostgreSQL, DB·계정 `secbrief` (접속 정보는 운영 설정에만) |
+| DB | NAS 공용 PostgreSQL, DB `secbrief` + NAS 공용 계정 (프로젝트별 계정 없음, 접속 정보는 운영 설정에만) |
 | 롤백 | 워크플로 수동 실행 `rollback_image_tag` 에 이전 태그 입력 |
