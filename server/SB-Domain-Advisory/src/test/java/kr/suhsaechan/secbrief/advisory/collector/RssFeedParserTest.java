@@ -23,7 +23,7 @@ class RssFeedParserTest {
     @ParameterizedTest
     @ValueSource(strings = {"kisa-notice", "dailysecu", "the-hacker-news", "bleeping-computer"})
     void parsesTwoItemsWithTitleAndHttpLink(String fixtureName) {
-        List<CollectedArticle> articles = parse(fixture(fixtureName), "게시자");
+        List<CollectedArticle> articles = parse(openFixture(fixtureName), "게시자");
 
         assertThat(articles).hasSize(2).allSatisfy(article -> {
             assertThat(article.title()).isNotBlank();
@@ -36,17 +36,17 @@ class RssFeedParserTest {
 
     @Test
     void returnsNullPublishedAtWhenItemHasNoDate() {
-        assertThat(parse(fixture("kisa-notice"), "KISA").get(1).publishedAt()).isNull();
+        assertThat(parse(openFixture("kisa-notice"), "KISA").get(1).publishedAt()).isNull();
     }
 
     @Test
     void decodesKoreanTitleFromKisaFeed() {
-        assertThat(parse(fixture("kisa-notice"), "KISA").get(0).title()).containsPattern("[가-힣]");
+        assertThat(parse(openFixture("kisa-notice"), "KISA").get(0).title()).containsPattern("[가-힣]");
     }
 
     @Test
     void trimsWhitespaceAroundCdataTitleAndLink() {
-        CollectedArticle article = parse(fixture("kisa-notice"), "KISA").get(0);
+        CollectedArticle article = parse(openFixture("kisa-notice"), "KISA").get(0);
 
         assertThat(article.title()).isEqualTo(article.title().strip());
         assertThat(article.originalUrl()).isEqualTo(article.originalUrl().strip());
@@ -54,7 +54,7 @@ class RssFeedParserTest {
 
     @Test
     void decodesXmlEntitiesInTitle() {
-        String title = parse(fixture("dailysecu"), "데일리시큐").get(0).title();
+        String title = parse(openFixture("dailysecu"), "데일리시큐").get(0).title();
 
         assertThat(title).contains("\"중국 해커").doesNotContain("&quot;");
     }
@@ -62,27 +62,27 @@ class RssFeedParserTest {
     @Test
     void parsesRfc822DateWithOffsetToInstant() {
         // Sun, 22 Nov 2026 10:36:55 +0530
-        assertThat(parse(fixture("the-hacker-news"), "The Hacker News").get(0).publishedAt())
+        assertThat(parse(openFixture("the-hacker-news"), "The Hacker News").get(0).publishedAt())
                 .isEqualTo(Instant.parse("2026-11-22T05:06:55Z"));
     }
 
     @Test
     void readsDateOnlyPubDateAsSeoulMidnight() {
         // KISA: 2026-11-23 (시간대·시각 없음) > 서울 자정
-        assertThat(parse(fixture("kisa-notice"), "KISA").get(0).publishedAt())
+        assertThat(parse(openFixture("kisa-notice"), "KISA").get(0).publishedAt())
                 .isEqualTo(Instant.parse("2026-11-22T15:00:00Z"));
     }
 
     @Test
     void readsZonelessDateTimePubDateAsSeoulTime() {
         // 데일리시큐: 2026-11-23 14:12:17 (시간대 없음) > 서울 시각
-        assertThat(parse(fixture("dailysecu"), "데일리시큐").get(0).publishedAt())
+        assertThat(parse(openFixture("dailysecu"), "데일리시큐").get(0).publishedAt())
                 .isEqualTo(Instant.parse("2026-11-23T05:12:17Z"));
     }
 
     @Test
     void usesDisplayNameAsPublisherInsteadOfFeedAuthor() {
-        assertThat(parse(fixture("dailysecu"), "데일리시큐").get(0).publisherName()).isEqualTo("데일리시큐");
+        assertThat(parse(openFixture("dailysecu"), "데일리시큐").get(0).publisherName()).isEqualTo("데일리시큐");
     }
 
     @Test
@@ -92,7 +92,7 @@ class RssFeedParserTest {
                 .extracting("errorCode").isEqualTo(ErrorCode.FEED_PARSE_ERROR);
     }
 
-    private static InputStream fixture(String fixtureName) {
+    private static InputStream openFixture(String fixtureName) {
         return RssFeedParserTest.class.getResourceAsStream("/fixtures/rss/" + fixtureName + ".xml");
     }
 }

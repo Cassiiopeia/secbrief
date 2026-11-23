@@ -1,5 +1,6 @@
 package kr.suhsaechan.secbrief.advisory.collector;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
@@ -40,11 +41,12 @@ public class FeedHttpClient {
 
     /**
      * extraHeaders: 출처별 추가 헤더 (예: Accept)
+     * url 은 호출부가 인코딩을 마친 값 (URI 로 넘겨 RestClient 가 다시 인코딩하지 않게 함)
      */
     public byte[] fetch(String url, Map<String, String> extraHeaders) {
         try {
             return restClient.get()
-                    .uri(url)
+                    .uri(URI.create(url))
                     .headers(headers -> extraHeaders.forEach(headers::set))
                     .exchange((request, response) -> {
                         // 2xx 가 아니면 본문을 읽지 않고 상태 코드만 남김
@@ -54,6 +56,9 @@ public class FeedHttpClient {
                         }
                         return response.getBody().readAllBytes();
                     });
+        } catch (IllegalArgumentException exception) {
+            // 주소 형식 오류 (출처 설정 문제): 연결 실패와 같은 코드로 기록
+            throw new CustomException(ErrorCode.EXTERNAL_API_ERROR, "invalid url");
         } catch (RestClientException exception) {
             // 연결 실패·시간 초과: 원인 종류만 남김 (URL 은 기록하지 않음)
             throw new CustomException(ErrorCode.EXTERNAL_API_ERROR,

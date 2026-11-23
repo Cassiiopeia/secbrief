@@ -25,7 +25,7 @@ public final class SourceFixtures {
     /**
      * 켜진 출처 1건: 마지막 수집 시각이 있으면 마지막 상태는 성공
      */
-    public static Source source(String code, ArticleKind kind, ArticleRegion region,
+    public static Source createSource(String code, ArticleKind kind, ArticleRegion region,
                                 FeedFormat feedFormat, Instant lastCollectedAt) {
         Source source = BeanUtils.instantiateClass(Source.class);
         ReflectionTestUtils.setField(source, "code", code);

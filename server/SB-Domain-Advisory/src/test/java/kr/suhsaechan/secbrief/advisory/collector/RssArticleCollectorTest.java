@@ -1,7 +1,7 @@
 package kr.suhsaechan.secbrief.advisory.collector;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static kr.suhsaechan.secbrief.advisory.support.SourceFixtures.source;
+import static kr.suhsaechan.secbrief.advisory.support.SourceFixtures.createSource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -27,7 +27,7 @@ class RssArticleCollectorTest {
 
     private final FeedHttpClient feedHttpClient = mock(FeedHttpClient.class);
     private final RssArticleCollector collector = new RssArticleCollector(feedHttpClient);
-    private final Source source = source(SourceCode.DAILYSECU, ArticleKind.NEWS, ArticleRegion.DOMESTIC, FeedFormat.RSS, null);
+    private final Source source = createSource(SourceCode.DAILYSECU, ArticleKind.NEWS, ArticleRegion.DOMESTIC, FeedFormat.RSS, null);
 
     @Test
     void supportsRssFormat() {

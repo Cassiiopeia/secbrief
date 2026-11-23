@@ -1,6 +1,6 @@
 package kr.suhsaechan.secbrief.advisory.collector;
 
-import static kr.suhsaechan.secbrief.advisory.support.SourceFixtures.source;
+import static kr.suhsaechan.secbrief.advisory.support.SourceFixtures.createSource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -22,7 +22,7 @@ class KevArticleCollectorTest {
 
     private final FeedHttpClient feedHttpClient = mock(FeedHttpClient.class);
     private final KevArticleCollector collector = new KevArticleCollector(feedHttpClient);
-    private final Source source = source(SourceCode.CISA_KEV, ArticleKind.VULNERABILITY, ArticleRegion.OVERSEAS, FeedFormat.CISA_KEV_JSON, null);
+    private final Source source = createSource(SourceCode.CISA_KEV, ArticleKind.VULNERABILITY, ArticleRegion.OVERSEAS, FeedFormat.CISA_KEV_JSON, null);
 
     @Test
     void supportsCisaKevJsonFormat() {

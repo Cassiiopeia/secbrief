@@ -20,14 +20,14 @@ class KevCatalogParserTest {
 
     @Test
     void keepsOnlyEntriesAddedSinceWindow() {
-        List<CollectedArticle> articles = parse(fixture(), Instant.parse("2026-10-24T00:00:00Z"));
+        List<CollectedArticle> articles = parse(openFixture(), Instant.parse("2026-10-24T00:00:00Z"));
 
         assertThat(articles).extracting(CollectedArticle::cveId).containsExactly("CVE-2026-1111", "CVE-2026-2222");
     }
 
     @Test
     void mapsKevEntryToArticle() {
-        CollectedArticle article = parse(fixture(), Instant.EPOCH).get(0);
+        CollectedArticle article = parse(openFixture(), Instant.EPOCH).get(0);
 
         assertThat(article.title()).isEqualTo(
                 "CVE-2026-1111: ExampleVendor ExampleServer Deserialization of Untrusted Data Vulnerability");
@@ -43,14 +43,14 @@ class KevCatalogParserTest {
 
     @Test
     void keepsEntryAddedExactlyAtSinceBoundary() {
-        List<CollectedArticle> articles = parse(fixture(), Instant.parse("2026-11-10T00:00:00Z"));
+        List<CollectedArticle> articles = parse(openFixture(), Instant.parse("2026-11-10T00:00:00Z"));
 
         assertThat(articles).extracting(CollectedArticle::cveId).containsExactly("CVE-2026-1111", "CVE-2026-2222");
     }
 
     @Test
     void keepsEveryEntryWhenSinceIsNull() {
-        assertThat(parse(fixture(), null)).hasSize(3);
+        assertThat(parse(openFixture(), null)).hasSize(3);
     }
 
     @Test
@@ -62,28 +62,28 @@ class KevCatalogParserTest {
                   {"cveID":"CVE-2026-5555","vulnerabilityName":"valid entry","dateAdded":"2026-11-21"}
                 ]}""";
 
-        assertThat(parse(stream(catalog), null)).extracting(CollectedArticle::cveId).containsExactly("CVE-2026-5555");
+        assertThat(parse(toInputStream(catalog), null)).extracting(CollectedArticle::cveId).containsExactly("CVE-2026-5555");
     }
 
     @Test
     void throwsFeedParseErrorWhenVulnerabilitiesMissing() {
-        assertFeedParseError(() -> parse(stream("{\"title\":\"x\"}"), null));
+        assertFeedParseError(() -> parse(toInputStream("{\"title\":\"x\"}"), null));
     }
 
     @Test
     void throwsFeedParseErrorWhenEveryEntryIsMalformed() {
         // 필드 이름이 바뀐 경우: 조용히 0건이 되지 않고 실패로 드러나야 함
-        assertFeedParseError(() -> parse(stream("{\"vulnerabilities\":[{\"cve\":\"CVE-2026-1\"},{\"cve\":\"CVE-2026-2\"}]}"), null));
+        assertFeedParseError(() -> parse(toInputStream("{\"vulnerabilities\":[{\"cve\":\"CVE-2026-1\"},{\"cve\":\"CVE-2026-2\"}]}"), null));
     }
 
     @Test
     void returnsEmptyListWhenCatalogHasNoEntries() {
-        assertThat(parse(stream("{\"vulnerabilities\":[]}"), null)).isEmpty();
+        assertThat(parse(toInputStream("{\"vulnerabilities\":[]}"), null)).isEmpty();
     }
 
     @Test
     void throwsFeedParseErrorOnBrokenJson() {
-        assertFeedParseError(() -> parse(stream("{\"vulnerabilities\":["), null));
+        assertFeedParseError(() -> parse(toInputStream("{\"vulnerabilities\":["), null));
     }
 
     private static void assertFeedParseError(Runnable parsing) {
@@ -92,11 +92,11 @@ class KevCatalogParserTest {
                 .extracting("errorCode").isEqualTo(ErrorCode.FEED_PARSE_ERROR);
     }
 
-    private static InputStream fixture() {
+    private static InputStream openFixture() {
         return KevCatalogParserTest.class.getResourceAsStream("/fixtures/kev/kev-catalog.json");
     }
 
-    private static InputStream stream(String json) {
+    private static InputStream toInputStream(String json) {
         return new ByteArrayInputStream(json.getBytes(UTF_8));
     }
 }

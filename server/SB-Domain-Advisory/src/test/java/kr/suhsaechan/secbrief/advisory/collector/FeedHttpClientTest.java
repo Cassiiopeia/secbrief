@@ -25,6 +25,7 @@ class FeedHttpClientTest {
 
     private final FeedHttpClient feedHttpClient = new FeedHttpClient();
     private final AtomicReference<Headers> receivedHeaders = new AtomicReference<>();
+    private final AtomicReference<String> receivedRawQuery = new AtomicReference<>();
     private HttpServer server;
 
     @BeforeEach
@@ -32,6 +33,7 @@ class FeedHttpClientTest {
         server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         server.createContext("/ok", exchange -> {
             receivedHeaders.set(exchange.getRequestHeaders());
+            receivedRawQuery.set(exchange.getRequestURI().getRawQuery());
             respond(exchange, 200, "피드 본문");
         });
         server.createContext("/unavailable", exchange -> respond(exchange, 503, "busy"));
@@ -49,7 +51,7 @@ class FeedHttpClientTest {
 
     @Test
     void returnsBodyBytesAndSendsCollectorUserAgent() {
-        byte[] body = feedHttpClient.fetch(url("/ok"));
+        byte[] body = feedHttpClient.fetch(toLocalUrl("/ok"));
 
         assertThat(new String(body, UTF_8)).isEqualTo("피드 본문");
         assertThat(receivedHeaders.get().getFirst("User-Agent")).startsWith("secbrief-collector/1.0 (+https://");
@@ -57,19 +59,33 @@ class FeedHttpClientTest {
 
     @Test
     void sendsExtraHeaders() {
-        feedHttpClient.fetch(url("/ok"), Map.of("Accept", "application/vnd.github+json"));
+        feedHttpClient.fetch(toLocalUrl("/ok"), Map.of("Accept", "application/vnd.github+json"));
 
         assertThat(receivedHeaders.get().getFirst("Accept")).isEqualTo("application/vnd.github+json");
     }
 
     @Test
+    void sendsAlreadyEncodedQueryWithoutEncodingTwice() {
+        feedHttpClient.fetch(toLocalUrl("/ok?pubStartDate=2026-11-16T00%3A00%3A00.000&q=a%2Bb"));
+
+        assertThat(receivedRawQuery.get()).isEqualTo("pubStartDate=2026-11-16T00%3A00%3A00.000&q=a%2Bb");
+    }
+
+    @Test
+    void throwsExternalApiErrorWhenUrlIsMalformed() {
+        assertThatThrownBy(() -> feedHttpClient.fetch("http://127.0.0.1/bad path"))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.EXTERNAL_API_ERROR);
+    }
+
+    @Test
     void followsRedirect() {
-        assertThat(new String(feedHttpClient.fetch(url("/moved")), UTF_8)).isEqualTo("피드 본문");
+        assertThat(new String(feedHttpClient.fetch(toLocalUrl("/moved")), UTF_8)).isEqualTo("피드 본문");
     }
 
     @Test
     void throwsExternalApiErrorWithStatusWhenNot2xx() {
-        assertThatThrownBy(() -> feedHttpClient.fetch(url("/unavailable")))
+        assertThatThrownBy(() -> feedHttpClient.fetch(toLocalUrl("/unavailable")))
                 .isInstanceOf(CustomException.class)
                 .hasMessageContaining("status=503")
                 .extracting("errorCode").isEqualTo(ErrorCode.EXTERNAL_API_ERROR);
@@ -77,7 +93,7 @@ class FeedHttpClientTest {
 
     @Test
     void throwsExternalApiErrorWhenConnectionFails() {
-        String closedPortUrl = url("/ok");
+        String closedPortUrl = toLocalUrl("/ok");
         server.stop(0);
 
         assertThatThrownBy(() -> feedHttpClient.fetch(closedPortUrl))
@@ -85,7 +101,7 @@ class FeedHttpClientTest {
                 .extracting("errorCode").isEqualTo(ErrorCode.EXTERNAL_API_ERROR);
     }
 
-    private String url(String path) {
+    private String toLocalUrl(String path) {
         return "http://127.0.0.1:" + server.getAddress().getPort() + path;
     }
 

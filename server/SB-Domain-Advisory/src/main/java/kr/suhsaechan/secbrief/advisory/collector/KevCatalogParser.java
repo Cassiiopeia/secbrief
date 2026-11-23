@@ -16,11 +16,13 @@ import java.util.List;
 import java.util.Optional;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * CISA KEV 카탈로그(JSON) 파싱: 등재 항목 > 수집 원본 (제목, 링크, CVE ID, 등재일), since 이전 등재분은 버림
  * 설명·조치 문구는 읽지 않음 (CVSS 점수는 KEV 가 안 줌 > null)
  */
+@Slf4j
 public final class KevCatalogParser {
 
     public static final String PUBLISHER_NAME = "CISA KEV";
@@ -52,6 +54,9 @@ public final class KevCatalogParser {
         }
         if (malformedEntryCount > 0 && malformedEntryCount == vulnerabilities.size()) {
             throw new CustomException(ErrorCode.FEED_PARSE_ERROR, "every catalog entry is malformed");
+        }
+        if (malformedEntryCount > 0) {
+            log.warn("[article collect] kev skipped malformed entries : count={}", malformedEntryCount);
         }
         return articles;
     }

@@ -2,7 +2,7 @@ package kr.suhsaechan.secbrief.advisory.policy;
 
 import static kr.suhsaechan.secbrief.advisory.policy.CollectSchedulePolicy.isCollectDue;
 import static kr.suhsaechan.secbrief.advisory.policy.CollectSchedulePolicy.toCollectSince;
-import static kr.suhsaechan.secbrief.advisory.support.SourceFixtures.source;
+import static kr.suhsaechan.secbrief.advisory.support.SourceFixtures.createSource;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
@@ -21,10 +21,10 @@ class CollectSchedulePolicyTest {
 
     private static final Instant NOW = Instant.parse("2026-11-23T03:00:00Z");
 
-    private final Source kisaSource = source(SourceCode.KISA, ArticleKind.ADVISORY, ArticleRegion.DOMESTIC, FeedFormat.RSS, null);
-    private final Source kevSourceNeverCollected = vulnerabilitySource(SourceCode.CISA_KEV, FeedFormat.CISA_KEV_JSON, null);
-    private final Source nvdSourceNeverCollected = vulnerabilitySource(SourceCode.NVD, FeedFormat.NVD_API, null);
-    private final Source ghsaSourceNeverCollected = vulnerabilitySource(SourceCode.GHSA, FeedFormat.GHSA_API, null);
+    private final Source kisaSource = createSource(SourceCode.KISA, ArticleKind.ADVISORY, ArticleRegion.DOMESTIC, FeedFormat.RSS, null);
+    private final Source kevSourceNeverCollected = createVulnerabilitySource(SourceCode.CISA_KEV, FeedFormat.CISA_KEV_JSON, null);
+    private final Source nvdSourceNeverCollected = createVulnerabilitySource(SourceCode.NVD, FeedFormat.NVD_API, null);
+    private final Source ghsaSourceNeverCollected = createVulnerabilitySource(SourceCode.GHSA, FeedFormat.GHSA_API, null);
 
     @Test
     void isCollectDueWhenNeverAttempted() {
@@ -55,7 +55,7 @@ class CollectSchedulePolicyTest {
     @Test
     void laterNvdCollectOverlapsOneDay() {
         Instant lastCollectedAt = NOW.minus(Duration.ofHours(2));
-        Source nvdSource = vulnerabilitySource(SourceCode.NVD, FeedFormat.NVD_API, lastCollectedAt);
+        Source nvdSource = createVulnerabilitySource(SourceCode.NVD, FeedFormat.NVD_API, lastCollectedAt);
 
         assertThat(toCollectSince(nvdSource, NOW)).isEqualTo(lastCollectedAt.minus(Duration.ofDays(1)));
     }
@@ -63,21 +63,21 @@ class CollectSchedulePolicyTest {
     @Test
     void laterKevCollectOverlapsOneDay() {
         Instant lastCollectedAt = NOW.minus(Duration.ofDays(3));
-        Source kevSource = vulnerabilitySource(SourceCode.CISA_KEV, FeedFormat.CISA_KEV_JSON, lastCollectedAt);
+        Source kevSource = createVulnerabilitySource(SourceCode.CISA_KEV, FeedFormat.CISA_KEV_JSON, lastCollectedAt);
 
         assertThat(toCollectSince(kevSource, NOW)).isEqualTo(lastCollectedAt.minus(Duration.ofDays(1)));
     }
 
     @Test
     void longOutageNvdCollectIsCappedAtSevenDays() {
-        Source nvdSource = vulnerabilitySource(SourceCode.NVD, FeedFormat.NVD_API, NOW.minus(Duration.ofDays(30)));
+        Source nvdSource = createVulnerabilitySource(SourceCode.NVD, FeedFormat.NVD_API, NOW.minus(Duration.ofDays(30)));
 
         assertThat(toCollectSince(nvdSource, NOW)).isEqualTo(NOW.minus(Duration.ofDays(7)));
     }
 
     @Test
     void longOutageGhsaCollectIsCappedAtSevenDays() {
-        Source ghsaSource = vulnerabilitySource(SourceCode.GHSA, FeedFormat.GHSA_API, NOW.minus(Duration.ofDays(30)));
+        Source ghsaSource = createVulnerabilitySource(SourceCode.GHSA, FeedFormat.GHSA_API, NOW.minus(Duration.ofDays(30)));
 
         assertThat(toCollectSince(ghsaSource, NOW)).isEqualTo(NOW.minus(Duration.ofDays(7)));
     }
@@ -89,13 +89,13 @@ class CollectSchedulePolicyTest {
 
     @Test
     void rssHasNoSinceEvenAfterEarlierCollect() {
-        Source collectedKisaSource = source(SourceCode.KISA, ArticleKind.ADVISORY, ArticleRegion.DOMESTIC,
+        Source collectedKisaSource = createSource(SourceCode.KISA, ArticleKind.ADVISORY, ArticleRegion.DOMESTIC,
                 FeedFormat.RSS, NOW.minus(Duration.ofHours(1)));
 
         assertThat(toCollectSince(collectedKisaSource, NOW)).isNull();
     }
 
-    private static Source vulnerabilitySource(String code, FeedFormat feedFormat, Instant lastCollectedAt) {
-        return source(code, ArticleKind.VULNERABILITY, ArticleRegion.OVERSEAS, feedFormat, lastCollectedAt);
+    private static Source createVulnerabilitySource(String code, FeedFormat feedFormat, Instant lastCollectedAt) {
+        return createSource(code, ArticleKind.VULNERABILITY, ArticleRegion.OVERSEAS, feedFormat, lastCollectedAt);
     }
 }
