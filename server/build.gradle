@@ -33,6 +33,10 @@ subprojects {
         testCompileOnly 'org.projectlombok:lombok'
         testAnnotationProcessor 'org.projectlombok:lombok'
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        // DB 통합 테스트: 실제 PostgreSQL 컨테이너 (버전은 Boot BOM)
+        testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+        testImplementation 'org.testcontainers:junit-jupiter'
+        testImplementation 'org.testcontainers:postgresql'
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 
