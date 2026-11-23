@@ -51,6 +51,7 @@ concurrency:
 # 프로젝트별 설정
 # ============================================
 env:
+  EXPO_PUBLIC_API_BASE_URL: "https://api.secbrief.suhsaechan.kr"   # 앱 번들에 박히는 운영 API 주소 (3개 워크플로 같은 값, mobile/tests/config 가 확인)
   APP_ROOT: "mobile"                              # Expo 앱 폴더 (레포 루트 기준), ios_release.py 도 이 값을 읽음
   IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID || vars.IOS_BUNDLE_ID || 'kr.suhsaechan.secbrief' }}  # Flutter 와 같은 우선순위 (비밀값 > 변수 > 기본값), app.json 의 ios.bundleIdentifier 와 같아야 함
   # prebuild 가 만드는 Xcode 이름: app.json 의 name 이 한글이라 "app" 으로 생성됨
