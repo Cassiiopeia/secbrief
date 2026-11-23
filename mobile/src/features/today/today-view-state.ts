@@ -1,8 +1,11 @@
-import { toClockTime, toMastheadDate } from '@/core/format/briefing-date-formatter';
+import { toArticleDateLabel, toMastheadDate } from '@/core/format/briefing-date-formatter';
 import type { BriefingItem, BriefingTopic } from '@/data/models/briefing-item';
 import { type TodayBriefing, isTodayBriefingEmpty } from '@/data/models/today-briefing';
 import type { TrendTopic } from '@/data/models/trend-topic';
 import type { SbCoverKind, SbCoverTone } from '@/design';
+
+import { AI_TRANSLATION_NOTICE_LABEL, toDisplayTitle, toMetaLabel, toPublisherLabel } from '../articles/article-row-view';
+import { toTrendTopicView } from '../trend/trend-view-state';
 
 /** 긴급 타일 표시 내용 */
 export interface TodayUrgentView {
@@ -10,6 +13,7 @@ export interface TodayUrgentView {
   title: string;
   footerLabel: string;
   coverKind: SbCoverKind;
+  originalUrl: string;
 }
 
 /** 동향 1위 타일 표시 내용 */
@@ -25,14 +29,15 @@ export interface TodayStreamItemView {
   title: string;
   thumbnailKind: SbCoverKind;
   thumbnailTone: SbCoverTone;
+  originalUrl: string;
 }
 
 /** 오늘 화면 전체 표시 상태 (화면은 이 값을 그대로 배치만 함) */
 export interface TodayViewState {
-  /** 머리 오른쪽 라벨 2줄 (날짜, 읽은 건수) */
+  /** 머리 오른쪽 라벨 2줄 (날짜, 오늘 건수) */
   mastheadTrailingLines: string[];
-  streakDays: number;
-  streakDetail: string;
+  weeklyCount: number;
+  weeklyDetail: string;
   urgent?: TodayUrgentView;
   trend?: TodayTrendView;
   streamItems: TodayStreamItemView[];
@@ -41,9 +46,11 @@ export interface TodayViewState {
 
 // 스트림 썸네일 색 조합: 순서대로 3종 반복
 const THUMBNAIL_TONES: SbCoverTone[] = ['feature', 'accent', 'neutral'];
+// 번역 항목 표시 꼬리 (레일·긴급 타일엔 원문 제목 줄이 없어 표시만 붙임)
+const TRANSLATION_SUFFIX = ` · ${AI_TRANSLATION_NOTICE_LABEL}`;
 
-// 소식 주제 > 커버 그림 종류
-const COVER_KIND_BY_TOPIC: Record<BriefingTopic, SbCoverKind> = {
+// 소식 주제 > 커버 그림 종류 (새 3종은 기존 그림 재사용)
+export const COVER_KIND_BY_TOPIC: Record<BriefingTopic, SbCoverKind> = {
   vulnerability: 'target',
   ransomware: 'lock',
   privacy: 'fingerprint',
@@ -54,46 +61,54 @@ const COVER_KIND_BY_TOPIC: Record<BriefingTopic, SbCoverKind> = {
   general: 'target',
 };
 
-/** 브리핑 > 오늘 화면 표시 상태: 머리 라벨 > 긴급 > 동향 > 연속 확인 > 스트림 */
-export function toTodayViewState(briefing: TodayBriefing): TodayViewState {
+/** 브리핑 > 오늘 화면 표시 상태: 머리 라벨 > 긴급 > 동향 > 이번 주 건수 > 스트림 */
+export function toTodayViewState(briefing: TodayBriefing, now: Date = new Date()): TodayViewState {
   return {
     mastheadTrailingLines: [toMastheadDate(briefing.date), `오늘 ${briefing.todayCount}건`],
-    streakDays: briefing.weeklyCount,
-    streakDetail: '이번 주에 모은 보안 소식이에요',
-    urgent: briefing.urgentItem && toUrgentView(briefing.urgentItem),
+    weeklyCount: briefing.weeklyCount,
+    weeklyDetail: '이번 주에 모은 보안 소식이에요',
+    urgent: briefing.urgentItem && toUrgentView(briefing.urgentItem, now),
     trend: briefing.topTrend && toTrendView(briefing.topTrend),
-    streamItems: briefing.streamItems.map(toStreamItemView),
+    streamItems: briefing.streamItems.map((item, itemIndex) => toStreamItemView(item, itemIndex, now)),
     isEmpty: isTodayBriefingEmpty(briefing),
   };
 }
 
-/** 긴급 소식 > 타일 문구 (라벨: 긴급 / CVSS 점수, 아래 줄: 제품 · 내 스택 해당) */
-function toUrgentView(item: BriefingItem): TodayUrgentView {
-  const footerParts = [item.publisherName];
+/** 긴급 소식 > 타일 문구 (라벨: 긴급 / CVSS 점수 또는 KEV 등재, 아래 줄: 게시자 · 날짜 (· AI 번역)) */
+function toUrgentView(item: BriefingItem, now: Date): TodayUrgentView {
   return {
-    capsLabel: item.cvssScore === undefined ? '긴급' : `긴급 / CVSS ${item.cvssScore.toFixed(1)}`,
-    title: item.title,
-    footerLabel: footerParts.join(' · '),
+    capsLabel: toUrgentCapsLabel(item),
+    title: toDisplayTitle(item),
+    footerLabel: `${toPublisherLabel(item)} · ${toArticleDateLabel(item.publishedAt, now)}${toTranslationSuffix(item)}`,
     coverKind: COVER_KIND_BY_TOPIC[item.topic],
+    originalUrl: item.originalUrl,
   };
 }
 
-/** 동향 주제 > 타일 설명 (늘었어요 / 줄었어요 / 같아요) */
-function toTrendView(trend: TrendTopic): TodayTrendView {
-  const changePercent = trend.changePercent ?? 0;
-  let changeText = '지난주와 같아요';
-  if (changePercent > 0) changeText = `지난주보다 ${changePercent}% 늘었어요`;
-  if (changePercent < 0) changeText = `지난주보다 ${-changePercent}% 줄었어요`;
-  return { topicName: trend.topic, detail: `${trend.weeklyCount}건 · ${changeText}` };
+function toUrgentCapsLabel(item: BriefingItem): string {
+  if (item.cvssScore !== undefined) return `긴급 / CVSS ${item.cvssScore.toFixed(1)}`;
+  if (item.isKev) return '긴급 / KEV 등재';
+  return '긴급';
 }
 
-/** 소식 > 스트림 항목 (시간 · 출처, 썸네일 색은 순서대로 3종 반복) */
-function toStreamItemView(item: BriefingItem, itemIndex: number): TodayStreamItemView {
+/** 동향 주제 > 타일 (문구는 동향 탭과 같은 원본) */
+function toTrendView(trend: TrendTopic): TodayTrendView {
+  const trendView = toTrendTopicView(trend);
+  return { topicName: trendView.topicLabel, detail: trendView.detail };
+}
+
+/** 소식 > 스트림 항목 (게시자 · 날짜, 썸네일 색은 순서대로 3종 반복) */
+function toStreamItemView(item: BriefingItem, itemIndex: number, now: Date): TodayStreamItemView {
   return {
     id: item.id,
-    timeLabel: `${toClockTime(item.publishedAt)} · ${item.publisherName}`,
-    title: item.title,
+    timeLabel: `${toMetaLabel(item, now)}${toTranslationSuffix(item)}`,
+    title: toDisplayTitle(item),
     thumbnailKind: COVER_KIND_BY_TOPIC[item.topic],
     thumbnailTone: THUMBNAIL_TONES[itemIndex % THUMBNAIL_TONES.length],
+    originalUrl: item.originalUrl,
   };
+}
+
+function toTranslationSuffix(item: BriefingItem): string {
+  return item.translatedTitle !== undefined ? TRANSLATION_SUFFIX : '';
 }
