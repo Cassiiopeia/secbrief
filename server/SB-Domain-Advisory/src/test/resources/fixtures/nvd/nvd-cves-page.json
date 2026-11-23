@@ -1,0 +1,164 @@
+{
+  "resultsPerPage": 4,
+  "startIndex": 0,
+  "totalResults": 4,
+  "format": "NVD_CVE",
+  "version": "2.0",
+  "timestamp": "2026-11-23T00:00:00.000",
+  "vulnerabilities": [
+    {
+      "cve": {
+        "id": "CVE-2026-0001",
+        "sourceIdentifier": "cna@example.test",
+        "published": "2026-11-20T15:15:10.123",
+        "lastModified": "2026-11-20T15:15:10.123",
+        "vulnStatus": "Analyzed",
+        "descriptions": [
+          {
+            "lang": "es",
+            "value": "Descripción de ejemplo."
+          },
+          {
+            "lang": "en",
+            "value": "A remote code execution vulnerability exists in Example Gateway request routing when untrusted headers are forwarded to the template engine, allowing an unauthenticated attacker to run arbitrary commands."
+          }
+        ],
+        "metrics": {
+          "cvssMetricV31": [
+            {
+              "source": "nvd@nist.gov",
+              "type": "Secondary",
+              "cvssData": {
+                "version": "3.1",
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                "baseScore": 7.0,
+                "baseSeverity": "HIGH"
+              }
+            },
+            {
+              "source": "nvd@nist.gov",
+              "type": "Primary",
+              "cvssData": {
+                "version": "3.1",
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                "baseScore": 9.8,
+                "baseSeverity": "CRITICAL"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "cve": {
+        "id": "CVE-2026-0002",
+        "sourceIdentifier": "cna@example.test",
+        "published": "2026-11-21T08:00:00.000",
+        "lastModified": "2026-11-21T08:00:00.000",
+        "vulnStatus": "Analyzed",
+        "descriptions": [
+          {
+            "lang": "es",
+            "value": "Descripción de ejemplo."
+          },
+          {
+            "lang": "en",
+            "value": "Example Library 4.0 deserialization flaw."
+          }
+        ],
+        "metrics": {
+          "cvssMetricV40": [
+            {
+              "source": "cna@example.test",
+              "type": "Secondary",
+              "cvssData": {
+                "version": "4.0",
+                "vectorString": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
+                "baseScore": 9.3,
+                "baseSeverity": "CRITICAL"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "cve": {
+        "id": "CVE-2026-0003",
+        "sourceIdentifier": "cna@example.test",
+        "published": "2026-11-21T09:00:00.000",
+        "lastModified": "2026-11-21T09:00:00.000",
+        "vulnStatus": "Analyzed",
+        "descriptions": [
+          {
+            "lang": "es",
+            "value": "Descripción de ejemplo."
+          },
+          {
+            "lang": "en",
+            "value": "Example Viewer cross-site scripting."
+          }
+        ],
+        "metrics": {
+          "cvssMetricV31": [
+            {
+              "source": "nvd@nist.gov",
+              "type": "Primary",
+              "cvssData": {
+                "version": "3.1",
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                "baseScore": 7.5,
+                "baseSeverity": "HIGH"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "cve": {
+        "id": "CVE-2026-0004",
+        "sourceIdentifier": "cna@example.test",
+        "published": "2026-11-22T10:00:00.000",
+        "lastModified": "2026-11-22T10:00:00.000",
+        "vulnStatus": "Analyzed",
+        "descriptions": [
+          {
+            "lang": "es",
+            "value": "Descripción de ejemplo."
+          },
+          {
+            "lang": "en",
+            "value": "Example Agent privilege escalation."
+          }
+        ],
+        "metrics": {
+          "cvssMetricV31": [
+            {
+              "source": "nvd@nist.gov",
+              "type": "Primary",
+              "cvssData": {
+                "version": "3.1",
+                "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                "baseScore": 8.8,
+                "baseSeverity": "HIGH"
+              }
+            }
+          ],
+          "cvssMetricV40": [
+            {
+              "source": "cna@example.test",
+              "type": "Secondary",
+              "cvssData": {
+                "version": "4.0",
+                "vectorString": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
+                "baseScore": 9.5,
+                "baseSeverity": "CRITICAL"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
