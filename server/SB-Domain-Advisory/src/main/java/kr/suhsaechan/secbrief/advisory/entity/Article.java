@@ -17,6 +17,7 @@ import kr.suhsaechan.secbrief.advisory.constant.AiStatus;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
+import kr.suhsaechan.secbrief.advisory.policy.ArticleDraft;
 import kr.suhsaechan.secbrief.common.entity.BaseEntity;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -24,7 +25,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * 수집한 기사 1건: 제목, 원문 링크, 게시자, 게시일, 주제, AI 처리 상태 (본문은 저장 안 함)
- * 생성·병합·AI 결과 반영 메서드는 해당 기능 구현 시 추가
+ * 생성 > CVE 병합(KEV 표시, NVD 링크로 교체) > AI 결과 반영 순으로 상태가 바뀜
  */
 @Entity
 @Table(name = "article")
@@ -102,4 +103,66 @@ public class Article extends BaseEntity {
 
     @Column(nullable = false)
     private Instant collectedAt;
+
+    /**
+     * 새 기사: 주제 GENERAL, AI 대기(PENDING), 번역 없음
+     */
+    public static Article create(Source source, ArticleDraft draft, Instant collectedAt) {
+        Article article = new Article();
+        article.source = source;
+        article.kind = draft.kind();
+        article.region = draft.region();
+        article.originalUrl = draft.originalUrl();
+        article.cveId = draft.cveId();
+        article.isKev = draft.isKev();
+        article.isUrgent = draft.isUrgent();
+        article.collectedAt = collectedAt;
+        article.applyLinkFields(draft);
+        article.resetAiState();
+        return article;
+    }
+
+    /**
+     * KEV 등재 표시 (등재는 곧 긴급)
+     */
+    public void markKev() {
+        this.isKev = true;
+        this.isUrgent = true;
+    }
+
+    /**
+     * 긴급 표시 (병합 시 기존 || 새 값)
+     */
+    public void markUrgent() {
+        this.isUrgent = true;
+    }
+
+    /**
+     * KEV·GHSA 행 > NVD 링크·게시자·제목·점수로 교체 (NVD 가 링크 원본)
+     * 제목이 바뀌므로 AI 결과를 비우고 다시 대기 (KEV 표시·긴급은 유지)
+     */
+    public void replaceLinkWithNvd(Source nvdSource, ArticleDraft nvdDraft) {
+        this.source = nvdSource;
+        this.originalUrl = nvdDraft.originalUrl();
+        this.isUrgent = this.isUrgent || nvdDraft.isUrgent();
+        applyLinkFields(nvdDraft);
+        resetAiState();
+    }
+
+    // 출처마다 다른 표시 값 (제목, 게시자, 게시일, 점수)
+    private void applyLinkFields(ArticleDraft draft) {
+        this.title = draft.title();
+        this.publisherName = draft.publisherName();
+        this.publishedAt = draft.publishedAt();
+        this.isPublishedAtEstimated = draft.isPublishedAtEstimated();
+        this.cvssScore = draft.cvssScore();
+        this.cvssVersion = draft.cvssVersion();
+    }
+
+    private void resetAiState() {
+        this.topic = ArticleTopic.GENERAL;
+        this.translatedTitle = null;
+        this.aiStatus = AiStatus.PENDING;
+        this.aiAttemptCount = 0;
+    }
 }
