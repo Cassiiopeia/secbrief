@@ -88,6 +88,23 @@ describe('화면 코드의 디자인 값 직접 쓰기 금지', () => {
   });
 });
 
+describe('운영 빌드에 샘플 데이터 금지', () => {
+  test('src 아래에 sample 파일이 없다', () => {
+    expect(listSourceFiles('').filter((file) => /(^|\/)sample-/.test(file))).toEqual([]);
+  });
+  test('src 어디에서도 sample 모듈을 import 하지 않는다', () => {
+    expect(listSourceFiles('').filter((file) => /from '[^']*sample-[^']*'/.test(readSource(file)))).toEqual([]);
+  });
+});
+
+describe('외부 통신은 API 클라이언트 한 곳', () => {
+  test('fetch( 는 data/sources/secbrief-api-client.ts 에만 있다', () => {
+    expect(listSourceFiles('').filter((file) => /\bfetch\(/.test(readSource(file)))).toEqual([
+      path.join('data', 'sources', 'secbrief-api-client.ts'),
+    ]);
+  });
+});
+
 describe('브랜드 색 단일 원본', () => {
   test('색 토큰이 brand/brand-colors.json 과 같다', () => {
     const brandColors: Record<string, { light: string; dark: string } | string> = JSON.parse(

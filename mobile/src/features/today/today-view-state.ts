@@ -49,14 +49,17 @@ const COVER_KIND_BY_TOPIC: Record<BriefingTopic, SbCoverKind> = {
   privacy: 'fingerprint',
   remoteAccess: 'terminal',
   database: 'cylinder',
+  supplyChain: 'cylinder',
+  policy: 'lock',
+  general: 'target',
 };
 
 /** 브리핑 > 오늘 화면 표시 상태: 머리 라벨 > 긴급 > 동향 > 연속 확인 > 스트림 */
 export function toTodayViewState(briefing: TodayBriefing): TodayViewState {
   return {
-    mastheadTrailingLines: [toMastheadDate(briefing.date), `${briefing.totalCount}건 중 ${briefing.readCount}건`],
-    streakDays: briefing.streakDays,
-    streakDetail: toStreakDetail(briefing.totalCount - briefing.readCount),
+    mastheadTrailingLines: [toMastheadDate(briefing.date), `오늘 ${briefing.todayCount}건`],
+    streakDays: briefing.weeklyCount,
+    streakDetail: '이번 주에 모은 보안 소식이에요',
     urgent: briefing.urgentItem && toUrgentView(briefing.urgentItem),
     trend: briefing.topTrend && toTrendView(briefing.topTrend),
     streamItems: briefing.streamItems.map(toStreamItemView),
@@ -66,8 +69,7 @@ export function toTodayViewState(briefing: TodayBriefing): TodayViewState {
 
 /** 긴급 소식 > 타일 문구 (라벨: 긴급 / CVSS 점수, 아래 줄: 제품 · 내 스택 해당) */
 function toUrgentView(item: BriefingItem): TodayUrgentView {
-  const footerParts = [item.productName ?? item.sourceName];
-  if (item.isMyStackMatch) footerParts.push('내 스택 해당');
+  const footerParts = [item.publisherName];
   return {
     capsLabel: item.cvssScore === undefined ? '긴급' : `긴급 / CVSS ${item.cvssScore.toFixed(1)}`,
     title: item.title,
@@ -78,22 +80,18 @@ function toUrgentView(item: BriefingItem): TodayUrgentView {
 
 /** 동향 주제 > 타일 설명 (늘었어요 / 줄었어요 / 같아요) */
 function toTrendView(trend: TrendTopic): TodayTrendView {
+  const changePercent = trend.changePercent ?? 0;
   let changeText = '지난주와 같아요';
-  if (trend.changePercent > 0) changeText = `지난주보다 ${trend.changePercent}% 늘었어요`;
-  if (trend.changePercent < 0) changeText = `지난주보다 ${-trend.changePercent}% 줄었어요`;
-  return { topicName: trend.name, detail: `${trend.weeklyCount}건 · ${changeText}` };
-}
-
-/** 남은 건수 > 연속 확인 타일 설명 */
-function toStreakDetail(remainingCount: number): string {
-  return remainingCount > 0 ? `오늘 ${remainingCount}건 남았어요` : '오늘 브리핑을 다 읽었어요';
+  if (changePercent > 0) changeText = `지난주보다 ${changePercent}% 늘었어요`;
+  if (changePercent < 0) changeText = `지난주보다 ${-changePercent}% 줄었어요`;
+  return { topicName: trend.topic, detail: `${trend.weeklyCount}건 · ${changeText}` };
 }
 
 /** 소식 > 스트림 항목 (시간 · 출처, 썸네일 색은 순서대로 3종 반복) */
 function toStreamItemView(item: BriefingItem, itemIndex: number): TodayStreamItemView {
   return {
     id: item.id,
-    timeLabel: `${toClockTime(item.publishedAt)} · ${item.sourceName}`,
+    timeLabel: `${toClockTime(item.publishedAt)} · ${item.publisherName}`,
     title: item.title,
     thumbnailKind: COVER_KIND_BY_TOPIC[item.topic],
     thumbnailTone: THUMBNAIL_TONES[itemIndex % THUMBNAIL_TONES.length],
