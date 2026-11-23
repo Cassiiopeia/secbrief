@@ -1,0 +1,7 @@
+# 테스트 공통: 수집 스케줄러·AI 처리 끄기, 실제 외부 호출 방지
+secbrief:
+  collect:
+    enabled: false
+  ai:
+    enabled: false
+    anthropic-api-key: ""

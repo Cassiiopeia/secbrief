@@ -27,11 +27,13 @@ export function SbPressable({ children, accessibilityLabel, onPress, isFilling =
       onPressIn={() => animateTo(sbMotion.pressScale)}
       onPressOut={() => animateTo(1)}
       style={isFilling && styles.fill}>
-      <Animated.View style={[isFilling && styles.fill, animatedStyle]}>{children}</Animated.View>
+      <Animated.View style={[isFilling && styles.fillContent, animatedStyle]}>{children}</Animated.View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  // 안쪽은 flexGrow 만: flex 1(기준 0)이면 높이 없는 부모 안에서 네이티브가 0 높이로 접음 (Android 탭바 사라짐)
+  fillContent: { flexGrow: 1 },
 });

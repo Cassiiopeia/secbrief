@@ -1,0 +1,135 @@
+package kr.suhsaechan.secbrief.advisory.policy;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import kr.suhsaechan.secbrief.advisory.collector.CollectedArticle;
+import kr.suhsaechan.secbrief.advisory.entity.Source;
+
+/**
+ * 수집 항목 정규화: 제목·링크 정리, 게시일 보정, 출처 값·긴급 여부 적용 > 저장용 초안
+ * 제목이 비거나 링크가 http(s) 가 아니면 버림 (빈 값)
+ */
+public final class ArticleNormalizer {
+
+    // 게시일이 수집 시각보다 이만큼까지 미래인 것은 시계 오차로 보고 그대로 둠
+    public static final Duration FUTURE_PUBLISHED_AT_TOLERANCE = Duration.ofHours(1);
+    // article.title 열 길이
+    public static final int MAXIMUM_TITLE_LENGTH = 500;
+    // collect_run.error_message 열 길이
+    public static final int MAXIMUM_ERROR_MESSAGE_LENGTH = 500;
+    // article.original_url 열 길이 (넘으면 잘라 쓰면 링크가 깨지므로 버림)
+    private static final int MAXIMUM_ORIGINAL_URL_LENGTH = 1000;
+    // article.publisher_name 열 길이
+    private static final int MAXIMUM_PUBLISHER_NAME_LENGTH = 100;
+    private static final String UNKNOWN_ERROR_MESSAGE = "unknown";
+
+    private static final Pattern HTML_TAG = Pattern.compile("</?[a-zA-Z][^>]*>");
+    // 일반 공백 + 줄바꿈 + 줄바꿈 없는 공백(NBSP)
+    private static final Pattern WHITESPACE_RUN = Pattern.compile("[\\s\\u00A0]+");
+    // 유니코드 제어문자 (줄바꿈·NUL 등)
+    private static final Pattern CONTROL_CHARACTER = Pattern.compile("\\p{Cc}");
+    private static final String URL_FRAGMENT_START = "#";
+    private static final String HTTP_URL_PREFIX = "http://";
+    private static final String HTTPS_URL_PREFIX = "https://";
+
+    private ArticleNormalizer() {
+    }
+
+    /**
+     * 수집 항목 > 저장용 초안: 제목·링크 정리 > 게시일 보정 > 출처 값(종류·지역·게시자) > 긴급 판정
+     */
+    public static Optional<ArticleDraft> normalize(CollectedArticle collected, Source source, Instant collectedAt) {
+        // 제목·링크 정리 (불량이면 버림)
+        String title = toCleanedTitle(collected.title());
+        String originalUrl = toCleanedUrl(collected.originalUrl());
+        if (title.isEmpty() || !isCollectableUrl(originalUrl)) {
+            return Optional.empty();
+        }
+
+        // 게시일 보정 (없음·미래 > 수집 시각 + 추정 표시)
+        boolean isPublishedAtEstimated = isPublishedAtUnreliable(collected.publishedAt(), collectedAt);
+        Instant publishedAt = isPublishedAtEstimated ? collectedAt : collected.publishedAt();
+
+        boolean isUrgent = ArticleUrgencyPolicy.isUrgent(
+                source.getCode(), title, collected.cvssScore(), collected.isKev());
+
+        return Optional.of(new ArticleDraft(
+                source.getKind(),
+                source.getRegion(),
+                title,
+                originalUrl,
+                toPublisherName(collected.publisherName(), source),
+                publishedAt,
+                isPublishedAtEstimated,
+                collected.cveId(),
+                collected.cvssScore(),
+                collected.cvssVersion(),
+                collected.isKev(),
+                isUrgent));
+    }
+
+    /**
+     * 오류 메시지 정리 (제어문자 > ?, 500자 제한, null > unknown)
+     */
+    public static String toSanitizedErrorMessage(String rawMessage) {
+        if (rawMessage == null) {
+            return UNKNOWN_ERROR_MESSAGE;
+        }
+        String withoutControlCharacters = CONTROL_CHARACTER.matcher(rawMessage).replaceAll("?");
+        return truncate(withoutControlCharacters, MAXIMUM_ERROR_MESSAGE_LENGTH);
+    }
+
+    // HTML 태그 제거 > 연속 공백 하나로 > trim > 500자 제한
+    private static String toCleanedTitle(String rawTitle) {
+        if (rawTitle == null) {
+            return "";
+        }
+        String withoutTags = HTML_TAG.matcher(rawTitle).replaceAll("");
+        String collapsed = WHITESPACE_RUN.matcher(withoutTags).replaceAll(" ").trim();
+        return truncate(collapsed, MAXIMUM_TITLE_LENGTH).trim();
+    }
+
+    // trim > #fragment 제거
+    private static String toCleanedUrl(String rawUrl) {
+        if (rawUrl == null) {
+            return "";
+        }
+        String trimmed = rawUrl.trim();
+        int fragmentIndex = trimmed.indexOf(URL_FRAGMENT_START);
+        return fragmentIndex >= 0 ? trimmed.substring(0, fragmentIndex) : trimmed;
+    }
+
+    // http(s) 스킴 + 호스트 있음 + 열 길이 이내
+    private static boolean isCollectableUrl(String url) {
+        return url.length() <= MAXIMUM_ORIGINAL_URL_LENGTH
+                && (hasHostAfterPrefix(url, HTTPS_URL_PREFIX) || hasHostAfterPrefix(url, HTTP_URL_PREFIX));
+    }
+
+    private static boolean hasHostAfterPrefix(String url, String prefix) {
+        return url.regionMatches(true, 0, prefix, 0, prefix.length()) && url.length() > prefix.length();
+    }
+
+    // 게시일 없음 또는 수집 시각 + 허용 오차보다 미래
+    private static boolean isPublishedAtUnreliable(Instant publishedAt, Instant collectedAt) {
+        return publishedAt == null || publishedAt.isAfter(collectedAt.plus(FUTURE_PUBLISHED_AT_TOLERANCE));
+    }
+
+    // 수집값이 비면 출처 표시 이름
+    private static String toPublisherName(String collectedPublisherName, Source source) {
+        String publisherName = collectedPublisherName == null || collectedPublisherName.isBlank()
+                ? source.getDisplayName()
+                : collectedPublisherName.trim();
+        return truncate(publisherName, MAXIMUM_PUBLISHER_NAME_LENGTH);
+    }
+
+    // 길이 제한 (잘린 끝이 서로게이트 쌍 절반이면 그 글자는 뺌: DB 인코딩 오류 방지)
+    private static String truncate(String text, int maximumLength) {
+        if (text.length() <= maximumLength) {
+            return text;
+        }
+        int endIndex = Character.isHighSurrogate(text.charAt(maximumLength - 1)) ? maximumLength - 1 : maximumLength;
+        return text.substring(0, endIndex);
+    }
+}

@@ -11,4 +11,6 @@ dependencies {
     api project(':SB-Common')
     api project(':SB-Domain-Member')
     api project(':SB-Domain-Advisory')
+
+    testImplementation testFixtures(project(':SB-Domain-Advisory'))
 }

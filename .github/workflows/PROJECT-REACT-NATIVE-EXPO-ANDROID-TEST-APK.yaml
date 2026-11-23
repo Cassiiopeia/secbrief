@@ -28,6 +28,7 @@ permissions:
 # 프로젝트별 설정
 # ============================================
 env:
+  EXPO_PUBLIC_API_BASE_URL: "https://api.secbrief.suhsaechan.kr"   # 앱 번들에 박히는 운영 API 주소 (3개 워크플로 같은 값, mobile/tests/config 가 확인)
   APP_DIRECTORY: "mobile"
   NODE_VERSION: ${{ vars.NODE_VERSION || '22' }}
   JAVA_VERSION: ${{ vars.JAVA_VERSION || '17' }}

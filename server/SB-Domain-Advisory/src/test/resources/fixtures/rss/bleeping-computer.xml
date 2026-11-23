@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"
+        xmlns:content="http://purl.org/rss/1.0/modules/content/"
+        xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+        xmlns:dc="http://purl.org/dc/elements/1.1/"
+        xmlns:atom="http://www.w3.org/2005/Atom"
+        >
+
+<channel>
+        <title>BleepingComputer</title>
+
+        <link>https://www.bleepingcomputer.com/</link>
+        <description>BleepingComputer - All Stories</description>
+        <pubDate>Mon, 23 Nov 2026 05:15:57 GMT</pubDate>
+        <generator>https://www.bleepingcomputer.com/</generator>
+        <language>en</language>
+        <atom:link href="https://www.bleepingcomputer.com/feed/" rel="self" type="application/rss+xml" />
+        
+ <item>
+        <title>Hackers exploit GL.iNet cloud flaw to infect routers, KVM devices</title>
+        <link>https://www.bleepingcomputer.com/news/security/hackers-exploit-glinet-cloud-flaw-to-infect-routers-kvm-devices/</link>
+        <pubDate>Sun, 22 Nov 2026 13:45:37 -0500</pubDate>
+        <dc:creator>Author</dc:creator>
+        
+        <category><![CDATA[Security]]></category>
+
+        <guid>https://www.bleepingcomputer.com/news/security/hackers-exploit-glinet-cloud-flaw-to-infect-routers-kvm-devices/</guid>
+</item>
+ <item>
+        <title>Cleverbridge warns hackers stole credit card numbers, CVVs in data breach</title>
+        <link>https://www.bleepingcomputer.com/news/security/cleverbridge-warns-hackers-stole-credit-card-numbers-cvvs-in-data-breach/</link>
+        <pubDate>Sun, 22 Nov 2026 10:43:04 -0500</pubDate>
+        <dc:creator>Author</dc:creator>
+        
+        <category><![CDATA[Security]]></category>
+
+        <guid>https://www.bleepingcomputer.com/news/security/cleverbridge-warns-hackers-stole-credit-card-numbers-cvvs-in-data-breach/</guid>
+</item>
+</channel>
+</rss>

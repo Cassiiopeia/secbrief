@@ -1,9 +1,9 @@
-import { useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet } from 'react-native';
 
 import { toAppFailure } from '@/core/error/app-failure';
 import { SbEmptyState, SbErrorState, SbLoadingSkeleton, SbMasthead, SbScreen, useSbTheme } from '@/design';
 
+import { usePullRefresh } from '../articles/use-pull-refresh';
 import { TodayBriefingContent } from './today-briefing-content';
 import { useTodayBriefing } from './use-today-briefing';
 
@@ -13,17 +13,7 @@ const MASTHEAD_TITLE_LINES = ['SEC', 'BRIEF'];
 export function TodayScreen() {
   const { colors } = useSbTheme();
   const briefingQuery = useTodayBriefing();
-  // 사용자가 당겨서 시작한 새로고침만 표시 (자동 재조회 때는 돌지 않게)
-  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
-
-  const onPullRefresh = async () => {
-    setIsPullRefreshing(true);
-    try {
-      await briefingQuery.refetch();
-    } finally {
-      setIsPullRefreshing(false); // (성공·실패 공통)
-    }
-  };
+  const { isPullRefreshing, onPullRefresh } = usePullRefresh(briefingQuery.refetch);
 
   return (
     <SbScreen>

@@ -1,0 +1,98 @@
+package kr.suhsaechan.secbrief.advisory.collector;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static kr.suhsaechan.secbrief.advisory.collector.NvdResponseParser.parse;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import kr.suhsaechan.secbrief.common.exception.CustomException;
+import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import org.junit.jupiter.api.Test;
+
+/**
+ * NVD 응답: 9.0 이상만, v3.1 우선 > v4.0, 설명 120자 제목, 오프셋 없는 게시일 = UTC
+ */
+class NvdResponseParserTest {
+
+    @Test
+    void keepsOnlyCriticalScoresPreferringV31() {
+        NvdPage page = parse(openFixture());
+
+        // D(v3.1 8.8 + v4.0 9.5)는 v3.1 우선이라 제외, A 는 Secondary 7.0 보다 Primary 9.8 우선
+        assertThat(page.articles())
+                .extracting(CollectedArticle::cveId, CollectedArticle::cvssScore, CollectedArticle::cvssVersion)
+                .containsExactly(tuple("CVE-2026-0001", new BigDecimal("9.8"), "3.1"),
+                        tuple("CVE-2026-0002", new BigDecimal("9.3"), "4.0"));
+    }
+
+    @Test
+    void truncatesDescriptionTitleTo120Characters() {
+        String title = parse(openFixture()).articles().get(0).title();
+
+        assertThat(title).startsWith("CVE-2026-0001: ").endsWith("…");
+        assertThat(title).hasSize("CVE-2026-0001: ".length() + 120 + 1);
+    }
+
+    @Test
+    void keepsShortDescriptionWithoutTruncationMark() {
+        assertThat(parse(openFixture()).articles().get(1).title())
+                .isEqualTo("CVE-2026-0002: Example Library 4.0 deserialization flaw.");
+    }
+
+    @Test
+    void mapsLinkPublisherAndKevFlag() {
+        CollectedArticle article = parse(openFixture()).articles().get(0);
+
+        assertThat(article.originalUrl()).isEqualTo("https://nvd.nist.gov/vuln/detail/CVE-2026-0001");
+        assertThat(article.publisherName()).isEqualTo("NVD");
+        assertThat(article.isKev()).isFalse();
+    }
+
+    @Test
+    void readsPagingNumbers() {
+        NvdPage page = parse(openFixture());
+
+        assertThat(page.totalResults()).isEqualTo(4);
+        assertThat(page.hasNextPage()).isFalse();
+    }
+
+    @Test
+    void parsesPublishedWithoutOffsetAsUtc() {
+        assertThat(parse(openFixture()).articles().get(0).publishedAt())
+                .isEqualTo(Instant.parse("2026-11-20T15:15:10.123Z"));
+    }
+
+    @Test
+    void hasNextPageWhenMoreResultsRemain() {
+        assertThat(new NvdPage(List.of(), 0, 2000, 2001).hasNextPage()).isTrue();
+        assertThat(new NvdPage(List.of(), 2000, 1, 2001).hasNextPage()).isFalse();
+    }
+
+    @Test
+    void throwsFeedParseErrorWhenVulnerabilitiesMissing() {
+        assertThatThrownBy(() -> parse(toInputStream("{\"message\":\"x\"}")))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.FEED_PARSE_ERROR);
+    }
+
+    @Test
+    void throwsFeedParseErrorOnBrokenJson() {
+        assertThatThrownBy(() -> parse(toInputStream("<html>")))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.FEED_PARSE_ERROR);
+    }
+
+    private static InputStream openFixture() {
+        return NvdResponseParserTest.class.getResourceAsStream("/fixtures/nvd/nvd-cves-page.json");
+    }
+
+    private static InputStream toInputStream(String json) {
+        return new ByteArrayInputStream(json.getBytes(UTF_8));
+    }
+}

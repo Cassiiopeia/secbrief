@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+		<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:sy="http://purl.org/rss/1.0/modules/syndication/" xmlns:admin="http://webns.net/mvcb/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+		<channel>
+			<title>데일리시큐 - 전체기사</title>
+			<link>https://www.dailysecu.com</link>
+			<description>데일리시큐</description>
+			<language>ko</language>
+			<copyright>Copyright (c) https://www.dailysecu.com All rights reserved</copyright>
+			<lastBuildDate>2026-11-23 14:15:11</lastBuildDate>
+		<item>
+			<title>아마존 &quot;중국 해커, AI 해킹 도구 활용 공격 사례 공개&quot;...대학 서버 최고 관리자 권한까지 탈취</title>
+			<link>https://www.dailysecu.com/news/articleView.html?idxno=209667</link>
+<author><![CDATA[기자]]></author>
+			<pubDate>2026-11-23 14:12:17</pubDate>
+			</item>
+			<item>
+			<title>스노우플레이크, AWS 하반기 KPPL 우수 파트너 선정</title>
+			<link>https://www.dailysecu.com/news/articleView.html?idxno=209666</link>
+<author><![CDATA[기자]]></author>
+			<pubDate>2026-11-23 14:08:42</pubDate>
+			</item>
+</channel>
+</rss>

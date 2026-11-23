@@ -29,3 +29,24 @@ management:
     web:
       exposure:
         include: health
+
+secbrief:
+  collect:
+    # 수집 스케줄러 켜기 (false: 수집 안 함)
+    enabled: ${COLLECT_ENABLED:true}
+    # 주기 판정 틱 (60초): 실제 수집 주기는 출처별 interval_minutes
+    tick-milliseconds: 60000
+    # 기동 후 첫 틱까지 대기 (30초)
+    initial-delay-milliseconds: 30000
+  ai:
+    # AI 스케줄러 켜기 (false: AI 처리 안 함, 기사는 원문 제목·general 로 보임)
+    enabled: ${AI_ENABLED:true}
+    # Anthropic API 키 (비어 있으면 AI 처리를 건너뜀, 로그에 남기지 않음)
+    anthropic-api-key: ${ANTHROPIC_API_KEY:}
+    model: claude-haiku-5-5
+    # 한 틱에 처리할 기사 수
+    batch-size: 20
+    # AI 틱 (5분)
+    tick-milliseconds: 300000
+    # 기동 후 첫 틱까지 대기 (90초: 첫 수집 이후)
+    initial-delay-milliseconds: 90000
