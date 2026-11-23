@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * GitHub 보안 권고 수집기: 최신 게시순 1페이지(100건) > since 이후분
+ * GitHub 보안 권고 수집기: 최신 게시순 1페이지(100건) > since 이후분 (기간 안 권고가 100건 이상이면 로그)
  * 인증 없음 (시간당 60회 한도, 출처 주기 2시간이라 1회/2시간)
  */
 @Slf4j
@@ -37,12 +37,11 @@ public class GhsaArticleCollector implements ArticleCollector {
     @Override
     public List<CollectedArticle> collect(Source source, Instant since) {
         byte[] responseBytes = feedHttpClient.fetch(source.getFeedUrl() + PAGE_QUERY, GITHUB_API_HEADERS);
-        List<CollectedArticle> allArticles = GhsaAdvisoryParser.parse(new ByteArrayInputStream(responseBytes), null);
-        if (allArticles.size() >= RESULTS_PER_PAGE) {
-            log.warn("[article collect] ghsa page full : size={}", allArticles.size());
+        List<CollectedArticle> articlesSince = GhsaAdvisoryParser.parse(new ByteArrayInputStream(responseBytes), since);
+        // 한 페이지가 전부 기간 안이면 다음 페이지에 놓친 권고가 있을 수 있음
+        if (articlesSince.size() >= RESULTS_PER_PAGE) {
+            log.warn("[article collect] ghsa page full : size={}", articlesSince.size());
         }
-        return allArticles.stream()
-                .filter(article -> since == null || !article.publishedAt().isBefore(since))
-                .toList();
+        return articlesSince;
     }
 }

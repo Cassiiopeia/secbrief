@@ -1,4 +1,4 @@
 /**
- * 주기 작업: 보안 공지 수집, 알림 발송 (기능 구현 시 추가)
+ * 주기 작업: 출처 수집 틱(1분), AI 제목 분류·번역 틱(5분)
  */
 package kr.suhsaechan.secbrief.web.scheduler;
