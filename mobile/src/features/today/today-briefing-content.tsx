@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import {
@@ -12,6 +13,7 @@ import {
   useSbTheme,
 } from '@/design';
 
+import { openOriginalArticle } from '../articles/open-original-article';
 import type { TodayViewState } from './today-view-state';
 
 interface TodayBriefingContentProps {
@@ -25,8 +27,8 @@ const URGENT_ORDER = 1;
 const STAT_ORDER = 2;
 const STREAM_ORDER = 3;
 
-// 상세 화면 연결 전: 누름 반응만 (상세 화면이 생기면 이동으로 교체)
-const onItemPressed = () => {};
+// 동향 1위 누름 > 동향 탭
+const onTrendPressed = () => router.navigate('/trend');
 
 /**
  * 오늘 브리핑 배치: 머리 > (긴급 타일) > 통계 타일 2개 > 스트림. 순서대로 등장
@@ -49,7 +51,7 @@ export function TodayBriefingContent({ mastheadTitleLines, state }: TodayBriefin
               title={urgent.title}
               footerLabel={urgent.footerLabel}
               coverKind={urgent.coverKind}
-              onPress={onItemPressed}
+              onPress={() => openOriginalArticle(urgent.originalUrl)}
             />
           </View>
         </SbEntrance>
@@ -64,13 +66,13 @@ export function TodayBriefingContent({ mastheadTitleLines, state }: TodayBriefin
               tone="feature"
               // 배경 그림은 커버 배치에서만 (썸네일 배치는 가볍게)
               backgroundCoverKind={hasUrgent ? 'lock' : undefined}
-              onPress={onItemPressed}
+              onPress={onTrendPressed}
             />
           )}
           <SbStatTile
-            label="연속 확인"
-            value={{ countTarget: state.streakDays, countUnit: '일' }}
-            detail={state.streakDetail}
+            label="이번 주"
+            value={{ countTarget: state.weeklyCount, countUnit: '건' }}
+            detail={state.weeklyDetail}
             tone="neutral"
           />
         </View>
@@ -89,7 +91,7 @@ export function TodayBriefingContent({ mastheadTitleLines, state }: TodayBriefin
                   thumbnailKind={item.thumbnailKind}
                   thumbnailTone={item.thumbnailTone}
                   isLatest={itemIndex === 0}
-                  onPress={onItemPressed}
+                  onPress={() => openOriginalArticle(item.originalUrl)}
                 />
               </SbEntrance>
             ))}

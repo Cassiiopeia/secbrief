@@ -1,0 +1,65 @@
+[
+  {
+    "ghsa_id": "GHSA-aaaa-bbbb-cccc",
+    "cve_id": "CVE-2026-5555",
+    "url": "https://api.github.com/advisories/GHSA-aaaa-bbbb-cccc",
+    "html_url": "https://github.com/advisories/GHSA-aaaa-bbbb-cccc",
+    "summary": "Example Web Framework: remote code execution in request parser",
+    "type": "reviewed",
+    "severity": "critical",
+    "published_at": "2026-11-21T10:00:00Z",
+    "updated_at": "2026-11-21T10:00:00Z",
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "score": 9.8
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": 0.0
+      }
+    }
+  },
+  {
+    "ghsa_id": "GHSA-dddd-eeee-ffff",
+    "cve_id": null,
+    "url": "https://api.github.com/advisories/GHSA-dddd-eeee-ffff",
+    "html_url": "https://github.com/advisories/GHSA-dddd-eeee-ffff",
+    "summary": "Example Package: malicious code in published release",
+    "type": "reviewed",
+    "severity": "critical",
+    "published_at": "2026-11-20T08:30:00Z",
+    "updated_at": "2026-11-20T08:30:00Z",
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": 0.0
+      },
+      "cvss_v4": {
+        "vector_string": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
+        "score": 9.3
+      }
+    }
+  },
+  {
+    "ghsa_id": "GHSA-gggg-hhhh-iiii",
+    "cve_id": "CVE-2026-7777",
+    "url": "https://api.github.com/advisories/GHSA-gggg-hhhh-iiii",
+    "html_url": "https://github.com/advisories/GHSA-gggg-hhhh-iiii",
+    "summary": "Example Server: authentication bypass",
+    "type": "reviewed",
+    "severity": "critical",
+    "published_at": "2026-10-01T00:00:00Z",
+    "updated_at": "2026-10-01T00:00:00Z",
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+        "score": 9.1
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": 0.0
+      }
+    }
+  }
+]

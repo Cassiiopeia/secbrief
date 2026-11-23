@@ -9,6 +9,8 @@ dependencies {
     api project(':SB-Domain-Member')
     api project(':SB-Domain-Advisory')
     api project(':SB-Application')
+
+    testImplementation testFixtures(project(':SB-Domain-Advisory'))
 }
 
 tasks.named('bootJar') {

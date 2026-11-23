@@ -78,6 +78,12 @@ metadata:
       changelog:
         provider: "commit"
         base_url: ""
+      knowledge:                     # pro-brain knowledge capture (kept on updates)
+        enabled: true
+        path: "knowledge/"
+        capture: "issue-end"
+        claude_md: "CLAUDE.md"
+        team_brain: { mcp_name: "gbrain-secbrief", mcp_url: "https://ai.suhsaechan.kr/team/secbrief/mcp", contact: "Cassiiopeia" }
 
 deploy:                          # 마법사가 기억하는 배포 설정 (비민감 / 직접 수정 가능)
   spring:
