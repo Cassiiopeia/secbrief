@@ -33,6 +33,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Article extends BaseEntity {
 
+    // AI 최대 시도 횟수 (넘으면 FAILED, 다시 부르지 않음)
+    public static final int MAXIMUM_AI_ATTEMPT_COUNT = 3;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -147,6 +150,25 @@ public class Article extends BaseEntity {
         this.isUrgent = this.isUrgent || nvdDraft.isUrgent();
         applyLinkFields(nvdDraft);
         resetAiState();
+    }
+
+    /**
+     * AI 결과 반영: 주제 + 검증 통과한 번역(없으면 null) > DONE
+     */
+    public void applyAiAnalysis(ArticleTopic topic, String acceptedTranslatedTitle) {
+        this.topic = topic;
+        this.translatedTitle = acceptedTranslatedTitle;
+        this.aiStatus = AiStatus.DONE;
+    }
+
+    /**
+     * AI 실패 기록: 주제 GENERAL·번역 없음, 시도 3회째면 FAILED 아니면 PENDING 유지
+     */
+    public void recordAiFailure() {
+        this.topic = ArticleTopic.GENERAL;
+        this.translatedTitle = null;
+        this.aiAttemptCount++;
+        this.aiStatus = aiAttemptCount >= MAXIMUM_AI_ATTEMPT_COUNT ? AiStatus.FAILED : AiStatus.PENDING;
     }
 
     // 출처마다 다른 표시 값 (제목, 게시자, 게시일, 점수)
