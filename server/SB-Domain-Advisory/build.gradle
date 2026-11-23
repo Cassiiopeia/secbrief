@@ -12,6 +12,9 @@ jar { enabled = true; archiveClassifier = '' }
 dependencies {
     api project(':SB-Common')
 
+    // RSS·Atom 피드 파싱 (인코딩 자동 감지)
+    implementation 'com.rometools:rome:2.1.0'
+
     // SourceFixtures 가 ReflectionTestUtils 로 엔티티 필드를 채움
     testFixturesImplementation 'org.springframework:spring-test'
 }

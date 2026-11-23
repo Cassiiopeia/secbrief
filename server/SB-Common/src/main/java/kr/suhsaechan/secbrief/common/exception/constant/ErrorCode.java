@@ -26,7 +26,8 @@ public enum ErrorCode {
     TYPE_MISMATCH(HttpStatus.BAD_REQUEST, "값의 형식이 맞지 않아요."),
 
     // 외부 연동 (보안 공지 출처, AI 제공자)
-    EXTERNAL_API_ERROR(HttpStatus.BAD_GATEWAY, "외부 서비스 응답에 문제가 있어요.");
+    EXTERNAL_API_ERROR(HttpStatus.BAD_GATEWAY, "외부 서비스 응답에 문제가 있어요."),
+    FEED_PARSE_ERROR(HttpStatus.BAD_GATEWAY, "외부 소식 형식을 읽지 못했어요.");
 
     private final HttpStatus status;
     private final String message;
