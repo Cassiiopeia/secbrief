@@ -52,6 +52,26 @@ mobile/
 - 키를 바꾸면 Expo 프로젝트의 인증정보도 다시 등록한다 (앱 재빌드는 필요 없음).
 - 서버는 `secbrief.push.expo.experience-id` 로 우리 프로젝트 토큰만 받는다 (`server/CLAUDE.md`).
 
+## 앱 아이콘
+
+원본은 `brand/app-icon-source.png` 한 장이다 (단색 배경 위 무늬, 1024 이상 정사각형). `assets/images/` 의 사본 7개는 스크립트가 만든다.
+
+```bash
+python3 brand/generate_platform_assets.py   # 레포 루트에서 실행 (Python 3 + Pillow)
+```
+
+| 사본 | 쓰는 곳 |
+|---|---|
+| `icon.png` | iOS 아이콘, Android 7 이하 아이콘 (1024, 알파 없음) |
+| `android-icon-foreground.png` · `-background.png` · `-monochrome.png` | Android 적응형 아이콘, 테마 아이콘 |
+| `splash-icon.png` | 시작 화면 (밝은·어두운 바탕 공용 둥근 타일) |
+| `notification-icon.png` | Android 알림 아이콘 (흰 실루엣) |
+| `favicon.png` | 웹 |
+
+- 사본을 손으로 고치지 않는다. 아이콘을 바꿀 때는 원본 한 장을 바꾸고 스크립트를 다시 돌린다.
+- 원본 배경은 `brand-colors.json` 의 `appIconBackground` 와 같은 계열의 단색이어야 한다 (아니면 스크립트가 거부). 배경색을 바꾸면 `app.json` 도 함께 바꾼다.
+- iOS 는 `ios.icon` 없이 맨 위 `icon` 을 쓴다. 규격은 `tests/config/app-icon-assets.test.ts` 가 확인한다.
+
 ## 규칙 (tests/architecture 와 ESLint 가 강제)
 
 - 화면(`app`, `features`)에 색·글꼴·글자 크기·간격·모서리·지속시간 숫자를 직접 쓰지 않는다. 토큰이 없으면 토큰을 먼저 추가한다.
