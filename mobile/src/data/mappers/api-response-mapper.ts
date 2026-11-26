@@ -35,6 +35,12 @@ export interface ArticleApiResponse {
   cvssVersion: string | null;
   isKev: boolean;
   isUrgent: boolean;
+  /** 분류 태그 (#93). 이 필드가 생기기 전 서버는 아예 안 줌 */
+  fieldCode?: string | null;
+  ecosystemCode?: string | null;
+  packageName?: string | null;
+  productCode?: string | null;
+  isNotable?: boolean | null;
 }
 
 export interface TrendTopicApiResponse {
@@ -161,6 +167,11 @@ export function toBriefingItem(response: ArticleApiResponse): BriefingItem {
     cvssVersion: response.cvssVersion ?? undefined,
     isKev: response.isKev,
     isUrgent: response.isUrgent,
+    fieldCode: toNonBlankText(response.fieldCode),
+    ecosystemCode: toNonBlankText(response.ecosystemCode),
+    packageName: toNonBlankText(response.packageName),
+    productCode: toNonBlankText(response.productCode),
+    isNotable: response.isNotable === true,
   };
 }
 

@@ -22,8 +22,14 @@ export const sbSize = {
   stateIllustration: 136,
   /** 행·입력창 안 아이콘 (돋보기, 지우기, 오른쪽 화살표) */
   rowIcon: 20,
-  /** 안 본 글 점 (알림 종, 알림함 칸·줄) */
+  /** 안 본 글 점 (알림 종, 알림함 칸·줄), 한 줄 행 심각도 점 */
   unreadDot: 8,
+  /** 오늘 새 소식 띠의 건수 타일 너비·최소 높이 (#93) */
+  countTileWidth: 148,
+  countTileMinimumHeight: 104,
+  /** 고르기 알약 높이·체크 아이콘 (#93 관심 기술) */
+  pickHeight: 36,
+  pickIcon: 16,
 } as const;
 
 /** 비율(0~1) > 너비 % 로 바꿀 때 곱하는 값 (비율 막대) */

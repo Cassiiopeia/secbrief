@@ -1,5 +1,5 @@
 import type { ArticleKind } from '@/data/models/briefing-item';
-import { type SbArticleHashtags, SbArticleRow, SbHeadlineCard } from '@/design';
+import { type SbArticleHashtags, SbArticleRow, type SbBadgeContent, SbHeadlineCard, SbOneLineRow } from '@/design';
 
 import { toHashtagAccessibilityLabel } from '../keywords/keyword-view-state';
 import { openKeywordArticles } from '../keywords/open-keyword-articles';
@@ -12,8 +12,8 @@ import { useReadArticleIds } from './use-read-articles';
 
 interface ArticleFeedItemProps {
   rowView: ArticleRowView;
-  /** headline 큰 카드, card 중간 카드, compact 조밀한 행 */
-  presentation: ArticleFeedPresentation;
+  /** headline 큰 카드, card 중간 카드, compact 조밀한 행, oneLine 한 줄 행(#93) */
+  presentation: ArticleFeedPresentation | 'oneLine';
   /** 큰 카드 배치 (기본 wide: 화면 너비, rail: 가로 레일 안) */
   headlineLayout?: 'rail' | 'wide';
   /** 목록 자리만 봐도 아는 종류 (그 종류 배지는 생략. 예: 취약점 탭의 취약점) */
@@ -30,12 +30,25 @@ export function ArticleFeedItem({ rowView, presentation, headlineLayout = 'wide'
   const isRead = useReadArticleIds().has(rowView.id);
   const onPress = () => openArticle(rowView);
   const isCompact = presentation === 'compact';
-  const badges = toFeedBadges(rowView.badges, isCompact, impliedKind && toKindLabel(impliedKind));
+  const badges = rowView.tagBadges.length > 0 ? toTaggedFeedBadges(rowView) : toFeedBadges(rowView.badges, isCompact, impliedKind && toKindLabel(impliedKind));
   const hashtags: SbArticleHashtags | undefined =
     rowView.hashtags.length === 0
       ? undefined
       : { hashtags: rowView.hashtags, toAccessibilityLabel: toHashtagAccessibilityLabel, onHashtagPress: openKeywordArticles };
 
+  if (presentation === 'oneLine') {
+    return (
+      <SbOneLineRow
+        leadingLabel={rowView.leadingName}
+        title={rowView.title}
+        trailingLabel={rowView.oneLineTrailingLabel}
+        severityTone={rowView.cvss?.tone}
+        isRead={isRead}
+        accessibilityLabel={rowView.accessibilityLabel}
+        onPress={onPress}
+      />
+    );
+  }
   if (presentation === 'headline') {
     return (
       <SbHeadlineCard
@@ -70,4 +83,12 @@ export function ArticleFeedItem({ rowView, presentation, headlineLayout = 'wide'
       onPress={onPress}
     />
   );
+}
+
+// 분류 태그가 있는 목록(취약점 탭): 강한 배지 1개(악용 중 > 긴급) + 분류 태그 (#93)
+const STRONG_BADGE_TONES: SbBadgeContent['tone'][] = ['exploited', 'urgent'];
+
+function toTaggedFeedBadges(rowView: ArticleRowView): SbBadgeContent[] {
+  const strongBadge = STRONG_BADGE_TONES.map((tone) => rowView.badges.find((badge) => badge.tone === tone)).find((badge) => badge !== undefined);
+  return strongBadge === undefined ? rowView.tagBadges : [strongBadge, ...rowView.tagBadges];
 }

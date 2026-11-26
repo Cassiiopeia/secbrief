@@ -4,6 +4,7 @@ import {
   type AppNotificationArticleGuide,
   type AppNotificationArticleSection,
   type AppNotificationDetail,
+  type AppNotificationDigest,
   type AppNotificationKind,
   type AppNotificationPage,
   type AppNotificationSummary,
@@ -35,6 +36,8 @@ export interface AppNotificationDetailApiResponse extends AppNotificationSummary
   articleSections?: unknown;
   /** 기사별 대응 안내 요약 (#71). 이 필드가 생기기 전 서버는 아예 안 줌 */
   articleGuides?: unknown;
+  /** 아침 요약 본문 (#93, DIGEST 만) */
+  digest?: unknown;
 }
 
 export interface AppNotificationPageApiResponse {
@@ -99,7 +102,22 @@ export function toAppNotificationDetail(response: AppNotificationDetailApiRespon
     linkUrl: linkUrl !== undefined && WEB_LINK_PATTERN.test(linkUrl) ? linkUrl : undefined,
     articleSections: toArticleSections(response.articleSections),
     articleGuides: toArticleGuides(response.articleGuides),
+    digest: summary.kind === 'DIGEST' ? toDigest(response.digest) : undefined,
   };
+}
+
+// 아침 요약 본문 (읽을 수 있는 기사만, 빈 분야 묶음은 버림, 객체가 아니면 빈 요약)
+function toDigest(value: unknown): AppNotificationDigest {
+  if (!isObject(value)) return { articleCount: 0, notableArticles: [], fieldSections: [] };
+  const toArticles = (articles: unknown) => (Array.isArray(articles) ? articles.filter(isArticleApiResponse).map(toBriefingItem) : []);
+  const fieldSections = Array.isArray(value.fieldSections)
+    ? value.fieldSections.flatMap((section) => {
+        if (!isObject(section) || typeof section.fieldCode !== 'string') return [];
+        const articles = toArticles(section.articles);
+        return articles.length === 0 ? [] : [{ fieldCode: section.fieldCode, articles }];
+      })
+    : [];
+  return { articleCount: toNonNegativeInteger(value.articleCount) ?? 0, notableArticles: toArticles(value.notableArticles), fieldSections };
 }
 
 /** 최근 글 번호 응답 > 종류별 번호 (없거나 숫자가 아니면 없음) */

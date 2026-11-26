@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { SectionList, StyleSheet, View } from 'react-native';
 
 import { toAppFailure } from '@/core/error/app-failure';
-import type { AppNotificationKind, AppNotificationSummary } from '@/data/models/app-notification';
+import type { InboxNotificationKind, AppNotificationSummary } from '@/data/models/app-notification';
 import {
   SbEmptyState,
   SbErrorState,
@@ -29,7 +29,7 @@ import { useNotificationReadState, useNotificationReadStateUpdaters } from './us
 import { LATEST_NOTIFICATION_IDS_QUERY_KEY } from './use-unseen-notification-dots';
 
 // 종류별 빈 상태 문구·그림, 목록 끝 안내 (긴급 알림 기록은 서버가 30일 보관)
-const INBOX_TEXTS: Record<AppNotificationKind, { emptyTitle: string; emptyDescription: string; emptyIllustration: SbStateIllustrationKind; endNote?: string }> = {
+const INBOX_TEXTS: Record<InboxNotificationKind, { emptyTitle: string; emptyDescription: string; emptyIllustration: SbStateIllustrationKind; endNote?: string }> = {
   ALERT: {
     emptyTitle: '아직 받은 알림이 없어요',
     emptyDescription: '긴급 보안 소식이 들어오면 여기에 모아 둘게요.',
@@ -49,7 +49,7 @@ const NEXT_PAGE_SKELETON_ROW_COUNT = 2;
  * 알림함 한 종류의 목록: 날짜 묶음(긴급 알림) 또는 고정 먼저(공지사항) > 끝에 닿으면 다음 페이지 > 상태(로딩·오류·빈 상태)
  * 새 글 기준은 화면을 연 순간의 본 번호로 고정 (목록을 보는 동안 강조가 사라지지 않게), 받은 글은 곧바로 본 것으로 기록
  */
-export function NotificationInboxList({ kind }: { kind: AppNotificationKind }) {
+export function NotificationInboxList({ kind }: { kind: InboxNotificationKind }) {
   const { colors } = useSbTheme();
   const queryClient = useQueryClient();
   const notificationPagesQuery = useNotificationPages(kind);

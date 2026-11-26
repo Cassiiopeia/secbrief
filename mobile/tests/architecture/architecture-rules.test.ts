@@ -210,6 +210,46 @@ describe('계층별 금지 라이브러리', () => {
   });
 });
 
+// 분류 태그 시드 원본: 서버 마이그레이션의 catalog_tag 분야·생태계 행 (#93)
+const SERVER_MIGRATION_ROOT = path.join(__dirname, '../../../server/SB-Web/src/main/resources/db/migration');
+
+/** 서버 시드의 분야·생태계 이름·짧은 이름·code (code 는 '-' 가 든 것만: os·network 같은 흔한 낱말은 다른 뜻으로도 씀) */
+function readSeededCatalogLiterals(): string[] {
+  const literals = new Set<string>();
+  for (const fileName of fs.readdirSync(SERVER_MIGRATION_ROOT).filter((name) => name.endsWith('.sql'))) {
+    const migrationSource = fs.readFileSync(path.join(SERVER_MIGRATION_ROOT, fileName), 'utf-8');
+    for (const match of migrationSource.matchAll(/\('(?:FIELD|ECOSYSTEM)', '([^']+)', '([^']+)', '([^']+)'/g)) {
+      if (match[1].includes('-')) literals.add(match[1]);
+      literals.add(match[2]);
+      literals.add(match[3]);
+    }
+  }
+  return [...literals];
+}
+
+// 예외: 파일 > 글자 > 이유 (분류 태그가 아닌 다른 개념이 같은 낱말을 씀)
+const SEEDED_CATALOG_LITERAL_EXCEPTIONS: Record<string, string> = {
+  'features/articles/article-labels.ts > 데이터베이스': '소식 주제(topic) 이름: 기술 분야와 다른 분류',
+};
+
+describe('분류 태그는 서버 카탈로그가 단일 원본 (#93)', () => {
+  test('서버 시드에서 분야·생태계를 읽을 수 있다 (규칙이 비어서 통과하지 않게)', () => {
+    expect(readSeededCatalogLiterals().length).toBeGreaterThan(10);
+  });
+
+  test('앱 코드에 분야·생태계 이름·code 를 글자로 쓰지 않는다 (목록·이름·묶음은 GET /api/v1/catalog/tags 로만)', () => {
+    const seededLiterals = readSeededCatalogLiterals();
+    const violations = listSourceFiles('').flatMap((file) =>
+      readSource(file)
+        .split('\n')
+        .filter((line) => !/^\s*(\/\/|\*|\/\*\*)/.test(line))
+        .flatMap((line) => seededLiterals.filter((literal) => [`'${literal}'`, `"${literal}"`, `\`${literal}\``].some((quoted) => line.includes(quoted))))
+        .map((literal) => `${file} > ${literal}`),
+    ).filter((violation) => !(violation in SEEDED_CATALOG_LITERAL_EXCEPTIONS));
+    expect(violations).toEqual([]);
+  });
+});
+
 describe('브랜드 색 단일 원본', () => {
   test('색 토큰이 brand/brand-colors.json 과 같다', () => {
     const brandColors: Record<string, { light: string; dark: string } | string> = JSON.parse(

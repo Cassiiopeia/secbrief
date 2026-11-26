@@ -8,16 +8,19 @@ import {
   toToggledAlertCategories,
 } from '@/features/notifications/alert-category-view-state';
 
-test('스위치 행은 종류 3개를 고정 순서로 보여 준다', () => {
+test('스위치 행은 종류 3개를 고정 순서로 보여 준다 (악용 중 > KISA 긴급 > 그 밖의 고위험, 관심 기술 종류는 스위치 없음)', () => {
   expect(toAlertCategoryRowViews(['KEV'])).toEqual([
-    { category: 'KISA_URGENT', title: 'KISA 긴급 공지', detail: 'KISA 보호나라가 긴급으로 올린 공지', isOn: false },
     { category: 'KEV', title: '악용 중인 취약점', detail: 'CISA KEV 에 오른 취약점', isOn: true },
-    { category: 'CRITICAL_CVE', title: '고위험 취약점', detail: 'CVSS 9.0 이상', isOn: false },
+    { category: 'KISA_URGENT', title: 'KISA 긴급 공지', detail: 'KISA 보호나라가 긴급으로 올린 공지', isOn: false },
+    { category: 'CRITICAL_CVE', title: '그 밖의 고위험 취약점', detail: '관심 기술이 아니어도 CVSS 9.0 이상이면 받아요', isOn: false },
   ]);
 });
 
 test('스위치를 켜면 표시 순서로 더한다', () => {
   expect(toToggledAlertCategories(['CRITICAL_CVE'], 'KISA_URGENT', true)).toEqual(['KISA_URGENT', 'CRITICAL_CVE']);
+});
+test('저장값·응답의 INTEREST·모르는 값은 스위치 종류에서 뺀다', () => {
+  expect(toAlertCategories(['INTEREST', 'KEV', 'NEW_KIND'])).toEqual(['KEV']);
 });
 test('이미 켠 종류를 다시 켜도 중복이 없다', () => {
   expect(toToggledAlertCategories(['KEV'], 'KEV', true)).toEqual(['KEV']);

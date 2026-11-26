@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
-import type { AppNotificationKind } from '@/data/models/app-notification';
+import type { InboxNotificationKind } from '@/data/models/app-notification';
 import { type AppNotificationReadState, EMPTY_NOTIFICATION_READ_STATE } from '@/data/models/app-notification-read-state';
 import { readNotificationReadState, saveNotificationReadState } from '@/data/sources/notification-read-storage';
 
@@ -40,7 +40,7 @@ export function useNotificationReadStateUpdaters() {
       [updateReadState],
     ),
     markNotificationsSeen: useCallback(
-      (kind: AppNotificationKind, notificationIds: number[]) =>
+      (kind: InboxNotificationKind, notificationIds: number[]) =>
         updateReadState((readState) => toReadStateWithSeen(readState, kind, notificationIds)),
       [updateReadState],
     ),

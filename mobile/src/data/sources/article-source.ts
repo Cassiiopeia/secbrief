@@ -19,7 +19,20 @@ export async function fetchArticlePage(filter: ArticleFilter, cursor?: string): 
     minimumImportance: filter.minimumImportance && toApiImportance(filter.minimumImportance),
     sourceCode: filter.sourceCode,
     keyword: filter.keyword,
+    sourceCodes: toCommaList(filter.sourceCodes),
+    fieldCode: filter.fieldCode,
+    ecosystemCode: filter.ecosystemCode,
+    isNotable: filter.isNotable === undefined ? undefined : String(filter.isNotable),
+    interestProductCodes: toCommaList(filter.interestCodes?.productCodes),
+    interestFieldCodes: toCommaList(filter.interestCodes?.fieldCodes),
+    interestEcosystemCodes: toCommaList(filter.interestCodes?.ecosystemCodes),
+    collectedSince: filter.collectedSince?.toISOString(),
     cursor,
   });
   return toArticlePage(response);
+}
+
+// 목록 값 > 쉼표 글자 (비면 주소에서 뺌)
+function toCommaList(values: string[] | undefined): string | undefined {
+  return values === undefined || values.length === 0 ? undefined : values.join(',');
 }
