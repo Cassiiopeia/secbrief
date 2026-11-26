@@ -10,6 +10,7 @@ import {
   type LatestAppNotificationIds,
 } from '../models/app-notification';
 import { isArticleApiResponse, toBriefingItem } from './api-response-mapper';
+import { isObject } from './unknown-value-guards';
 import { toResponseGuideItem } from './response-guide-mapper';
 
 /** 서버 알림함 목록 한 줄 (모든 칸을 믿지 않고 읽음: 이전·이후 서버가 칸을 빼거나 더할 수 있음) */
@@ -169,8 +170,4 @@ function toDate(value: unknown): Date | undefined {
   if (typeof value !== 'string') return undefined;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? undefined : date;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }

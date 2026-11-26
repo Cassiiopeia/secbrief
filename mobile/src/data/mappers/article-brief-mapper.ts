@@ -1,4 +1,5 @@
 import type { ArticleBrief, ArticleBriefAffectedTarget } from '../models/article-detail';
+import { isNonArrayObject } from './unknown-value-guards';
 
 /** 서버 브리핑 응답 (서버 ArticleBriefResponse 와 같은 필드 이름) */
 export interface ArticleBriefApiResponse {
@@ -25,7 +26,7 @@ export function toNonBlankText(value: unknown): string | undefined {
  * 한 줄 결론은 브리핑 값 > 기사의 oneLine 순. 둘 다 없으면 브리핑 없음 (화면은 이전 방식 요약으로)
  */
 export function toArticleBrief(response: unknown, articleOneLine?: string): ArticleBrief | undefined {
-  if (!isRecord(response)) return undefined;
+  if (!isNonArrayObject(response)) return undefined;
   const oneLine = toNonBlankText(response.oneLine) ?? articleOneLine;
   if (oneLine === undefined) return undefined;
   return {
@@ -42,7 +43,7 @@ function toAffectedTargets(response: unknown): ArticleBriefAffectedTarget[] {
   if (!Array.isArray(response)) return [];
   return response
     .flatMap((affectedResponse: unknown): ArticleBriefAffectedTarget[] => {
-      if (!isRecord(affectedResponse)) return [];
+      if (!isNonArrayObject(affectedResponse)) return [];
       const target = toNonBlankText(affectedResponse.target);
       return target === undefined ? [] : [{ target, detail: toNonBlankText(affectedResponse.detail) }];
     })
@@ -53,8 +54,4 @@ function toAffectedTargets(response: unknown): ArticleBriefAffectedTarget[] {
 function toActions(response: unknown): string[] {
   if (!Array.isArray(response)) return [];
   return response.flatMap((actionResponse: unknown) => toNonBlankText(actionResponse) ?? []).slice(0, MAXIMUM_ACTION_COUNT);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
