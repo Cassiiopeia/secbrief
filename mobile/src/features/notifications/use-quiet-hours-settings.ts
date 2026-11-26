@@ -20,12 +20,14 @@ export const QUIET_HOURS_QUERY_KEY = ['quiet-hours'] as const;
 
 /**
  * 방해 금지 시간 상태: 기기 저장값 조회 + 스위치·시각 바꾸기 (저장하는 동안 바꾼 값을 먼저 보여 주고, 실패하면 이전 값)
- * 시작과 끝이 같아지는 변경은 보내지 않고 안내만 (isSameTimeRejected)
+ * 시작과 끝이 같아지는 변경은 보내지 않고 안내만 (isSameTimeRejected), 선택기는 저장값으로 되돌림 (rejectedChangeCount)
  */
 export function useQuietHoursSettings() {
   const queryClient = useQueryClient();
   const storedQuery = useQuery({ queryKey: QUIET_HOURS_QUERY_KEY, queryFn: readStoredQuietHours });
   const [isSameTimeRejected, setIsSameTimeRejected] = useState(false);
+  // 거부한 변경 횟수: 시각 선택기를 저장값으로 되돌리는 key (iOS 선택기는 값이 그대로면 고른 시각을 계속 보여 줌)
+  const [rejectedChangeCount, setRejectedChangeCount] = useState(0);
   const saveMutation = useMutation({
     mutationFn: saveQuietHours,
     onSuccess: (savedQuietHours) => {
@@ -43,13 +45,15 @@ export function useQuietHoursSettings() {
   const requestSave = (nextQuietHours: QuietHours) => {
     const isRejected = nextQuietHours.isEnabled && isQuietHoursSameTime(nextQuietHours);
     setIsSameTimeRejected(isRejected);
-    if (!isRejected) saveMutation.mutate(nextQuietHours);
+    if (isRejected) setRejectedChangeCount((count) => count + 1);
+    else saveMutation.mutate(nextQuietHours);
   };
 
   return {
     quietHours,
     isSaving: saveMutation.isPending,
     isSameTimeRejected,
+    rejectedChangeCount,
     saveFailure,
     onQuietHoursToggled: (isOn: boolean) => requestSave(toToggledQuietHours(storedQuietHours, isOn)),
     onTimeSelected: (edge: QuietHoursEdge, timeOfDay: string) => requestSave(toQuietHoursWithTime(storedQuietHours, edge, timeOfDay)),
