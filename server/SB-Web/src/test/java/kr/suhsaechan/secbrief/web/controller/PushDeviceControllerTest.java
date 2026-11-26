@@ -12,9 +12,11 @@ import java.util.List;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
 import kr.suhsaechan.secbrief.member.dto.PushDeviceResponse;
 import kr.suhsaechan.secbrief.member.service.PushDeviceService;
+import kr.suhsaechan.secbrief.web.support.WebSecurityTestConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -23,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * 알림 기기 API: {data} 응답, 토큰 형식·필수값 검증(VALIDATION_ERROR), 모르는 종류(MESSAGE_NOT_READABLE)
  */
 @WebMvcTest(PushDeviceController.class)
+@Import(WebSecurityTestConfig.class)
 class PushDeviceControllerTest {
 
     @Autowired

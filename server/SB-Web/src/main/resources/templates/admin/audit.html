@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{admin/fragments/admin-layout :: page('관리자 기록', 'audit', ~{::content})}">
+<body>
+
+<main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6">
+  <div th:replace="~{admin/fragments/admin-ui :: pageHeader('관리자 기록',
+       '누가 언제 무엇을 바꿨는지 최신순으로 보여 줘요. 비밀번호와 키 값은 남기지 않아요.')}"></div>
+
+  <section class="card border border-base-300 bg-base-100">
+    <div class="card-body gap-4 p-0 pb-4">
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead>
+          <tr>
+            <th>시각</th>
+            <th>관리자</th>
+            <th>동작</th>
+            <th>대상</th>
+            <th>내용</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="auditLog : ${auditLogs}">
+            <td class="admin-number whitespace-nowrap" th:text="${@adminDateTimeFormatter.format(auditLog.createdAt)}">-</td>
+            <td th:text="${auditLog.adminUsername}">admin</td>
+            <td><span class="badge badge-ghost badge-sm whitespace-nowrap" th:text="${auditLog.action.label}">동작</span></td>
+            <td>
+              <span th:text="${auditLog.targetId} ?: '-'">대상</span>
+              <span class="ml-1 text-xs text-base-content/50" th:text="${auditLog.targetType}">종류</span>
+            </td>
+            <td class="max-w-md break-words text-sm text-base-content/70" th:text="${auditLog.detail} ?: '-'">내용</td>
+          </tr>
+          <th:block th:if="${#lists.isEmpty(auditLogs)}">
+            <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(5, '아직 남은 기록이 없어요')}"></tr>
+          </th:block>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4">
+        <nav th:replace="~{admin/fragments/admin-ui :: pagination(${pagination}, '/admin/audit')}"></nav>
+      </div>
+    </div>
+  </section>
+</main>
+
+</body>
+</html>

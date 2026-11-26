@@ -31,6 +31,9 @@ public class Source extends BaseEntity {
     // source.feed_etag, source.feed_last_modified 컬럼 길이 (V0.5.0 마이그레이션과 같은 값)
     private static final int FEED_ETAG_MAX_LENGTH = 255;
     private static final int FEED_LAST_MODIFIED_MAX_LENGTH = 64;
+    // 수집 주기 허용 범위 (분): 5분 ~ 하루
+    public static final int MINIMUM_INTERVAL_MINUTES = 5;
+    public static final int MAXIMUM_INTERVAL_MINUTES = 1440;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -77,6 +80,14 @@ public class Source extends BaseEntity {
 
     @Column(length = FEED_LAST_MODIFIED_MAX_LENGTH)
     private String feedLastModified;
+
+    /**
+     * 수집 설정 변경 (관리자 화면): 켜기·끄기, 주기(분). 범위 검사는 호출부 책임
+     */
+    public void changeCollectSettings(boolean isEnabled, int intervalMinutes) {
+        this.isEnabled = isEnabled;
+        this.intervalMinutes = intervalMinutes;
+    }
 
     /**
      * 수집 결과 반영: 상태는 항상, 수집 시각은 성공일 때만

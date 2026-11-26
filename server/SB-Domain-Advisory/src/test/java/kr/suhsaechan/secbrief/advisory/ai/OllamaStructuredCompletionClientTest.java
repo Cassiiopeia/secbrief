@@ -5,6 +5,11 @@ import static kr.suhsaechan.secbrief.advisory.ai.ArticleTitleAnalysisOutcome.fai
 import static kr.suhsaechan.secbrief.advisory.ai.ArticleTitleAnalysisOutcome.succeeded;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +23,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallAttempt;
+import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallLogService;
+import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallType;
+import kr.suhsaechan.secbrief.advisory.ai.calllog.AiFailureKind;
+import kr.suhsaechan.secbrief.advisory.ai.calllog.AiTokenUsage;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
@@ -26,10 +36,11 @@ import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 /**
  * Ollama 제공자 (제목 분석 흐름에 끼워 확인): /api/chat 요청 본문·인증 헤더, message.content > 건별 결과,
- * 미설정·2xx 아님·연결 실패·빈 응답 처리 (로컬 서버, 외부 호출 없음)
+ * 미설정·2xx 아님·연결 실패·빈 응답 처리, 토큰 수(prompt_eval_count·eval_count)와 호출 기록 (로컬 서버, 외부 호출 없음)
  */
 class OllamaStructuredCompletionClientTest {
 
@@ -45,6 +56,8 @@ class OllamaStructuredCompletionClientTest {
     private static final ArticleTitleAnalysisOutcome SECOND_OUTCOME =
             succeeded(new ArticleTitleAnalysis(ArticleTopic.PRIVACY, null, ArticleImportance.ROUTINE, null));
 
+    // 호출 기록은 가짜 (DB 없이 무엇을 기록하려 했는지만 확인)
+    private final AiCallLogService aiCallLogService = mock(AiCallLogService.class);
     private final AtomicReference<Headers> receivedHeaders = new AtomicReference<>();
     private final AtomicReference<String> receivedMethod = new AtomicReference<>();
     private final AtomicReference<String> receivedBody = new AtomicReference<>();
@@ -104,15 +117,15 @@ class OllamaStructuredCompletionClientTest {
 
     @Test
     void acceptsBaseUrlWithTrailingSlash() {
-        ArticleTitleAnalyzer analyzer = toAnalyzer(new OllamaStructuredCompletionClient(toLocalBaseUrl() + "/", MODEL, ""));
+        ArticleTitleAnalyzer analyzer = toAnalyzer(new OllamaStructuredCompletionClient(aiCallLogService, toLocalBaseUrl() + "/", MODEL, ""));
 
         assertThat(analyzer.analyzeBatch(REQUESTS)).containsExactly(FIRST_OUTCOME, SECOND_OUTCOME);
     }
 
     @Test
     void isUnavailableWithoutBaseUrlOrModel() {
-        ArticleTitleAnalyzer analyzerWithoutBaseUrl = toAnalyzer(new OllamaStructuredCompletionClient(" ", MODEL, ""));
-        ArticleTitleAnalyzer analyzerWithoutModel = toAnalyzer(new OllamaStructuredCompletionClient(toLocalBaseUrl(), "", ""));
+        ArticleTitleAnalyzer analyzerWithoutBaseUrl = toAnalyzer(new OllamaStructuredCompletionClient(aiCallLogService, " ", MODEL, ""));
+        ArticleTitleAnalyzer analyzerWithoutModel = toAnalyzer(new OllamaStructuredCompletionClient(aiCallLogService, toLocalBaseUrl(), "", ""));
 
         assertThat(analyzerWithoutBaseUrl.isAvailable()).isFalse();
         assertThat(analyzerWithoutModel.isAvailable()).isFalse();
@@ -164,12 +177,55 @@ class OllamaStructuredCompletionClientTest {
                 .isInstanceOf(CustomException.class)
                 .hasMessageNotContaining("127.0.0.1")
                 .extracting("errorCode").isEqualTo(ErrorCode.AI_API_ERROR);
-        assertThatThrownBy(() -> toAnalyzer(new OllamaStructuredCompletionClient("http://127.0.0.1/bad path", MODEL, "")).analyzeBatch(REQUESTS))
+        assertThatThrownBy(() -> toAnalyzer(new OllamaStructuredCompletionClient(aiCallLogService, "http://127.0.0.1/bad path", MODEL, "")).analyzeBatch(REQUESTS))
                 .extracting("errorCode").isEqualTo(ErrorCode.AI_API_ERROR);
     }
 
+    @Test
+    void returnsTokenUsageAndRecordsSuccessfulCall() {
+        responseBody.set("{\"message\":{\"role\":\"assistant\",\"content\":\"{}\"},\"done\":true,"
+                + "\"done_reason\":\"stop\",\"prompt_eval_count\":812,\"eval_count\":96}");
+        OllamaStructuredCompletionClient client = new OllamaStructuredCompletionClient(aiCallLogService, toLocalBaseUrl(), MODEL, "test-key");
+
+        StructuredCompletion completion = client.requestCompletion(
+                new StructuredCompletionRequest(AiCallType.SUMMARY, "instruction", "{}", Map.of("type", "object"), 16));
+
+        assertThat(completion.tokenUsage()).isEqualTo(new AiTokenUsage(812, 96));
+        ArgumentCaptor<AiCallAttempt> attempt = ArgumentCaptor.forClass(AiCallAttempt.class);
+        verify(aiCallLogService).recordSuccess(attempt.capture(), eq(new AiTokenUsage(812, 96)));
+        assertThat(attempt.getValue().callType()).isEqualTo(AiCallType.SUMMARY);
+        assertThat(attempt.getValue().providerCode()).isEqualTo("ollama");
+        assertThat(attempt.getValue().model()).isEqualTo(MODEL);
+        // 인증 프록시 키는 기록하지 않음
+        assertThat(attempt.getValue().keyLabel()).isNull();
+        assertThat(attempt.getValue().latencyMilliseconds()).isNotNegative();
+    }
+
+    @Test
+    void tokenUsageIsUnknownWhenResponseHasNoCounts() {
+        StructuredCompletion completion = new OllamaStructuredCompletionClient(aiCallLogService, toLocalBaseUrl(), MODEL, "")
+                .requestCompletion(new StructuredCompletionRequest(
+                        AiCallType.TITLE_ANALYSIS, "instruction", "{}", Map.of("type", "object"), 16));
+
+        assertThat(completion.tokenUsage().isKnown()).isFalse();
+    }
+
+    @Test
+    void recordsFailureKindWhenCallFails() {
+        responseStatus.set(503);
+        responseBody.set("{\"error\":\"busy\"}");
+        assertThatThrownBy(() -> createAnalyzer("").analyzeBatch(REQUESTS)).isInstanceOf(CustomException.class);
+        verify(aiCallLogService).recordFailure(any(AiCallAttempt.class), eq(AiFailureKind.SERVER_ERROR));
+
+        ArticleTitleAnalyzer analyzer = createAnalyzer("");
+        server.stop(0);
+        assertThatThrownBy(() -> analyzer.analyzeBatch(REQUESTS)).isInstanceOf(CustomException.class);
+        verify(aiCallLogService).recordFailure(any(AiCallAttempt.class), eq(AiFailureKind.CONNECTION_FAILED));
+        verify(aiCallLogService, never()).recordSuccess(any(), any());
+    }
+
     private ArticleTitleAnalyzer createAnalyzer(String apiKey) {
-        return toAnalyzer(new OllamaStructuredCompletionClient(toLocalBaseUrl(), MODEL, apiKey));
+        return toAnalyzer(new OllamaStructuredCompletionClient(aiCallLogService, toLocalBaseUrl(), MODEL, apiKey));
     }
 
     // 제목 분석 흐름 + 이 제공자 (운영과 같은 조합)
@@ -179,10 +235,10 @@ class OllamaStructuredCompletionClientTest {
 
     @Test
     void throwsAiApiErrorWithoutCallingWhenClientIsNotConfigured() {
-        OllamaStructuredCompletionClient clientWithoutBaseUrl = new OllamaStructuredCompletionClient("", MODEL, "");
+        OllamaStructuredCompletionClient clientWithoutBaseUrl = new OllamaStructuredCompletionClient(aiCallLogService, "", MODEL, "");
 
         assertThatThrownBy(() -> clientWithoutBaseUrl.requestCompletion(
-                new StructuredCompletionRequest("instruction", "{}", Map.of("type", "object"), 16)))
+                new StructuredCompletionRequest(AiCallType.TITLE_ANALYSIS, "instruction", "{}", Map.of("type", "object"), 16)))
                 .extracting("errorCode").isEqualTo(ErrorCode.AI_API_ERROR);
         assertThat(receivedBody.get()).isNull();
     }

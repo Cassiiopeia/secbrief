@@ -13,13 +13,16 @@ import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryOutcome;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryPolicy;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryRequest;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryValidation;
+import kr.suhsaechan.secbrief.application.ai.AiDailyBudgetGuard;
+import kr.suhsaechan.secbrief.common.config.ConfigKey;
+import kr.suhsaechan.secbrief.common.config.SystemConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
 /**
- * 요약 묶음 처리: 제공자 확인 > 하루 상한 확인 > 대기(PENDING) 기사 batchSize 건 (중요도 높은 순 > 최신순) > 건별 요약 > 검증 > 기록
+ * 요약 묶음 처리: 제공자 확인 > 하루 예산 확인 > 하루 상한 확인 > 대기(PENDING) 기사 batchSize 건 (중요도 높은 순 > 최신순) > 건별 요약 > 검증 > 기록
  * 한 호출에 1건, 건별 격리 (그 건만 실패), 제공자 호출 실패는 기록 없이 틱 중단, 제목·본문은 로그에 남기지 않음
  */
 @Slf4j
@@ -30,28 +33,26 @@ public class ArticleSummaryProcessService {
     private final ArticleRepository articleRepository;
     private final ArticleSummaryResultRecorder articleSummaryResultRecorder;
     private final Clock clock;
-    // 한 틱에 처리할 기사 수
-    private final int batchSize;
+    // 한 틱 건수(SUMMARY_BATCH_SIZE)·하루 호출 상한(SUMMARY_DAILY_LIMIT)을 틱마다 읽음 (설정 저장소 > 운영 설정)
+    private final SystemConfigService systemConfigService;
+    private final AiDailyBudgetGuard aiDailyBudgetGuard;
     // 한 틱이 새 건을 시작할 수 있는 시간: 주기 작업이 스레드 하나를 나눠 써서 느린 응답이 수집·알림을 밀지 않게 함
     private final Duration tickBudget;
-    // 하루(서울 날짜) 제공자 호출 상한: 대기열이 한꺼번에 몰려도 AI 비용이 하루 상한을 넘지 않게 함 (남은 건은 다음 날)
-    private final int dailyLimit;
     // 호출 수를 센 서울 날짜와 그 날의 호출 수 (서버를 다시 띄우면 0부터, 주기 작업 스레드 하나만 씀)
     private LocalDate countedDate;
     private int countedCallCount;
 
     public ArticleSummaryProcessService(ArticleSummarizer articleSummarizer, ArticleRepository articleRepository,
                                         ArticleSummaryResultRecorder articleSummaryResultRecorder, Clock clock,
-                                        @Value("${secbrief.summary.batch-size:10}") int batchSize,
-                                        @Value("${secbrief.summary.tick-budget-seconds:90}") long tickBudgetSeconds,
-                                        @Value("${secbrief.summary.daily-limit:300}") int dailyLimit) {
+                                        SystemConfigService systemConfigService, AiDailyBudgetGuard aiDailyBudgetGuard,
+                                        @Value("${secbrief.summary.tick-budget-seconds:90}") long tickBudgetSeconds) {
         this.articleSummarizer = articleSummarizer;
         this.articleRepository = articleRepository;
         this.articleSummaryResultRecorder = articleSummaryResultRecorder;
         this.clock = clock;
-        this.batchSize = batchSize;
+        this.systemConfigService = systemConfigService;
+        this.aiDailyBudgetGuard = aiDailyBudgetGuard;
         this.tickBudget = Duration.ofSeconds(tickBudgetSeconds);
-        this.dailyLimit = dailyLimit;
     }
 
     public SummaryProcessResult processPendingSummaries() {
@@ -59,12 +60,18 @@ public class ArticleSummaryProcessService {
             log.info("[article summary] skipped : provider not configured, provider={}", articleSummarizer.getProviderCode());
             return new SummaryProcessResult(0, 0, true);
         }
-        int remainingDailyCallCount = toRemainingDailyCallCount();
+        if (aiDailyBudgetGuard.isBudgetExhausted()) {
+            return new SummaryProcessResult(0, 0, true);
+        }
+        // 하루(서울 날짜) 제공자 호출 상한: 대기열이 한꺼번에 몰려도 AI 비용이 하루 상한을 넘지 않게 함 (남은 건은 다음 날)
+        int dailyLimit = systemConfigService.getInt(ConfigKey.SUMMARY_DAILY_LIMIT);
+        int remainingDailyCallCount = toRemainingDailyCallCount(dailyLimit);
         if (remainingDailyCallCount <= 0) {
             log.info("[article summary] skipped : daily limit reached, limit={}", dailyLimit);
             return new SummaryProcessResult(0, 0, false);
         }
 
+        int batchSize = systemConfigService.getInt(ConfigKey.SUMMARY_BATCH_SIZE);
         List<Article> pendingArticles =
                 articleRepository.findSummaryTargets(Limit.of(Math.min(batchSize, remainingDailyCallCount)));
         Instant tickDeadline = clock.instant().plus(tickBudget);
@@ -142,7 +149,7 @@ public class ArticleSummaryProcessService {
     }
 
     // 오늘(서울 날짜) 남은 호출 수: 날짜가 바뀌면 0부터 다시 셈
-    private int toRemainingDailyCallCount() {
+    private int toRemainingDailyCallCount(int dailyLimit) {
         LocalDate today = LocalDate.ofInstant(clock.instant(), SeoulCalendar.SEOUL);
         if (!today.equals(countedDate)) {
             countedDate = today;

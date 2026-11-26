@@ -22,9 +22,11 @@ import kr.suhsaechan.secbrief.advisory.search.ArticleSearchService;
 import kr.suhsaechan.secbrief.advisory.service.KeywordTrendQueryService;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.web.support.WebSecurityTestConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -33,6 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * 파라미터 전달, 범위 밖 400(INVALID_REQUEST)·빠진 질의(MISSING_PARAMETER)·숫자 아님(TYPE_MISMATCH)
  */
 @WebMvcTest({KeywordController.class, ArticleSearchController.class})
+@Import(WebSecurityTestConfig.class)
 class KeywordAndSearchControllerTest {
 
     @Autowired

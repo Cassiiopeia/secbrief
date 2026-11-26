@@ -3,6 +3,7 @@ package kr.suhsaechan.secbrief.advisory.summary;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +19,8 @@ import kr.suhsaechan.secbrief.advisory.ai.OllamaStructuredCompletionClient;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletion;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletionClient;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletionRequest;
+import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallLogService;
+import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallType;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
@@ -46,6 +49,7 @@ class StructuredOutputArticleSummarizerTest {
 
         assertThat(outcome).isEqualTo(ArticleSummaryOutcome.succeeded(SUMMARY));
         StructuredCompletionRequest completionRequest = client.receivedRequests.get(0);
+        assertThat(completionRequest.callType()).isEqualTo(AiCallType.SUMMARY);
         assertThat(completionRequest.systemInstruction()).isEqualTo(ArticleSummaryPrompt.SYSTEM_INSTRUCTION);
         assertThat(completionRequest.userMessage()).isEqualTo(ArticleSummaryPrompt.toUserMessage(REQUEST));
         assertThat(completionRequest.outputJsonSchema()).isEqualTo(ArticleSummaryPrompt.toOutputJsonSchema());
@@ -95,7 +99,7 @@ class StructuredOutputArticleSummarizerTest {
         server.start();
         try {
             OllamaStructuredCompletionClient ollamaClient = new OllamaStructuredCompletionClient(
-                    "http://127.0.0.1:" + server.getAddress().getPort(), "test-model", "");
+                    mock(AiCallLogService.class), "http://127.0.0.1:" + server.getAddress().getPort(), "test-model", "");
 
             ArticleSummaryOutcome outcome = new StructuredOutputArticleSummarizer(ollamaClient).summarize(REQUEST);
 

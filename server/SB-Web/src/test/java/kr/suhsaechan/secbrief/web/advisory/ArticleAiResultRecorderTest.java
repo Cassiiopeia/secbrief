@@ -69,6 +69,6 @@ class ArticleAiResultRecorderTest extends PostgresContainerTestSupport {
         recorder.recordFailure(articleId);
 
         assertThat(articleRepository.findById(articleId).orElseThrow().getAiStatus()).isEqualTo(AiStatus.FAILED);
-        assertThat(articleRepository.findByAiStatusOrderByIdAsc(AiStatus.PENDING, Limit.of(20))).isEmpty();
+        assertThat(articleRepository.findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(20))).isEmpty();
     }
 }

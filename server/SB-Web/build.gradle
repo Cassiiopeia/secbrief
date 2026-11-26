@@ -10,6 +10,12 @@ dependencies {
     api project(':SB-Domain-Advisory')
     api project(':SB-Application')
 
+    // 관리자 페이지: 세션 폼 로그인, 서버 렌더링 화면 (버전은 Boot BOM)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
+
+    testImplementation 'org.springframework.security:spring-security-test'
     testImplementation testFixtures(project(':SB-Domain-Advisory'))
 }
 

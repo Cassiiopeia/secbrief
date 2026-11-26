@@ -27,13 +27,16 @@ import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummary;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryOutcome;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryRequest;
+import kr.suhsaechan.secbrief.application.ai.AiDailyBudgetGuard;
+import kr.suhsaechan.secbrief.common.config.ConfigKey;
+import kr.suhsaechan.secbrief.common.config.SystemConfigService;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Limit;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * 요약 묶음 처리: 제공자 미설정이면 건너뜀, 한 호출에 1건, 건별 성공·실패 기록 (거부·검증 탈락 포함)
- * 제공자 호출 실패는 기록 없이 틱을 멈춤, 하루 호출 상한·틱 시간 상한을 지킴
+ * 제공자 호출 실패는 기록 없이 틱을 멈춤, 하루 호출 상한·틱 시간 상한·하루 예산을 지킴, 건수 설정은 틱마다 설정 저장소에서 읽음
  */
 class ArticleSummaryProcessServiceTest {
 
@@ -49,6 +52,8 @@ class ArticleSummaryProcessServiceTest {
     private final ArticleRepository articleRepository = mock(ArticleRepository.class);
     private final ArticleSummaryResultRecorder recorder = mock(ArticleSummaryResultRecorder.class);
     private final MutableClock clock = new MutableClock(NOW);
+    private final SystemConfigService systemConfigService = mock(SystemConfigService.class);
+    private final AiDailyBudgetGuard aiDailyBudgetGuard = mock(AiDailyBudgetGuard.class);
     private final ArticleSummaryProcessService service = createService(DAILY_LIMIT);
 
     @Test
@@ -197,9 +202,33 @@ class ArticleSummaryProcessServiceTest {
         assertThat(fakeSummarizer.getReceivedRequests()).hasSize(1);
     }
 
+    @Test
+    void skipsWithoutReadingQueueWhenDailyBudgetIsExhausted() {
+        when(aiDailyBudgetGuard.isBudgetExhausted()).thenReturn(true);
+
+        assertThat(service.processPendingSummaries()).isEqualTo(new SummaryProcessResult(0, 0, true));
+        verifyNoInteractions(articleRepository);
+        assertThat(fakeSummarizer.getReceivedRequests()).isEmpty();
+    }
+
+    @Test
+    void readsBatchSizeAndDailyLimitFromConfigStoreOnEveryTick() {
+        // 운영 중 설정을 바꾸면 다음 틱부터 반영 (서버를 다시 띄우지 않음)
+        givenPendingArticles();
+        service.processPendingSummaries();
+        when(systemConfigService.getInt(ConfigKey.SUMMARY_BATCH_SIZE)).thenReturn(4);
+        service.processPendingSummaries();
+
+        verify(articleRepository).findSummaryTargets(Limit.of(BATCH_SIZE));
+        verify(articleRepository).findSummaryTargets(Limit.of(4));
+    }
+
+    // 설정 저장소는 정해 둔 값을 돌려주는 가짜, 하루 예산은 남아 있는 상태
     private ArticleSummaryProcessService createService(int dailyLimit) {
+        when(systemConfigService.getInt(ConfigKey.SUMMARY_BATCH_SIZE)).thenReturn(BATCH_SIZE);
+        when(systemConfigService.getInt(ConfigKey.SUMMARY_DAILY_LIMIT)).thenReturn(dailyLimit);
         return new ArticleSummaryProcessService(fakeSummarizer, articleRepository, recorder, clock,
-                BATCH_SIZE, TICK_BUDGET_SECONDS, dailyLimit);
+                systemConfigService, aiDailyBudgetGuard, TICK_BUDGET_SECONDS);
     }
 
     private void givenPendingArticles(Article... articles) {

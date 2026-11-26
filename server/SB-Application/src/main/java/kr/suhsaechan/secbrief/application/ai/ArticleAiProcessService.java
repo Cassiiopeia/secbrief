@@ -8,46 +8,43 @@ import kr.suhsaechan.secbrief.advisory.ai.ArticleTitleAnalyzer;
 import kr.suhsaechan.secbrief.advisory.constant.AiStatus;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
+import kr.suhsaechan.secbrief.common.config.ConfigKey;
+import kr.suhsaechan.secbrief.common.config.SystemConfigService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
 /**
- * AI 묶음 처리: 제공자 확인 > 대기(PENDING) 기사 batchSize 건 > requestBatchSize 건씩 묶어 분석 > 건별 성공·실패 기록
+ * AI 묶음 처리: 제공자 확인 > 하루 예산 확인 > 대기(PENDING) 기사 최신순 batchSize 건 > requestBatchSize 건씩 묶어 분석 > 건별 성공·실패 기록
  * 건별 격리 (응답에 빠진 건만 실패), 제공자 호출 실패는 시도 횟수를 쓰지 않고 틱을 멈춤, 제목은 로그에 남기지 않음
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ArticleAiProcessService {
 
     private final ArticleTitleAnalyzer articleTitleAnalyzer;
     private final ArticleRepository articleRepository;
     private final ArticleAiResultRecorder articleAiResultRecorder;
-    // 한 틱에 처리할 기사 수
-    private final int batchSize;
-    // API 호출 1회에 넣을 기사 수
-    private final int requestBatchSize;
-
-    public ArticleAiProcessService(ArticleTitleAnalyzer articleTitleAnalyzer, ArticleRepository articleRepository,
-                                   ArticleAiResultRecorder articleAiResultRecorder,
-                                   @Value("${secbrief.ai.batch-size:20}") int batchSize,
-                                   @Value("${secbrief.ai.request-batch-size:10}") int requestBatchSize) {
-        this.articleTitleAnalyzer = articleTitleAnalyzer;
-        this.articleRepository = articleRepository;
-        this.articleAiResultRecorder = articleAiResultRecorder;
-        this.batchSize = batchSize;
-        // 0 이하 설정은 1건씩 (나누기 반복이 멈추지 않는 것 방지)
-        this.requestBatchSize = Math.max(1, requestBatchSize);
-    }
+    // 한 틱 건수(AI_TITLE_BATCH_SIZE)·호출당 건수(AI_REQUEST_BATCH_SIZE)를 틱마다 읽음 (설정 저장소 > 운영 설정)
+    private final SystemConfigService systemConfigService;
+    private final AiDailyBudgetGuard aiDailyBudgetGuard;
 
     public AiProcessResult processPendingArticles() {
         if (!articleTitleAnalyzer.isAvailable()) {
             log.info("[article ai] skipped : provider not configured, provider={}", articleTitleAnalyzer.getProviderCode());
             return new AiProcessResult(0, 0, true);
         }
+        if (aiDailyBudgetGuard.isBudgetExhausted()) {
+            return new AiProcessResult(0, 0, true);
+        }
 
-        List<Article> pendingArticles = articleRepository.findByAiStatusOrderByIdAsc(AiStatus.PENDING, Limit.of(batchSize));
+        int batchSize = systemConfigService.getInt(ConfigKey.AI_TITLE_BATCH_SIZE);
+        // 0 이하 값은 1건씩 (나누기 반복이 멈추지 않는 것 방지)
+        int requestBatchSize = Math.max(1, systemConfigService.getInt(ConfigKey.AI_REQUEST_BATCH_SIZE));
+        List<Article> pendingArticles =
+                articleRepository.findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(batchSize));
         int doneCount = 0;
         int failedCount = 0;
         for (int fromIndex = 0; fromIndex < pendingArticles.size(); fromIndex += requestBatchSize) {

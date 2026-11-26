@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  관리자 화면 공통 조각: 화면마다 새로 짜지 않고 여기 것을 씀
+  pageHeader(title, description) · statCard(title, value, description, iconName) · toneBadge(tone, label)
+  emptyRow(columnCount, message) · emptyState(message) · pagination(pagination, basePath)
+  확인 모달: 폼에 data-confirm-message (선택 data-confirm-title, -label, -tone="danger") / 스크립트는 AdminUi.confirm
+  토스트: AdminUi.toast(문구, 종류) / 리다이렉트 뒤에는 flashMessage · flashError
+-->
+<body>
+
+<div th:fragment="pageHeader(title, description)">
+  <h2 class="text-2xl font-bold" th:text="${title}">제목</h2>
+  <p class="mt-1 text-sm text-base-content/60" th:text="${description}"
+     th:if="${description != null and !description.isEmpty()}">설명</p>
+</div>
+
+<!-- 숫자 카드: value 는 화면이 포맷한 글자 -->
+<div th:fragment="statCard(title, value, description, iconName)" class="stat rounded-box border border-base-300 bg-base-100">
+  <div class="stat-figure text-base-content/40"><i th:attr="data-lucide=${iconName}" class="size-7"></i></div>
+  <div class="stat-title" th:text="${title}">제목</div>
+  <div class="stat-value admin-number text-3xl" th:text="${value}">0</div>
+  <div class="stat-desc" th:text="${description}" th:if="${description != null and !description.isEmpty()}">설명</div>
+</div>
+
+<!-- 상태 배지: tone 5개 success, error, warning, info, ghost(그 외). 색만으로 뜻을 전하지 않게 label 필수 -->
+<span th:fragment="toneBadge(tone, label)" class="badge badge-soft badge-sm whitespace-nowrap"
+      th:classappend="${tone == 'success'} ? 'badge-success' : (${tone == 'error'} ? 'badge-error' : (${tone == 'warning'} ? 'badge-warning' : (${tone == 'info'} ? 'badge-info' : 'badge-ghost')))"
+      th:text="${label}">상태</span>
+
+<!-- 표 안 빈 줄: 칸 수는 쓰는 쪽이 넘김 -->
+<tr th:fragment="emptyRow(columnCount, message)">
+  <td th:attr="colspan=${columnCount}" class="py-10 text-center text-base-content/50">
+    <i data-lucide="inbox" class="mx-auto mb-2 size-6"></i>
+    <span th:text="${message}">아직 아무것도 없어요</span>
+  </td>
+</tr>
+
+<!-- 표 밖 빈 화면 -->
+<div th:fragment="emptyState(message)"
+     class="flex flex-col items-center justify-center gap-2 rounded-box border border-dashed border-base-300 py-12 text-base-content/50">
+  <i data-lucide="inbox" class="size-7"></i>
+  <span th:text="${message}">아직 아무것도 없어요</span>
+</div>
+
+<!-- 쪽 번호 (join): pagination 은 AdminPagination, basePath 는 ?page= 를 붙일 주소 -->
+<nav th:fragment="pagination(pagination, basePath)" class="flex flex-wrap items-center justify-between gap-2"
+     aria-label="쪽 이동">
+  <span class="text-sm text-base-content/60"
+        th:text="|전체 ${#numbers.formatInteger(pagination.totalElements, 1, 'COMMA')}건 · ${pagination.currentPage} / ${pagination.totalPages}쪽|">전체 0건</span>
+  <div class="join" th:if="${pagination.totalPages > 1}">
+    <a class="btn btn-sm join-item" th:classappend="${!pagination.hasPreviousPage()} ? 'btn-disabled'"
+       th:href="@{${basePath}(page=${pagination.currentPage - 1})}" aria-label="이전 쪽">«</a>
+    <a class="btn btn-sm join-item" th:each="pageNumber : ${pagination.pageNumbers}"
+       th:classappend="${pageNumber == pagination.currentPage} ? 'btn-active'"
+       th:attr="aria-current=${pageNumber == pagination.currentPage} ? 'page'"
+       th:href="@{${basePath}(page=${pageNumber})}" th:text="${pageNumber}">1</a>
+    <a class="btn btn-sm join-item" th:classappend="${!pagination.hasNextPage()} ? 'btn-disabled'"
+       th:href="@{${basePath}(page=${pagination.currentPage + 1})}" aria-label="다음 쪽">»</a>
+  </div>
+</nav>
+
+</body>
+</html>

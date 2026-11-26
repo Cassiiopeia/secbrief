@@ -1,5 +1,6 @@
 package kr.suhsaechan.secbrief.advisory.summary;
 
+import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallType;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletion;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletionClient;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletionRequest;
@@ -37,6 +38,7 @@ public class StructuredOutputArticleSummarizer implements ArticleSummarizer {
             throw new CustomException(ErrorCode.AI_API_ERROR, "provider not configured");
         }
         StructuredCompletion completion = structuredCompletionClient.requestCompletion(new StructuredCompletionRequest(
+                AiCallType.SUMMARY,
                 ArticleSummaryPrompt.SYSTEM_INSTRUCTION,
                 ArticleSummaryPrompt.toUserMessage(request),
                 ArticleSummaryPrompt.toOutputJsonSchema(),

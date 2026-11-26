@@ -34,10 +34,12 @@ import kr.suhsaechan.secbrief.advisory.service.TodayQueryService;
 import kr.suhsaechan.secbrief.advisory.service.WeeklyTrendQueryService;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.web.support.WebSecurityTestConfig;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -46,6 +48,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * 기사 대표 이미지: 응답의 imagePath, 이미지 응답 헤더(image/jpeg, 1년 캐시), 없음 404, 저장소 장애 502
  */
 @WebMvcTest({TodayController.class, ArticleController.class, TrendController.class, SourceController.class})
+@Import(WebSecurityTestConfig.class)
 class AdvisoryApiControllerTest {
 
     @Autowired

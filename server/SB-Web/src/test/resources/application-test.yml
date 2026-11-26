@@ -1,5 +1,11 @@
 # 테스트 공통: 수집 스케줄러·AI 처리·푸시·이미지·임베딩 끄기, 실제 외부 호출 방지
 secbrief:
+  secret:
+    # 테스트 전용 값 (운영 값 아님): 비밀 설정 암호화·복호화 테스트용
+    master-key: test-only-master-key
+  usage:
+    # 이용 집계는 테스트가 직접 저장을 부름 (틱이 카운터를 먼저 비우지 않게)
+    flush-enabled: false
   collect:
     enabled: false
   ai:
