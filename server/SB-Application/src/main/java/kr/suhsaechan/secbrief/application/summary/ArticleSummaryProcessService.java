@@ -7,12 +7,13 @@ import java.time.LocalDate;
 import java.util.List;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.policy.SeoulCalendar;
+import kr.suhsaechan.secbrief.advisory.policy.SourceTextPolicy;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummarizer;
-import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryOutcome;
-import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryPolicy;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryAttempt;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryHarness;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryRequest;
-import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryValidation;
+import kr.suhsaechan.secbrief.advisory.summary.SummaryWritingKind;
 import kr.suhsaechan.secbrief.application.ai.AiDailyBudgetGuard;
 import kr.suhsaechan.secbrief.common.config.ConfigKey;
 import kr.suhsaechan.secbrief.common.config.SystemConfigService;
@@ -22,7 +23,8 @@ import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
 /**
- * 요약 묶음 처리: 제공자 확인 > 하루 예산 확인 > 하루 상한 확인 > 대기(PENDING) 기사 batchSize 건 (중요도 높은 순 > 최신순) > 건별 요약 > 검증 > 기록
+ * 요약 묶음 처리: 제공자 확인 > 하루 예산 확인 > 하루 상한 확인 > 대기(PENDING) 기사 batchSize 건 (중요도 높은 순 > 최신순) > 건별 요약 시도 > 기록
+ * 요약 시도 1회 = 작성 > 검증 > 걸리면 고쳐 쓰기 1회 (ArticleSummaryHarness, 제공자 호출 최대 2회), 시도가 실패하면 시도 횟수 +1
  * 한 호출에 1건, 건별 격리 (그 건만 실패), 제공자 호출 실패는 기록 없이 틱 중단, 제목·본문은 로그에 남기지 않음
  */
 @Slf4j
@@ -78,11 +80,12 @@ public class ArticleSummaryProcessService {
         int doneCount = 0;
         int failedCount = 0;
         for (Article article : pendingArticles) {
-            // 시간 상한을 넘기면 남은 건은 다음 틱에
-            if (clock.instant().isAfter(tickDeadline)) {
+            // 시간 상한·하루 호출 상한을 넘기면 남은 건은 다음 틱에 (고쳐 쓰기 때문에 건수보다 호출 수가 많을 수 있음)
+            int remainingModelCallCount = dailyLimit - countedCallCount;
+            if (clock.instant().isAfter(tickDeadline) || remainingModelCallCount <= 0) {
                 break;
             }
-            SummaryStep step = summarizeAndRecord(article);
+            SummaryStep step = summarizeAndRecord(article, remainingModelCallCount);
             if (step == SummaryStep.PROVIDER_FAILED) {
                 break;
             }
@@ -100,34 +103,35 @@ public class ArticleSummaryProcessService {
     }
 
     /**
-     * 기사 1건: 요약 > 검증 > 기록 (제공자 호출 실패는 기록 없이 틱 중단, 그 밖의 실패는 시도 횟수 +1)
+     * 기사 1건: 입력 확인 > 요약 시도(작성 > 검증 > 고쳐 쓰기) > 기록
+     * 제공자 호출 실패는 기록 없이 틱 중단, 그 밖의 실패는 시도 횟수 +1
      */
-    private SummaryStep summarizeAndRecord(Article article) {
+    private SummaryStep summarizeAndRecord(Article article, int remainingModelCallCount) {
         String sourceText = article.getSummaryState().getSourceText();
-        // 대기인데 입력이 없는 행 (정상 흐름에서는 생기지 않음): 제공자를 부르지 않고 실패로 세어 대기열에서 빠지게 함
-        if (sourceText == null || sourceText.isBlank()) {
+        // 요약할 내용이 없는 입력 (비어 있음, 주소뿐): 제공자를 부르지 않고 실패로 세어 대기열에서 빠지게 함
+        if (!SourceTextPolicy.isWorthSummarizing(sourceText, article.getTitle())) {
             return recordFailure(article.getId(), sourceText, "no source text");
         }
-        ArticleSummaryOutcome outcome;
+        ArticleSummaryAttempt attempt;
         try {
-            outcome = articleSummarizer.summarize(new ArticleSummaryRequest(
-                    article.getTitle(), article.getRegion(), article.getKind(), sourceText));
+            attempt = ArticleSummaryHarness.attempt(articleSummarizer, toSummaryRequest(article, sourceText),
+                    remainingModelCallCount);
         } catch (RuntimeException exception) {
             log.warn("[article summary] failed 502 : provider call failed, retry next tick : provider={}, cause={}",
                     articleSummarizer.getProviderCode(), exception.getClass().getSimpleName());
             return SummaryStep.PROVIDER_FAILED;
         }
-        countedCallCount++;
-        if (!outcome.isSuccessful()) {
-            return recordFailure(article.getId(), sourceText, outcome.failureReason());
+        countedCallCount += attempt.modelCallCount();
+        if (!attempt.isAccepted()) {
+            return recordFailure(article.getId(), sourceText, attempt.failureReason());
         }
-        ArticleSummaryValidation validation = ArticleSummaryPolicy.validate(article.getTitle(), sourceText, outcome.summary());
-        if (!validation.isAccepted()) {
-            return recordFailure(article.getId(), sourceText, validation.rejectionReason());
+        if (attempt.isRepairedSummaryUsed()) {
+            log.info("[article summary] repaired : articleId={}, cause={}", article.getId(),
+                    attempt.firstDraftValidation().problems().get(0).reason());
         }
         try {
             boolean isRecorded = articleSummaryResultRecorder.recordSuccess(
-                    article.getId(), sourceText, validation.acceptedSummary());
+                    article.getId(), sourceText, attempt.acceptedSummary());
             if (!isRecorded) {
                 log.info("[article summary] skipped : source text changed while summarizing : articleId={}", article.getId());
             }
@@ -135,6 +139,12 @@ public class ArticleSummaryProcessService {
         } catch (RuntimeException exception) {
             return recordFailure(article.getId(), sourceText, exception.getClass().getSimpleName());
         }
+    }
+
+    // 글 종류: 출처 코드·기사 종류·주제로 판정 (작성 안내를 고르는 기준)
+    private static ArticleSummaryRequest toSummaryRequest(Article article, String sourceText) {
+        return new ArticleSummaryRequest(article.getTitle(), article.getRegion(), article.getKind(),
+                SummaryWritingKind.of(article.getSource().getCode(), article.getKind(), article.getTopic()), sourceText);
     }
 
     // 실패 기록마저 실패하면 다음 틱에 다시 (failureReason: 영어 고정 문구 또는 예외 종류)
@@ -160,7 +170,7 @@ public class ArticleSummaryProcessService {
 
     private enum SummaryStep {
         DONE,
-        // 그 건만 실패: 입력 없음, 거부·읽을 수 없는 응답, 검증 탈락, 기록 실패
+        // 그 건만 실패: 입력 없음, 거부·읽을 수 없는 응답, 검증 탈락(고쳐 쓴 글도 탈락), 기록 실패
         FAILED,
         // 요약하는 사이 입력이 바뀜: 기록하지 않음
         SKIPPED,

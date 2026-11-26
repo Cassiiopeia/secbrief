@@ -27,6 +27,7 @@ import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummary;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryOutcome;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryRequest;
+import kr.suhsaechan.secbrief.advisory.summary.SummaryWritingKind;
 import kr.suhsaechan.secbrief.application.ai.AiDailyBudgetGuard;
 import kr.suhsaechan.secbrief.common.config.ConfigKey;
 import kr.suhsaechan.secbrief.common.config.SystemConfigService;
@@ -36,6 +37,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * 요약 묶음 처리: 제공자 미설정이면 건너뜀, 한 호출에 1건, 건별 성공·실패 기록 (거부·검증 탈락 포함)
+ * 고쳐 쓰기·글 종류·내용 없는 입력은 ArticleSummaryRepairProcessTest
  * 제공자 호출 실패는 기록 없이 틱을 멈춤, 하루 호출 상한·틱 시간 상한·하루 예산을 지킴, 건수 설정은 틱마다 설정 저장소에서 읽음
  */
 class ArticleSummaryProcessServiceTest {
@@ -75,8 +77,10 @@ class ArticleSummaryProcessServiceTest {
 
         assertThat(result).isEqualTo(new SummaryProcessResult(2, 0, false));
         assertThat(fakeSummarizer.getReceivedRequests()).containsExactly(
-                new ArticleSummaryRequest("First headline", ArticleRegion.OVERSEAS, ArticleKind.NEWS, SOURCE_TEXT),
-                new ArticleSummaryRequest("Second headline", ArticleRegion.OVERSEAS, ArticleKind.NEWS, SOURCE_TEXT));
+                new ArticleSummaryRequest("First headline", ArticleRegion.OVERSEAS, ArticleKind.NEWS,
+                        SummaryWritingKind.NEWS_ARTICLE, SOURCE_TEXT),
+                new ArticleSummaryRequest("Second headline", ArticleRegion.OVERSEAS, ArticleKind.NEWS,
+                        SummaryWritingKind.NEWS_ARTICLE, SOURCE_TEXT));
         verify(recorder).recordSuccess(1L, SOURCE_TEXT, SUMMARY);
         verify(recorder).recordSuccess(2L, SOURCE_TEXT, SUMMARY);
     }

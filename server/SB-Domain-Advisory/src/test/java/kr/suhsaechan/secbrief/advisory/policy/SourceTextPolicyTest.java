@@ -50,4 +50,21 @@ class SourceTextPolicyTest {
         String title = "CVE-2026-0002: Example Library 4.0 deserialization flaw in the parser.";
         assertThat(toSourceText("example library 4.0 DESERIALIZATION flaw in the parser.", title)).isNull();
     }
+
+    @Test
+    void returnsNullWhenTextIsOnlyWebAddresses() {
+        // Debian 권고 피드: 요약문 자리에 추적 페이지 주소만 있음 (요약할 사실 없음)
+        assertThat(toSourceText("https://security-tracker.example.test/tracker/EXSA-0000-1-security-update", TITLE)).isNull();
+        assertThat(toSourceText("See https://example.test/advisories/a-very-long-advisory-path-0001 for details", TITLE)).isNull();
+        String textWithAddress = "Example Corp fixed an authentication bypass in the admin console. https://example.test/advisory";
+        assertThat(toSourceText(textWithAddress, TITLE)).isEqualTo(textWithAddress);
+    }
+
+    @Test
+    void isWorthSummarizingChecksStoredTextBeforeSummarizing() {
+        assertThat(SourceTextPolicy.isWorthSummarizing(null, TITLE)).isFalse();
+        assertThat(SourceTextPolicy.isWorthSummarizing("https://security-tracker.example.test/tracker/EXSA-0000-1", TITLE)).isFalse();
+        assertThat(SourceTextPolicy.isWorthSummarizing(
+                "Attackers are exploiting a flaw in Example VPN to steal session tokens.", TITLE)).isTrue();
+    }
 }

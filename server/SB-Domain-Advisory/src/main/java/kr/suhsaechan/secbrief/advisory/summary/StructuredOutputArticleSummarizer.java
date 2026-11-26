@@ -1,5 +1,6 @@
 package kr.suhsaechan.secbrief.advisory.summary;
 
+import java.util.List;
 import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallType;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletion;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletionClient;
@@ -12,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 요약 흐름 (제공자 공통): 프롬프트·스키마 만들기 > 제공자 호출(StructuredCompletionClient) > 응답 해석
- * 한 호출에 기사 1건 (출력이 길어 묶으면 잘림·기사 간 사실 섞임 위험), 예외는 호출 실패뿐
+ * 작성과 고쳐 쓰기는 지시문·사용자 메시지만 다름. 한 호출에 기사 1건 (출력이 길어 묶으면 잘림·기사 간 사실 섞임 위험), 예외는 호출 실패뿐
  */
 @Slf4j
 @Component
@@ -34,13 +35,25 @@ public class StructuredOutputArticleSummarizer implements ArticleSummarizer {
 
     @Override
     public ArticleSummaryOutcome summarize(ArticleSummaryRequest request) {
+        return requestSummary(ArticleSummaryPrompt.toSystemInstruction(request.writingKind()),
+                ArticleSummaryPrompt.toUserMessage(request));
+    }
+
+    @Override
+    public ArticleSummaryOutcome repair(ArticleSummaryRequest request, ArticleSummary rejectedDraft,
+                                        List<SummaryProblem> problems) {
+        return requestSummary(ArticleSummaryPrompt.toRepairSystemInstruction(request.writingKind()),
+                ArticleSummaryPrompt.toRepairUserMessage(request, rejectedDraft, problems));
+    }
+
+    private ArticleSummaryOutcome requestSummary(String systemInstruction, String userMessage) {
         if (!isAvailable()) {
             throw new CustomException(ErrorCode.AI_API_ERROR, "provider not configured");
         }
         StructuredCompletion completion = structuredCompletionClient.requestCompletion(new StructuredCompletionRequest(
                 AiCallType.SUMMARY,
-                ArticleSummaryPrompt.SYSTEM_INSTRUCTION,
-                ArticleSummaryPrompt.toUserMessage(request),
+                systemInstruction,
+                userMessage,
                 ArticleSummaryPrompt.toOutputJsonSchema(),
                 ArticleSummaryPrompt.MAXIMUM_OUTPUT_TOKENS));
         if (completion.isRefused()) {
