@@ -21,16 +21,17 @@ mobile/
 
 ## 화면 구성
 
-하단 탭 5개 + 탭 밖 스택 화면 6개. 기사를 누르면 브라우저가 아니라 앱 안 상세를 연다 (원문은 상세의 원문 보기 버튼).
+하단 탭 5개 + 탭 밖 스택 화면 7개. 기사를 누르면 브라우저가 아니라 앱 안 상세를 연다 (원문은 상세의 원문 보기 버튼).
 
 | 라우트 | 화면 | 역할 |
 |---|---|---|
-| `(tabs)/index` | 홈 | 오늘의 브리핑: KISA 경보 상태, 주요 소식, 긴급, 숫자, 주제·키워드 바로가기, 최신 |
+| `(tabs)/index` | 홈 | 오늘의 브리핑: 사이버위기 경보 띠(지금 단계 · 시작일, 누르면 경보단계 화면), 주요 소식, 긴급, 숫자, 주제·키워드 바로가기, 최신 |
 | `(tabs)/news` | 소식 | 뉴스·공지 피드, 카테고리·주제 칩 |
 | `(tabs)/vulnerability` | 취약점 | 주요만 / 악용 중 / 전체, 출처 묶음 칩 |
 | `(tabs)/explore` | 탐색 | 검색 들머리, 키워드 순위, 주제 동향, 행사 소식 |
 | `(tabs)/settings` | 더보기 | 알림 설정, 출처, 문의, 약관, 앱 정보 |
 | `articles/[articleId]` | 기사 상세 | AI 브리핑(한 줄 결론, 무슨 일, 왜 중요, 영향 대상, 대응 — 없으면 이전 요약 카드), 확인된 정보, 대응 모아보기(공식 대응 > 확인된 취약점 정보 > 관련 기사, 비면 함께 보면 좋은 소식), 아래 줄 원문 보기·원문 링크 복사·공유. `?focus=responseGuide` 면 대응 모아보기로 내려감 |
+| `alert-level` | 사이버위기 경보 | 지금 단계(5단계 막대, 시작일, 한 줄 뜻) > 이번 주 위협 숫자 3개(악용 중 KEV·긴급·KISA 보안공지, 누르면 목록) > 해외 지표(CIS MS-ISAC, SANS InfoCon) > 변경 이력(최근 5건 > 더 보기). KISA 경보단계 글을 누르면 기사 상세 대신 여기로 |
 | `search` | 검색 | 글자·의미 검색, 요즘 키워드 |
 | `browse/[browseKey]` | 모아 보기 | 주제·출처·키워드별 목록 |
 | `notifications` | 알림함 | 알림 \| 공지사항 (`?segment=NOTICE`), 알림은 날짜별 묶음, 새 글 점. 탭 머리 종 아이콘·더보기에서 들어옴 |
@@ -45,6 +46,8 @@ mobile/
 - 알림을 누르면 `notification-target-route.ts` 가 열 곳을 정한다: `articleId` 기사 상세 > `notificationKind=NOTICE` 공지 상세 > `notificationId` 알림 상세 > `QUIET_HOURS_DIGEST` 알림함 > 이전 서버의 `targetTab`. 이동은 화면 스택이 준비된 뒤 (`use-is-root-navigator-ready`).
 - 알림함 읽음 기록(본 번호·연 글)과 방해 금지 시간은 기기에만 둔다 (`secbrief.notificationReadState`, `secbrief.quietHours`). 방해 금지 시간은 알림 기기 등록(`PUT /api/v1/push-devices` 의 `quietHours`)으로 서버에도 보낸다.
 - 알림 종류 문구(이름·배지·알린 이유)는 `features/notifications/alert-category-texts.ts` 가 단일 원본이다.
+- 경보단계 문구(국내 5단계 이름·색조·뜻, 해외 지표 이름·단계별 뜻)는 `features/alert-level/alert-level-texts.ts` 가 단일 원본이다. 뜻은 KISA·CIS·SANS 공개 안내를 짧게 옮긴 것만 쓴다. 단계 색은 `alertLevel*` 토큰 5개(`SbLevelGauge`).
+- 기사 상세는 AI 글(요약·핵심)이 하나도 없으면 요약 카드를 숨기고 확인된 정보·원문 보기로 바로 이어진다.
 - 대응 모아보기 문구(구역 이름·설명·묶인 이유)는 `features/response-guide/response-guide-texts.ts` 가 단일 원본이다. 행은 `ResponseGuideRow` 하나를 기사 상세와 알림 상세가 함께 쓴다.
 - 시각 선택기는 `@expo/ui/community/datetime-picker` (디자인 시스템 `SbTimePickerRow`): iOS 행 안 선택기, Android 시각 창, 웹은 글자만.
 
