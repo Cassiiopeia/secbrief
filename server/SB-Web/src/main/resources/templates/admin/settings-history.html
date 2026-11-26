@@ -15,7 +15,7 @@
   <section class="card border border-base-300 bg-base-100">
     <div class="card-body p-0">
       <div class="overflow-x-auto">
-        <table class="table table-sm">
+        <table class="table table-sm admin-stack-table">
           <thead>
           <tr>
             <th>시각</th>
@@ -27,11 +27,11 @@
           </thead>
           <tbody>
           <tr th:each="history : ${histories}">
-            <td class="admin-number whitespace-nowrap" th:text="${@adminDateTimeFormatter.format(history.createdAt)}">-</td>
-            <td class="admin-number max-w-xs break-words" th:text="${history.oldValue} ?: '-'">이전 값</td>
-            <td class="admin-number max-w-xs break-words font-medium" th:text="${history.newValue} ?: '-'">새 값</td>
-            <td th:text="${history.changedBy}">admin</td>
-            <td class="max-w-md break-words text-sm text-base-content/70" th:text="${history.reason} ?: '-'">이유</td>
+            <td class="admin-stack-primary admin-number whitespace-nowrap" th:text="${@adminDateTimeFormatter.format(history.createdAt)}">-</td>
+            <td class="admin-number max-w-xs break-words" data-label="이전 값" th:text="${history.oldValue} ?: '-'">이전 값</td>
+            <td class="admin-number max-w-xs break-words font-medium" data-label="새 값" th:text="${history.newValue} ?: '-'">새 값</td>
+            <td data-label="바꾼 사람" th:text="${history.changedBy}">admin</td>
+            <td class="max-w-md break-words text-sm text-base-content/70" data-label="이유" th:text="${history.reason} ?: '-'">이유</td>
           </tr>
           <th:block th:if="${#lists.isEmpty(histories)}">
             <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(5, '아직 바꾼 적이 없어요')}"></tr>
