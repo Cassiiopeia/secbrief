@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import kr.suhsaechan.secbrief.advisory.ai.calllog.AiFailureKind;
+import kr.suhsaechan.secbrief.advisory.constant.KeyedAiProvider;
 import kr.suhsaechan.secbrief.advisory.support.MutableClock;
 import kr.suhsaechan.secbrief.common.config.ConfigKey;
 import kr.suhsaechan.secbrief.common.config.SystemConfigService;
@@ -25,10 +26,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * 키 목록 관리: 추가(검증·중복·최대 개수), 삭제, 위·아래 이동, 켜기·끄기, 값 교체, 별명 변경, 운영 설정 키 fallback
+ * 키 목록 관리 (제공자 1개): 추가(검증·중복·최대 개수), 삭제, 위·아래 이동, 켜기·끄기, 값 교체, 별명 변경, 운영 설정 키 fallback
  * 화면용 목록과 변경 사유에는 키 값이 들어가지 않음 (설정 저장소는 값을 들고 있는 가짜)
  */
-class AnthropicApiKeyServiceTest {
+class AiApiKeyServiceTest {
 
     private static final String ACTOR = "admin";
     private static final String FIRST_API_KEY = "sk-test-first-000000000000-AAAA";
@@ -40,7 +41,7 @@ class AnthropicApiKeyServiceTest {
     // 가짜 설정 저장소가 들고 있는 ANTHROPIC_API_KEYS 평문 (없으면 빈 문자열)
     private String storedSecret = "";
     private final List<String> recordedReasons = new ArrayList<>();
-    private AnthropicApiKeyService service;
+    private AiApiKeyService service;
 
     @BeforeEach
     void givenInMemoryConfigStore() {
@@ -57,7 +58,7 @@ class AnthropicApiKeyServiceTest {
                     recordedReasons.add(invocation.getArgument(2));
                     return true;
                 });
-        service = new AnthropicApiKeyService(systemConfigService, tracker, "");
+        service = new AiApiKeyService(KeyedAiProvider.ANTHROPIC, systemConfigService, tracker, "");
     }
 
     @Test
@@ -65,10 +66,10 @@ class AnthropicApiKeyServiceTest {
         service.add(" 운영 ", " " + FIRST_API_KEY + " ", ACTOR);
         service.add("예비", SECOND_API_KEY, ACTOR);
 
-        List<AnthropicApiKey> storedKeys = service.findStoredKeys();
-        assertThat(storedKeys).extracting(AnthropicApiKey::nickname).containsExactly("운영", "예비");
-        assertThat(storedKeys).extracting(AnthropicApiKey::apiKey).containsExactly(FIRST_API_KEY, SECOND_API_KEY);
-        assertThat(storedKeys).allMatch(AnthropicApiKey::isEnabled);
+        List<AiApiKey> storedKeys = service.findStoredKeys();
+        assertThat(storedKeys).extracting(AiApiKey::nickname).containsExactly("운영", "예비");
+        assertThat(storedKeys).extracting(AiApiKey::apiKey).containsExactly(FIRST_API_KEY, SECOND_API_KEY);
+        assertThat(storedKeys).allMatch(AiApiKey::isEnabled);
         assertThat(storedKeys.get(0).id()).hasSize(8);
         // 저장 형식: [{"id","nickname","apiKey","isEnabled"}]
         JsonNode storedJson = new ObjectMapper().readTree(storedSecret);
@@ -99,12 +100,12 @@ class AnthropicApiKeyServiceTest {
 
     @Test
     void acceptsAtMostTenKeys() {
-        for (int keyNumber = 1; keyNumber <= AnthropicApiKeyPolicy.MAXIMUM_KEY_COUNT; keyNumber++) {
+        for (int keyNumber = 1; keyNumber <= AiApiKeyPolicy.MAXIMUM_KEY_COUNT; keyNumber++) {
             service.add("키" + keyNumber, "sk-test-key-number-" + "0".repeat(10) + keyNumber, ACTOR);
         }
 
         assertErrorCode(() -> service.add("열한째", THIRD_API_KEY, ACTOR), ErrorCode.AI_KEY_LIMIT_EXCEEDED);
-        assertThat(service.findStoredKeys()).hasSize(AnthropicApiKeyPolicy.MAXIMUM_KEY_COUNT);
+        assertThat(service.findStoredKeys()).hasSize(AiApiKeyPolicy.MAXIMUM_KEY_COUNT);
     }
 
     @Test
@@ -132,11 +133,11 @@ class AnthropicApiKeyServiceTest {
         String firstKeyId = findKeyId("첫째");
 
         service.setEnabled(firstKeyId, false, ACTOR);
-        assertThat(service.findCallableKeys()).extracting(AnthropicApiKey::nickname).containsExactly("둘째", "셋째");
+        assertThat(service.findCallableKeys()).extracting(AiApiKey::nickname).containsExactly("둘째", "셋째");
         assertThat(findNicknames()).containsExactly("첫째", "둘째", "셋째");
 
         service.setEnabled(firstKeyId, true, ACTOR);
-        assertThat(service.findCallableKeys()).extracting(AnthropicApiKey::nickname).containsExactly("첫째", "둘째", "셋째");
+        assertThat(service.findCallableKeys()).extracting(AiApiKey::nickname).containsExactly("첫째", "둘째", "셋째");
     }
 
     @Test
@@ -162,7 +163,7 @@ class AnthropicApiKeyServiceTest {
         givenThreeKeys();
         String secondKeyId = findKeyId("둘째");
 
-        assertThat(service.rename(secondKeyId, " 예비 ", ACTOR)).isEqualTo(new AnthropicApiKeyChange(secondKeyId, "예비"));
+        assertThat(service.rename(secondKeyId, " 예비 ", ACTOR)).isEqualTo(new AiApiKeyChange(secondKeyId, "예비"));
         assertThat(findNicknames()).containsExactly("첫째", "예비", "셋째");
         assertErrorCode(() -> service.rename(secondKeyId, "첫째", ACTOR), ErrorCode.AI_KEY_DUPLICATED_NICKNAME);
         // 자기 별명 그대로는 중복이 아님
@@ -174,7 +175,7 @@ class AnthropicApiKeyServiceTest {
         service.add("운영", FIRST_API_KEY, ACTOR);
         String keyId = findKeyId("운영");
 
-        assertThat(service.remove(keyId, ACTOR)).isEqualTo(new AnthropicApiKeyChange(keyId, "운영"));
+        assertThat(service.remove(keyId, ACTOR)).isEqualTo(new AiApiKeyChange(keyId, "운영"));
 
         assertThat(service.findStoredKeys()).isEmpty();
         assertThat(storedSecret).isEmpty();
@@ -192,12 +193,12 @@ class AnthropicApiKeyServiceTest {
         service.move(firstKeyId, false, ACTOR);
 
         assertThat(recordedReasons).isNotEmpty().noneMatch(reason -> reason.contains("sk-test"));
-        List<AnthropicApiKeyView> keyViews = service.findStoredKeyViews();
-        assertThat(keyViews).extracting(AnthropicApiKeyView::priority).containsExactly(1, 2, 3);
-        assertThat(keyViews).extracting(AnthropicApiKeyView::maskedApiKey)
+        List<AiApiKeyView> keyViews = service.findStoredKeyViews();
+        assertThat(keyViews).extracting(AiApiKeyView::priority).containsExactly(1, 2, 3);
+        assertThat(keyViews).extracting(AiApiKeyView::maskedApiKey)
                 .containsExactly("••••BBBB", "••••DDDD", "••••CCCC")
                 .noneMatch(maskedApiKey -> maskedApiKey.contains("sk-test"));
-        assertThat(new AnthropicApiKey("id", "별명", FIRST_API_KEY, true).toString()).doesNotContain(FIRST_API_KEY);
+        assertThat(new AiApiKey("id", "별명", FIRST_API_KEY, true).toString()).doesNotContain(FIRST_API_KEY);
     }
 
     @Test
@@ -206,7 +207,7 @@ class AnthropicApiKeyServiceTest {
         String keyId = findKeyId("운영");
         tracker.recordFailure(keyId, AiFailureKind.RATE_LIMITED);
 
-        AnthropicApiKeyView keyView = service.findStoredKeyViews().get(0);
+        AiApiKeyView keyView = service.findStoredKeyViews().get(0);
 
         assertThat(keyView.isCoolingDown()).isTrue();
         assertThat(keyView.lastFailureKind()).isEqualTo(AiFailureKind.RATE_LIMITED);
@@ -216,24 +217,24 @@ class AnthropicApiKeyServiceTest {
 
     @Test
     void fallsBackToDeployPropertyKeysOnlyWhenNoStoredKeyIsEnabled() {
-        AnthropicApiKeyService serviceWithDeployKeys = new AnthropicApiKeyService(
+        AiApiKeyService serviceWithDeployKeys = new AiApiKeyService(KeyedAiProvider.ANTHROPIC,
                 systemConfigService, tracker, " sk-deploy-first-0000000000-EEEE , ,sk-deploy-second-000000000-FFFF,");
 
         // 설정 저장소에 키 없음: 운영 설정의 키 (쉼표로 여러 개)
         assertThat(serviceWithDeployKeys.isUsingDeployPropertyKeys()).isTrue();
-        assertThat(serviceWithDeployKeys.findCallableKeys()).extracting(AnthropicApiKey::nickname)
+        assertThat(serviceWithDeployKeys.findCallableKeys()).extracting(AiApiKey::nickname)
                 .containsExactly("config", "config-2");
-        assertThat(serviceWithDeployKeys.findDeployPropertyKeyViews()).extracting(AnthropicApiKeyView::maskedApiKey)
+        assertThat(serviceWithDeployKeys.findDeployPropertyKeyViews()).extracting(AiApiKeyView::maskedApiKey)
                 .containsExactly("••••EEEE", "••••FFFF");
 
         // 설정 저장소에 켜진 키가 생기면 그 키만
         serviceWithDeployKeys.add("운영", FIRST_API_KEY, ACTOR);
         assertThat(serviceWithDeployKeys.isUsingDeployPropertyKeys()).isFalse();
-        assertThat(serviceWithDeployKeys.findCallableKeys()).extracting(AnthropicApiKey::nickname).containsExactly("운영");
+        assertThat(serviceWithDeployKeys.findCallableKeys()).extracting(AiApiKey::nickname).containsExactly("운영");
 
         // 전부 끄면 다시 운영 설정의 키
         serviceWithDeployKeys.setEnabled(serviceWithDeployKeys.findStoredKeys().get(0).id(), false, ACTOR);
-        assertThat(serviceWithDeployKeys.findCallableKeys()).extracting(AnthropicApiKey::nickname)
+        assertThat(serviceWithDeployKeys.findCallableKeys()).extracting(AiApiKey::nickname)
                 .containsExactly("config", "config-2");
     }
 
@@ -262,6 +263,19 @@ class AnthropicApiKeyServiceTest {
         verify(systemConfigService, never()).resetToDefault(any(), any(), any());
     }
 
+    @Test
+    void storesEachProviderKeysUnderItsOwnConfigKey() {
+        AiApiKeyService openAiService = new AiApiKeyService(KeyedAiProvider.OPENAI, systemConfigService, tracker, "");
+        when(systemConfigService.getSecret(ConfigKey.OPENAI_API_KEYS)).thenReturn("");
+
+        openAiService.add("운영", FIRST_API_KEY, ACTOR);
+
+        // OpenAI 키는 OPENAI_API_KEYS 에만 저장, Anthropic 목록은 그대로
+        verify(systemConfigService).update(eq(ConfigKey.OPENAI_API_KEYS), anyString(), eq(ACTOR), eq("AI 키 추가: 운영"));
+        verify(systemConfigService, never()).update(eq(ConfigKey.ANTHROPIC_API_KEYS), anyString(), anyString(), anyString());
+        assertThat(service.findStoredKeys()).isEmpty();
+    }
+
     private void givenThreeKeys() {
         service.add("첫째", FIRST_API_KEY, ACTOR);
         service.add("둘째", SECOND_API_KEY, ACTOR);
@@ -269,7 +283,7 @@ class AnthropicApiKeyServiceTest {
     }
 
     private List<String> findNicknames() {
-        return service.findStoredKeys().stream().map(AnthropicApiKey::nickname).toList();
+        return service.findStoredKeys().stream().map(AiApiKey::nickname).toList();
     }
 
     private String findKeyId(String nickname) {

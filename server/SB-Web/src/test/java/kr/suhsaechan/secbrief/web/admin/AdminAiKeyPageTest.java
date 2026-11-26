@@ -14,9 +14,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.List;
 import kr.suhsaechan.secbrief.advisory.ai.calllog.AiFailureKind;
-import kr.suhsaechan.secbrief.advisory.ai.key.AnthropicApiKey;
-import kr.suhsaechan.secbrief.advisory.ai.key.AnthropicApiKeyService;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKey;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKeyService;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKeyServiceRegistry;
 import kr.suhsaechan.secbrief.advisory.ai.key.ApiKeyHealthTracker;
+import kr.suhsaechan.secbrief.advisory.constant.KeyedAiProvider;
 import kr.suhsaechan.secbrief.common.audit.AdminAuditAction;
 import kr.suhsaechan.secbrief.common.audit.AdminAuditLog;
 import kr.suhsaechan.secbrief.common.audit.AdminAuditLogRepository;
@@ -39,7 +41,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
- * AI 키 화면 (DB): 키 표 렌더링(가린 값·상태), 폼 POST 로 추가·이동·켜기·끄기·값 교체·별명 변경·삭제(CSRF 필수), 제공자 우선순위
+ * AI 키 화면 (DB, Anthropic 구역 기준): 키 표 렌더링(가린 값·상태), 폼 POST 로 추가·이동·켜기·끄기·값 교체·별명 변경·삭제(CSRF 필수), 제공자 우선순위
  * 키 값은 DB 에 암호문으로만 남고 화면·안내 문구·이력·감사 기록 어디에도 나오지 않음
  */
 @SpringBootTest
@@ -48,6 +50,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 class AdminAiKeyPageTest extends PostgresContainerTestSupport {
 
     private static final String AI_KEYS_PATH = "/admin/ai-keys";
+    private static final String ANTHROPIC_KEYS_PATH = AI_KEYS_PATH + "/anthropic";
+    // 키 변경 뒤에는 그 제공자 구역으로 돌아감
+    private static final String ANTHROPIC_SECTION_URL = AI_KEYS_PATH + "#anthropic";
     private static final String FIRST_API_KEY = "sk-test-page-first-00000000000-AAAA";
     private static final String SECOND_API_KEY = "sk-test-page-second-0000000000-BBBB";
     private static final String REISSUED_API_KEY = "sk-test-page-reissued-00000000-CCCC";
@@ -56,7 +61,7 @@ class AdminAiKeyPageTest extends PostgresContainerTestSupport {
     @Autowired
     private MockMvc mockMvc;
     @Autowired
-    private AnthropicApiKeyService anthropicApiKeyService;
+    private AiApiKeyServiceRegistry aiApiKeyServiceRegistry;
     @Autowired
     private ApiKeyHealthTracker apiKeyHealthTracker;
     @Autowired
@@ -81,11 +86,11 @@ class AdminAiKeyPageTest extends PostgresContainerTestSupport {
     @Test
     void requiresAdminLoginAndCsrfToken() throws Exception {
         mockMvc.perform(get(AI_KEYS_PATH)).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/admin/login"));
-        mockMvc.perform(post(AI_KEYS_PATH).with(user(adminUsername).roles("ADMIN"))
+        mockMvc.perform(post(ANTHROPIC_KEYS_PATH).with(user(adminUsername).roles("ADMIN"))
                         .param("nickname", "운영").param("apiKey", FIRST_API_KEY))
                 .andExpect(status().isForbidden());
 
-        assertThat(anthropicApiKeyService.findStoredKeys()).isEmpty();
+        assertThat(findKeyService(KeyedAiProvider.ANTHROPIC).findStoredKeys()).isEmpty();
     }
 
     @Test
@@ -94,7 +99,8 @@ class AdminAiKeyPageTest extends PostgresContainerTestSupport {
                 .andExpect(content().string(containsString("<title>AI 키 · 시큐브리프 관리자</title>")))
                 .andExpect(content().string(containsString("등록한 키가 없어요")))
                 .andExpect(content().string(containsString("0 / 10개")))
-                .andExpect(content().string(containsString("action=\"/admin/ai-keys\"")))
+                .andExpect(content().string(containsString("Anthropic 키")))
+                .andExpect(content().string(containsString("action=\"/admin/ai-keys/anthropic\"")))
                 .andExpect(content().string(containsString("name=\"nickname\"")))
                 .andExpect(content().string(containsString("type=\"password\" name=\"apiKey\"")))
                 .andExpect(content().string(containsString("maxlength=\"30\"")))
@@ -110,16 +116,16 @@ class AdminAiKeyPageTest extends PostgresContainerTestSupport {
 
     @Test
     void addsKeyEncryptedAndShowsOnlyMaskedValue() throws Exception {
-        postAsAdmin(post(AI_KEYS_PATH).param("nickname", "운영").param("apiKey", FIRST_API_KEY))
-                .andExpect(redirectedUrl(AI_KEYS_PATH))
-                .andExpect(flash().attribute("flashMessage", containsString("운영 키를 추가했어요")))
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH).param("nickname", "운영").param("apiKey", FIRST_API_KEY))
+                .andExpect(redirectedUrl(ANTHROPIC_SECTION_URL))
+                .andExpect(flash().attribute("flashMessage", containsString("Anthropic 운영 키를 추가했어요")))
                 .andExpect(flash().attribute("flashMessage", not(containsString("sk-test"))));
 
         // DB 에는 암호문만
         String storedValue = jdbcTemplate.queryForObject(
                 "select config_value from system_config where config_key = 'ANTHROPIC_API_KEYS'", String.class);
         assertThat(storedValue).startsWith("enc:v1:").doesNotContain("sk-test");
-        assertThat(anthropicApiKeyService.findCallableKeys()).extracting(AnthropicApiKey::apiKey).containsExactly(FIRST_API_KEY);
+        assertThat(findKeyService(KeyedAiProvider.ANTHROPIC).findCallableKeys()).extracting(AiApiKey::apiKey).containsExactly(FIRST_API_KEY);
         // 화면에는 별명과 가린 값만
         String keyId = findKeyId("운영");
         getAsAdmin(AI_KEYS_PATH).andExpect(status().isOk())
@@ -127,8 +133,8 @@ class AdminAiKeyPageTest extends PostgresContainerTestSupport {
                 .andExpect(content().string(containsString("••••AAAA")))
                 .andExpect(content().string(containsString("1 / 10개")))
                 .andExpect(content().string(containsString("쓰는 중")))
-                .andExpect(content().string(containsString("action=\"/admin/ai-keys/" + keyId + "/remove\"")))
-                .andExpect(content().string(containsString("action=\"/admin/ai-keys/" + keyId + "/replace\"")))
+                .andExpect(content().string(containsString("action=\"/admin/ai-keys/anthropic/" + keyId + "/remove\"")))
+                .andExpect(content().string(containsString("action=\"/admin/ai-keys/anthropic/" + keyId + "/replace\"")))
                 .andExpect(content().string(containsString("data-confirm-message")))
                 .andExpect(content().string(not(containsString("sk-test-page"))))
                 .andExpect(content().string(not(containsString("enc:v1:"))));
@@ -136,7 +142,7 @@ class AdminAiKeyPageTest extends PostgresContainerTestSupport {
         AdminAuditLog auditLog = findAuditLogs().get(0);
         assertThat(auditLog.getAction()).isEqualTo(AdminAuditAction.AI_KEY_ADD);
         assertThat(auditLog.getTargetId()).isEqualTo(keyId);
-        assertThat(auditLog.getDetail()).isEqualTo("운영");
+        assertThat(auditLog.getDetail()).isEqualTo("Anthropic · 운영");
         assertThat(jdbcTemplate.queryForList(
                 "select coalesce(old_value, '') || coalesce(new_value, '') || coalesce(reason, '') from system_config_history",
                 String.class)).containsExactly("없음있음AI 키 추가: 운영");
@@ -144,49 +150,49 @@ class AdminAiKeyPageTest extends PostgresContainerTestSupport {
 
     @Test
     void showsErrorCodeWithoutEchoingKeyValueWhenInputIsRejected() throws Exception {
-        postAsAdmin(post(AI_KEYS_PATH).param("nickname", "운영").param("apiKey", "sk-test with spaces 0000000000"))
-                .andExpect(redirectedUrl(AI_KEYS_PATH))
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH).param("nickname", "운영").param("apiKey", "sk-test with spaces 0000000000"))
+                .andExpect(redirectedUrl(ANTHROPIC_SECTION_URL))
                 .andExpect(flash().attribute("flashError", containsString("AI_KEY_INVALID_VALUE")))
                 .andExpect(flash().attribute("flashError", not(containsString("sk-test"))));
-        postAsAdmin(post(AI_KEYS_PATH).param("nickname", " ").param("apiKey", FIRST_API_KEY))
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH).param("nickname", " ").param("apiKey", FIRST_API_KEY))
                 .andExpect(flash().attribute("flashError", containsString("AI_KEY_INVALID_NICKNAME")));
-        postAsAdmin(post(AI_KEYS_PATH).param("nickname", "운영").param("apiKey", FIRST_API_KEY));
-        postAsAdmin(post(AI_KEYS_PATH).param("nickname", "운영").param("apiKey", SECOND_API_KEY))
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH).param("nickname", "운영").param("apiKey", FIRST_API_KEY));
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH).param("nickname", "운영").param("apiKey", SECOND_API_KEY))
                 .andExpect(flash().attribute("flashError", containsString("AI_KEY_DUPLICATED_NICKNAME")));
-        postAsAdmin(post(AI_KEYS_PATH).param("nickname", "예비").param("apiKey", FIRST_API_KEY))
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH).param("nickname", "예비").param("apiKey", FIRST_API_KEY))
                 .andExpect(flash().attribute("flashError", containsString("AI_KEY_DUPLICATED")));
-        postAsAdmin(post(AI_KEYS_PATH + "/nokey000/remove"))
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH + "/nokey000/remove"))
                 .andExpect(flash().attribute("flashError", containsString("AI_KEY_NOT_FOUND")));
 
-        assertThat(anthropicApiKeyService.findStoredKeys()).hasSize(1);
+        assertThat(findKeyService(KeyedAiProvider.ANTHROPIC).findStoredKeys()).hasSize(1);
     }
 
     @Test
     void movesTogglesReplacesRenamesAndRemovesKey() throws Exception {
-        postAsAdmin(post(AI_KEYS_PATH).param("nickname", "운영").param("apiKey", FIRST_API_KEY));
-        postAsAdmin(post(AI_KEYS_PATH).param("nickname", "예비").param("apiKey", SECOND_API_KEY));
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH).param("nickname", "운영").param("apiKey", FIRST_API_KEY));
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH).param("nickname", "예비").param("apiKey", SECOND_API_KEY));
         String secondKeyId = findKeyId("예비");
 
-        postAsAdmin(post(AI_KEYS_PATH + "/" + secondKeyId + "/move").param("direction", "up"))
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH + "/" + secondKeyId + "/move").param("direction", "up"))
                 .andExpect(flash().attribute("flashMessage", containsString("올렸어요")));
         assertThat(findNicknames()).containsExactly("예비", "운영");
 
-        postAsAdmin(post(AI_KEYS_PATH + "/" + secondKeyId + "/toggle").param("enabled", "false"))
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH + "/" + secondKeyId + "/toggle").param("enabled", "false"))
                 .andExpect(flash().attribute("flashMessage", containsString("껐어요")));
-        assertThat(anthropicApiKeyService.findCallableKeys()).extracting(AnthropicApiKey::nickname).containsExactly("운영");
-        postAsAdmin(post(AI_KEYS_PATH + "/" + secondKeyId + "/toggle").param("enabled", "true"));
+        assertThat(findKeyService(KeyedAiProvider.ANTHROPIC).findCallableKeys()).extracting(AiApiKey::nickname).containsExactly("운영");
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH + "/" + secondKeyId + "/toggle").param("enabled", "true"));
 
-        postAsAdmin(post(AI_KEYS_PATH + "/" + secondKeyId + "/replace").param("apiKey", REISSUED_API_KEY))
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH + "/" + secondKeyId + "/replace").param("apiKey", REISSUED_API_KEY))
                 .andExpect(flash().attribute("flashMessage", containsString("키 값을 바꿨어요")))
                 .andExpect(flash().attribute("flashMessage", not(containsString("sk-test"))));
-        assertThat(anthropicApiKeyService.findCallableKeys()).extracting(AnthropicApiKey::apiKey)
+        assertThat(findKeyService(KeyedAiProvider.ANTHROPIC).findCallableKeys()).extracting(AiApiKey::apiKey)
                 .containsExactly(REISSUED_API_KEY, FIRST_API_KEY);
 
-        postAsAdmin(post(AI_KEYS_PATH + "/" + secondKeyId + "/rename").param("nickname", "재발급"))
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH + "/" + secondKeyId + "/rename").param("nickname", "재발급"))
                 .andExpect(flash().attribute("flashMessage", containsString("재발급")));
         assertThat(findNicknames()).containsExactly("재발급", "운영");
 
-        postAsAdmin(post(AI_KEYS_PATH + "/" + secondKeyId + "/remove"))
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH + "/" + secondKeyId + "/remove"))
                 .andExpect(flash().attribute("flashMessage", containsString("삭제했어요")));
         assertThat(findNicknames()).containsExactly("운영");
 
@@ -204,7 +210,7 @@ class AdminAiKeyPageTest extends PostgresContainerTestSupport {
 
     @Test
     void showsCooldownAndLastFailureKindOfKey() throws Exception {
-        postAsAdmin(post(AI_KEYS_PATH).param("nickname", "운영").param("apiKey", FIRST_API_KEY));
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH).param("nickname", "운영").param("apiKey", FIRST_API_KEY));
         apiKeyHealthTracker.recordFailure(findKeyId("운영"), AiFailureKind.RATE_LIMITED);
 
         getAsAdmin(AI_KEYS_PATH).andExpect(status().isOk())
@@ -229,7 +235,7 @@ class AdminAiKeyPageTest extends PostgresContainerTestSupport {
         // 2순위 "없음"(빈 값)은 버림, 같은 값이면 그대로
         postAsAdmin(post(AI_KEYS_PATH + "/provider-priority").param("providerCodes", "ollama", "", "anthropic"))
                 .andExpect(flash().attribute("flashMessage", containsString("그대로예요")));
-        postAsAdmin(post(AI_KEYS_PATH + "/provider-priority").param("providerCodes", "openai"))
+        postAsAdmin(post(AI_KEYS_PATH + "/provider-priority").param("providerCodes", "mistral"))
                 .andExpect(flash().attribute("flashError", containsString("AI_PROVIDER_UNKNOWN")));
         postAsAdmin(post(AI_KEYS_PATH + "/provider-priority"))
                 .andExpect(flash().attribute("flashError", containsString("CONFIG_VALUE_REQUIRED")));
@@ -244,12 +250,16 @@ class AdminAiKeyPageTest extends PostgresContainerTestSupport {
         return mockMvc.perform(request.with(user(adminUsername).roles("ADMIN")).with(csrf()));
     }
 
+    private AiApiKeyService findKeyService(KeyedAiProvider provider) {
+        return aiApiKeyServiceRegistry.find(provider);
+    }
+
     private List<String> findNicknames() {
-        return anthropicApiKeyService.findStoredKeys().stream().map(AnthropicApiKey::nickname).toList();
+        return findKeyService(KeyedAiProvider.ANTHROPIC).findStoredKeys().stream().map(AiApiKey::nickname).toList();
     }
 
     private String findKeyId(String nickname) {
-        return anthropicApiKeyService.findStoredKeys().stream()
+        return findKeyService(KeyedAiProvider.ANTHROPIC).findStoredKeys().stream()
                 .filter(key -> key.nickname().equals(nickname))
                 .findFirst().orElseThrow().id();
     }

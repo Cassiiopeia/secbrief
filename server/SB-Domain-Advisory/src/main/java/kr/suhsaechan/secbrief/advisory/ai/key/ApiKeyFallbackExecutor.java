@@ -25,12 +25,12 @@ public class ApiKeyFallbackExecutor {
      * enabledKeys: 켜진 키 (우선순위 순), callWithKey: 키 1개로 호출 1회, classifyFailure: 예외 > 실패 종류
      * 로그에는 키 id 만 남김 (별명은 관리자 입력값, 키 값은 남기지 않음)
      */
-    public <T> T execute(List<AnthropicApiKey> enabledKeys, Function<AnthropicApiKey, T> callWithKey,
+    public <T> T execute(List<AiApiKey> enabledKeys, Function<AiApiKey, T> callWithKey,
                          Function<RuntimeException, AiFailureKind> classifyFailure) {
-        List<AnthropicApiKey> keysInTryOrder = toTryOrder(enabledKeys);
+        List<AiApiKey> keysInTryOrder = toTryOrder(enabledKeys);
         AiFailureKind lastFailureKind = null;
         for (int keyIndex = 0; keyIndex < keysInTryOrder.size(); keyIndex++) {
-            AnthropicApiKey key = keysInTryOrder.get(keyIndex);
+            AiApiKey key = keysInTryOrder.get(keyIndex);
             try {
                 T callResult = callWithKey.apply(key);
                 apiKeyHealthTracker.recordSuccess(key.id());
@@ -52,10 +52,10 @@ public class ApiKeyFallbackExecutor {
     }
 
     // 쿨다운이 아닌 키 먼저 (우선순위 유지), 쿨다운 중인 키는 뒤에
-    private List<AnthropicApiKey> toTryOrder(List<AnthropicApiKey> enabledKeys) {
-        List<AnthropicApiKey> readyKeys = new ArrayList<>();
-        List<AnthropicApiKey> coolingKeys = new ArrayList<>();
-        for (AnthropicApiKey key : enabledKeys) {
+    private List<AiApiKey> toTryOrder(List<AiApiKey> enabledKeys) {
+        List<AiApiKey> readyKeys = new ArrayList<>();
+        List<AiApiKey> coolingKeys = new ArrayList<>();
+        for (AiApiKey key : enabledKeys) {
             (apiKeyHealthTracker.isCoolingDown(key.id()) ? coolingKeys : readyKeys).add(key);
         }
         readyKeys.addAll(coolingKeys);

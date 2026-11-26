@@ -67,13 +67,20 @@ secbrief:
   ai:
     # AI 스케줄러 켜기 (false: AI 처리 안 함, 기사는 원문 제목·general 로 보임)
     enabled: ${AI_ENABLED:true}
-    # AI 제공자: anthropic, ollama (쉼표로 우선순위, 모르는 값이면 경고 로그만 남기고 AI 처리를 건너뜀)
+    # AI 제공자: anthropic, openai, google, ollama (쉼표로 우선순위, 모르는 값이면 경고 로그만 남기고 AI 처리를 건너뜀)
     # 관리자 화면에서 정한 우선순위(설정 저장소 AI_PROVIDER_PRIORITY)가 있으면 그 값이 우선
     provider: ${AI_PROVIDER:anthropic}
     # Anthropic API 키 (쉼표로 여러 개, 비어 있으면 AI 처리를 건너뜀, 로그에 남기지 않음)
     # 관리자 화면(AI 키)에 켜진 키가 있으면 그 키를 쓰고, 하나도 없을 때만 이 값을 씀
     anthropic-api-key: ${ANTHROPIC_API_KEY:}
     model: claude-haiku-5-5
+    # OpenAI·Google 은 키·모델을 관리자 화면에서만 넣음 (설정 저장소 OPENAI_API_KEYS·OPENAI_MODEL, GOOGLE_API_KEYS·GOOGLE_MODEL)
+    openai:
+      # OpenAI API 주소 (POST {base-url}/v1/responses)
+      base-url: https://api.openai.com
+    google:
+      # Gemini API 주소 (POST {base-url}/v1beta/interactions)
+      base-url: https://generativelanguage.googleapis.com
     ollama:
       # Ollama 서버 주소 (예: http://host:11434, 주소나 모델이 비어 있으면 AI 처리를 건너뜀, 로그에 남기지 않음)
       base-url: ${OLLAMA_BASE_URL:}
