@@ -1,0 +1,22 @@
+plugins {
+    id 'java-library'
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+// 로컬 전용 도구: 서버 이미지(SB-Web bootJar)에 들어가지 않음
+bootJar { enabled = false }
+jar { enabled = true; archiveClassifier = '' }
+
+dependencies {
+    // 요약 하네스(프롬프트·검증·고쳐 쓰기)와 수집기를 운영 서버와 같은 코드로 씀
+    implementation project(':SB-Domain-Advisory')
+}
+
+// 실행: ./gradlew :SB-Tool:summaryTool --args="<명령> --옵션 값 ..." (명령·순서는 docs/summary-harness/backfill.md, evaluation.md)
+tasks.register('summaryTool', JavaExec) {
+    group = 'application'
+    description = '요약 하네스 평가 · 밀린 요약 로컬 적재 (claude -p)'
+    mainClass = 'kr.suhsaechan.secbrief.tool.summary.SummaryToolMain'
+    classpath = sourceSets.main.runtimeClasspath
+}

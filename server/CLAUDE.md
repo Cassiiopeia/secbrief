@@ -16,6 +16,7 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 | `SB-Domain-Advisory` | 수집한 보안 공지·뉴스, 취약점, 관심 제품 |
 | `SB-Application` | 여러 도메인을 묶는 유스케이스 (수집, AI 제목 분석·요약, 임베딩, 긴급 알림, 이미지 저장) |
 | `SB-Web` | 시작점, Controller, 전역 예외 처리, 스케줄러, Flyway 마이그레이션 |
+| `SB-Tool` | 로컬 전용 도구 (요약 하네스 평가, 밀린 요약 적재). 서버 이미지에 들어가지 않음 |
 
 ## 규칙
 
@@ -25,6 +26,9 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 - 주기 작업은 `SB-Web`의 `web.scheduler` 패키지에 둔다.
 - 비밀값은 환경변수로만 받는다. `application-dev.yml`, `application-prod.yml`은 커밋하지 않는다.
 - 로그는 영어로 쓰고 기능 접두사를 붙인다 (`[advisory collect] failed 502 : ...`). 외부에서 들어온 값은 정리한 뒤 넣는다.
+
+- 기사 요약의 작성 규칙은 `SB-Domain-Advisory/src/main/resources/summary-harness/*.md` 가 단일 원본이다 (공통 규칙 + 글 종류별 안내 + 고쳐 쓰기).
+  고칠 때는 [docs/summary-harness](../docs/summary-harness/README.md) 의 평가 순서로 기준선과 비교한다. 요약 1건의 제공자 호출은 시도마다 최대 2회다.
 
 ## 외부 연동 설정 (환경변수 또는 운영 설정 파일)
 

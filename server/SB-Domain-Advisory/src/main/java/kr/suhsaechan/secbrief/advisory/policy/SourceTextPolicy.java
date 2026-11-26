@@ -6,7 +6,7 @@ import org.springframework.web.util.HtmlUtils;
 
 /**
  * AI 요약 입력 정리: 출처가 준 요약문·공개 설명 > HTML 을 벗긴 글 (요약이 끝나면 지우는 임시 값)
- * 없는 것으로 보는 조건 3개: 비어 있음, 40자 미만, 제목에 이미 들어 있는 글
+ * 없는 것으로 보는 조건 3개: 비어 있음, 주소를 뺀 글이 40자 미만, 제목에 이미 들어 있는 글
  */
 public final class SourceTextPolicy {
 
@@ -22,6 +22,8 @@ public final class SourceTextPolicy {
     private static final Pattern HTML_TAG = Pattern.compile("</?[a-zA-Z][^>]*>");
     // 일반 공백 + 줄바꿈 + 줄바꿈 없는 공백(NBSP) + 제어문자
     private static final Pattern WHITESPACE_OR_CONTROL_RUN = Pattern.compile("[\\s\\u00A0\\p{Cc}]+");
+    // 주소는 내용으로 세지 않음 (Debian 권고 피드는 요약문 자리에 추적 페이지 주소만 줌: 요약할 사실이 없음)
+    private static final Pattern WEB_ADDRESS = Pattern.compile("https?://\\S+");
 
     private SourceTextPolicy() {
     }
@@ -41,9 +43,16 @@ public final class SourceTextPolicy {
         return isWorthSummarizing(sourceText, cleanedTitle) ? sourceText : null;
     }
 
-    // 40자 이상이고 제목에 통째로 들어 있지 않음 (NVD 짧은 설명은 제목 그 자체)
-    private static boolean isWorthSummarizing(String sourceText, String cleanedTitle) {
-        return sourceText.length() >= MINIMUM_SOURCE_TEXT_LENGTH
+    /**
+     * 요약할 내용이 있는 입력인지: 주소를 뺀 글이 40자 이상이고 제목에 통째로 들어 있지 않음 (NVD 짧은 설명은 제목 그 자체)
+     * 수집 정리와 요약 직전 확인이 함께 씀 (이 규칙 이전에 저장된 대기 행도 제공자를 부르지 않고 거름)
+     */
+    public static boolean isWorthSummarizing(String sourceText, String cleanedTitle) {
+        if (sourceText == null) {
+            return false;
+        }
+        String textWithoutWebAddresses = WEB_ADDRESS.matcher(sourceText).replaceAll(" ").strip();
+        return textWithoutWebAddresses.length() >= MINIMUM_SOURCE_TEXT_LENGTH
                 && !cleanedTitle.toLowerCase(Locale.ROOT).contains(sourceText.toLowerCase(Locale.ROOT));
     }
 
