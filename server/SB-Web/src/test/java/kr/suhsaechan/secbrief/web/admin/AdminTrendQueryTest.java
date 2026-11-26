@@ -138,7 +138,7 @@ class AdminTrendQueryTest extends PostgresContainerTestSupport {
         AdminTrendChart chart = adminTrendService.loadApiUsageTrend(dayRange("2019-07-01", "2019-07-02"));
 
         assertThat(chart.series()).extracting(AdminTrendSeries::key).containsExactly("TODAY", "ARTICLE_LIST",
-                "ARTICLE_DETAIL", "SEARCH", "KEYWORD", "TREND", "SOURCE", "PUSH_DEVICE");
+                "ARTICLE_DETAIL", "SEARCH", "KEYWORD", "TREND", "SOURCE", "PUSH_DEVICE", "NOTIFICATION");
         assertThat(valuesOf(chart, "TODAY")).containsExactly(5L, 7L);
         assertThat(valuesOf(chart, "SEARCH")).containsExactly(0L, 2L);
     }

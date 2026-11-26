@@ -23,3 +23,6 @@ secbrief:
     enabled: false
   image-storage:
     endpoint: ""
+  notification:
+    # 보관 정리는 테스트가 서비스를 직접 부름
+    retention-enabled: false

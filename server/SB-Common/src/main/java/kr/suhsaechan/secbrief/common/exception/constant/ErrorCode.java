@@ -33,6 +33,15 @@ public enum ErrorCode {
     ADMIN_PASSWORD_UNCHANGED(HttpStatus.BAD_REQUEST, "지금 쓰는 비밀번호와 다른 값으로 정해 주세요."),
     SOURCE_INTERVAL_OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "수집 주기는 5분에서 1440분 사이로 정해 주세요."),
 
+    // 알림 기기 (방해 금지 시간)
+    QUIET_HOURS_SAME_TIME(HttpStatus.BAD_REQUEST, "방해 금지 시간의 시작과 끝을 다르게 정해 주세요."),
+    INVALID_TIME_ZONE(HttpStatus.BAD_REQUEST, "기기 시간대를 확인해 주세요."),
+
+    // 관리자 공지사항
+    NOTICE_TITLE_LENGTH(HttpStatus.BAD_REQUEST, "제목은 1자에서 100자 사이로 써 주세요."),
+    NOTICE_BODY_LENGTH(HttpStatus.BAD_REQUEST, "본문은 1자에서 5000자 사이로 써 주세요."),
+    NOTICE_LINK_URL_INVALID(HttpStatus.BAD_REQUEST, "링크는 http 또는 https 로 시작하는 주소로 넣어 주세요."),
+
     // 외부 연동 (보안 공지 출처, AI 제공자)
     EXTERNAL_API_ERROR(HttpStatus.BAD_GATEWAY, "외부 서비스 응답에 문제가 있어요."),
     FEED_PARSE_ERROR(HttpStatus.BAD_GATEWAY, "외부 소식 형식을 읽지 못했어요."),
