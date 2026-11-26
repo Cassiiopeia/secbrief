@@ -189,6 +189,12 @@ class AdminNoticeManagementTest extends PostgresContainerTestSupport {
                 .andExpect(content().string(containsString("공지사항 고치기")));
         getAsAdmin("/admin/alerts").andExpect(status().isOk())
                 .andExpect(content().string(containsString("최근 30일 동안 보낸 긴급 알림이 없어요")));
+        // 기록 행 (종류 배지·본문)
+        notificationRepository.save(Notification.createAlert(AlertCategory.KEV, "악용 중인 취약점이 확인됐어요",
+                "CVE-2026-0001: 예시 인증 우회", List.of(), java.time.Instant.now()));
+        getAsAdmin("/admin/alerts").andExpect(status().isOk())
+                .andExpect(content().string(containsString("악용 중인 취약점")))
+                .andExpect(content().string(containsString("CVE-2026-0001: 예시 인증 우회")));
         getAsAdmin("/admin/alerts?cursor=broken").andExpect(status().isOk())
                 .andExpect(content().string(containsString("INVALID_CURSOR")));
     }

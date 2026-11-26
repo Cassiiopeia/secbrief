@@ -59,7 +59,7 @@
               <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${noticeRow.pushedAt != null} ? 'success' : 'ghost', ${noticeRow.pushedAt != null} ? '보냄' : '안 보냄')}"></span>
             </td>
             <td>
-              <div class="flex flex-wrap justify-end gap-1">
+              <div class="flex flex-nowrap items-center justify-end gap-1 whitespace-nowrap">
                 <a class="btn btn-ghost btn-sm" th:href="@{/admin/notices/{noticeId}/edit(noticeId=${noticeRow.id})}">고치기</a>
                 <form method="post" th:action="@{/admin/notices/{noticeId}/pin(noticeId=${noticeRow.id})}">
                   <input type="hidden" name="pinned" th:value="${!noticeRow.isPinned()}"/>

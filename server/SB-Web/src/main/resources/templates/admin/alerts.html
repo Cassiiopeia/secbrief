@@ -22,8 +22,10 @@
           </thead>
           <tbody>
           <tr th:each="alertRow : ${alertPage.items}">
-            <td>
-              <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${alertRow.alertCategory?.name() == 'KEV'} ? 'error' : 'warning', ${@adminAlertCategoryLabels.of(alertRow.alertCategory)})}"></span>
+            <!-- 조각 인자 안에서는 빈 호출이 막혀 있어 th:with 로 먼저 계산 -->
+            <td th:with="categoryLabel=${@adminAlertCategoryLabels.of(alertRow.alertCategory)},
+                         categoryTone=${@adminAlertCategoryLabels.toneOf(alertRow.alertCategory)}">
+              <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${categoryTone}, ${categoryLabel})}"></span>
             </td>
             <td class="max-w-lg">
               <div class="font-medium break-words" th:text="${alertRow.title}">제목</div>
