@@ -7,11 +7,14 @@ import { type SbColors, sbMaximumLines, sbRadius, sbSize, sbSpacing } from '../t
 import { playSbHaptic } from './sb-haptics';
 import { SbPressable } from './sb-pressable';
 import { SbText } from './sb-text';
+import { SbUnreadDot } from './sb-unread-dot';
 import { useSbSlidingOffsetStyle } from './use-sb-sliding-offset';
 
 export interface SbSegmentOption<Value extends string> {
   value: Value;
   label: string;
+  /** 이름 옆 안 본 글 점 (읽기 도우미에는 '새 글 있음'을 덧붙임) */
+  hasDot?: boolean;
 }
 
 interface SbSegmentedControlProps<Value extends string> {
@@ -21,6 +24,7 @@ interface SbSegmentedControlProps<Value extends string> {
 }
 
 const TRACK_PADDING = 3;
+const SEGMENT_DOT_ACCESSIBILITY_TEXT = '새 글 있음';
 
 /** 세그먼트: 보기 방식을 하나 고름 (2~3개). 선택 알약이 고른 칸으로 미끄러져 감 */
 export function SbSegmentedControl<Value extends string>({ options, selectedValue, onSelected }: SbSegmentedControlProps<Value>) {
@@ -48,7 +52,7 @@ export function SbSegmentedControl<Value extends string>({ options, selectedValu
           return (
             <SbPressable
               key={option.value}
-              accessibilityLabel={option.label}
+              accessibilityLabel={option.hasDot ? `${option.label}, ${SEGMENT_DOT_ACCESSIBILITY_TEXT}` : option.label}
               accessibilityRole="tab"
               accessibilityState={{ selected: isSelected }}
               onPress={() => onSegmentPressed(option.value)}
@@ -58,6 +62,7 @@ export function SbSegmentedControl<Value extends string>({ options, selectedValu
                 <SbText variant="button" color={isSelected ? colors.background : colors.secondaryLabel} numberOfLines={sbMaximumLines.singleLine}>
                   {option.label}
                 </SbText>
+                {option.hasDot && <SbUnreadDot />}
               </View>
             </SbPressable>
           );
@@ -81,6 +86,8 @@ const createStyles = (colors: SbColors) =>
       backgroundColor: colors.label,
     },
     segment: {
+      flexDirection: 'row',
+      gap: sbSpacing.extraSmall,
       minHeight: sbSize.minimumTouchTarget - TRACK_PADDING * 2,
       alignItems: 'center',
       justifyContent: 'center',

@@ -21,6 +21,8 @@ export const sbSize = {
   stateIconBackdrop: 64,
   /** 행·입력창 안 아이콘 (돋보기, 지우기, 오른쪽 화살표) */
   rowIcon: 20,
+  /** 안 본 글 점 (알림 종, 알림함 칸·줄) */
+  unreadDot: 8,
 } as const;
 
 /** 비율(0~1) > 너비 % 로 바꿀 때 곱하는 값 (비율 막대) */

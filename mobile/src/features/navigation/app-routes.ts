@@ -5,4 +5,17 @@ export const APP_ROUTES = {
   vulnerability: '/vulnerability',
   explore: '/explore',
   search: '/search',
+  notifications: '/notifications',
 } as const;
+
+// 탭 밖 상세 경로 (app/articles/[articleId], app/notifications/[notificationId], app/notices/[noticeId] 와 같아야 함)
+export type ArticleDetailRoute = `/articles/${string}`;
+export type NotificationDetailRoute = `/notifications/${string}`;
+export type NoticeDetailRoute = `/notices/${string}`;
+// 알림함 공지사항 칸으로 바로 여는 경로 (segment 값은 AppNotificationKind)
+export type NotificationInboxRoute = typeof APP_ROUTES.notifications | `${typeof APP_ROUTES.notifications}?segment=${string}`;
+
+export const toArticleDetailRoute = (articleId: string): ArticleDetailRoute => `/articles/${encodeURIComponent(articleId)}`;
+export const toNotificationDetailRoute = (notificationId: string): NotificationDetailRoute =>
+  `/notifications/${encodeURIComponent(notificationId)}`;
+export const toNoticeDetailRoute = (noticeId: string): NoticeDetailRoute => `/notices/${encodeURIComponent(noticeId)}`;

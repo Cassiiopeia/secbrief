@@ -3,6 +3,7 @@ package kr.suhsaechan.secbrief.member.entity;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -22,7 +23,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 알림을 켠 기기 1대: 푸시 토큰, 플랫폼, 켠 알림 종류
+ * 알림을 켠 기기 1대: 푸시 토큰, 플랫폼, 켠 알림 종류, 방해 금지 시간
  * 회원이 없어 푸시 토큰이 기기 식별값 (종류를 모두 끄면 행을 지움)
  */
 @Entity
@@ -49,6 +50,10 @@ public class PushDevice extends BaseEntity {
     @Column(name = "alert_category", nullable = false, length = 32)
     private Set<AlertCategory> enabledAlertCategories = EnumSet.noneOf(AlertCategory.class);
 
+    // 새 기기는 꺼짐 (사용자가 켜야만 보류함)
+    @Embedded
+    private QuietHours quietHours = QuietHours.disabledByDefault();
+
     public static PushDevice create(String pushToken, PushPlatform platform, Set<AlertCategory> enabledAlertCategories) {
         PushDevice pushDevice = new PushDevice();
         pushDevice.pushToken = pushToken;
@@ -63,5 +68,9 @@ public class PushDevice extends BaseEntity {
         this.platform = platform;
         this.enabledAlertCategories.retainAll(enabledAlertCategories);
         this.enabledAlertCategories.addAll(enabledAlertCategories);
+    }
+
+    public void updateQuietHours(QuietHours quietHours) {
+        this.quietHours = quietHours;
     }
 }

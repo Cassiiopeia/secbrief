@@ -12,8 +12,10 @@ import java.util.Set;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
+import kr.suhsaechan.secbrief.member.constant.NotificationKind;
+import kr.suhsaechan.secbrief.member.entity.Notification;
+import kr.suhsaechan.secbrief.member.entity.NotificationArticle;
 import kr.suhsaechan.secbrief.member.entity.PushDevice;
-import kr.suhsaechan.secbrief.member.push.PushMessage;
 import kr.suhsaechan.secbrief.member.push.PushSendOutcome;
 import kr.suhsaechan.secbrief.member.push.PushSendStatus;
 import kr.suhsaechan.secbrief.member.push.PushSender;
@@ -24,7 +26,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
 /**
- * 긴급 알림 유스케이스: 알림 대기 기사 > 기기별로 켠 종류에 맞는 기사만 묶어 1건 > 발송 > 기록
+ * 긴급 알림 유스케이스: 알림 대기 기사 > 알림함 기록 > 기기별로 켠 종류에 맞는 기사만 묶어 1건 > 발송(방해 금지 시간이면 보류) > 기록
  * 기사 제목·푸시 토큰은 로그에 남기지 않음
  */
 @Slf4j
@@ -44,8 +46,8 @@ public class UrgentAlertDispatchService {
     private final Clock clock;
 
     /**
-     * 틱 1회: 대기 기사 조회 > 기기별 메시지 > 발송 > 기록
-     * 발송이 전부 실패하면 기사를 대기로 남김 (다음 틱에 다시), 받을 기기가 없거나 알리지 않기로 한 기사도 처리한 것으로 표시
+     * 틱 1회: 대기 기사 조회 > 알림함 기록 > 기기별 글 (방해 금지 시간이면 보류) > 발송 > 기록
+     * 발송이 전부 실패하면 기록을 취소하고 기사를 대기로 남김 (다음 틱에 다시), 받을 기기가 없거나 알리지 않기로 한 기사도 처리한 것으로 표시
      */
     public UrgentAlertDispatchResult dispatchPendingAlerts() {
         if (!pushSender.isAvailable()) {
@@ -58,63 +60,75 @@ public class UrgentAlertDispatchService {
             return UrgentAlertDispatchResult.nothingToSend();
         }
 
-        // 기기별 메시지 (알릴 만한 기사만, 켠 종류에 맞는 기사가 없는 기기는 보내지 않음)
-        List<Article> alertWorthyArticles = pendingArticles.stream().filter(UrgentAlertPolicy::isAlertWorthy).toList();
-        List<PushDevice> pushDevices = alertWorthyArticles.isEmpty()
+        // 알림함 기록 1건 (알릴 만한 기사 전체, 기기가 없어도 알림함에는 남김)
+        List<Article> alertWorthyArticles = UrgentAlertPolicy.toOrderedArticles(
+                pendingArticles.stream().filter(UrgentAlertPolicy::isAlertWorthy).toList());
+        Notification notification = alertWorthyArticles.isEmpty() ? null : saveAlertNotification(alertWorthyArticles, now);
+
+        // 기기별 글 (켠 종류에 맞는 기사가 없는 기기는 보내지 않음) > 방해 금지 시간이면 보류
+        List<PushDevice> pushDevices = notification == null
                 ? List.of()
                 : pushDeviceRepository.findAllWithEnabledAlertCategories();
-        Map<String, Long> deviceIdByPushToken = new HashMap<>();
-        List<PushMessage> pushMessages = toPushMessages(alertWorthyArticles, pushDevices, deviceIdByPushToken);
+        PushDeliveryPlan deliveryPlan = PushDeliveryPlan.of(
+                toPushDeliveries(notification, alertWorthyArticles, pushDevices), now);
 
-        List<PushSendOutcome> outcomes = pushMessages.isEmpty() ? List.of() : pushSender.send(pushMessages);
-        int acceptedCount = countByStatus(outcomes, PushSendStatus.ACCEPTED);
-        int failedCount = countByStatus(outcomes, PushSendStatus.FAILED);
-        int unregisteredCount = countByStatus(outcomes, PushSendStatus.DEVICE_NOT_REGISTERED);
+        List<PushSendOutcome> outcomes = deliveryPlan.pushMessages().isEmpty()
+                ? List.of()
+                : pushSender.send(deliveryPlan.pushMessages());
+        int acceptedCount = PushDeliveryRecorder.countByStatus(outcomes, PushSendStatus.ACCEPTED);
+        int failedCount = PushDeliveryRecorder.countByStatus(outcomes, PushSendStatus.FAILED);
+        int unregisteredCount = PushDeliveryRecorder.countByStatus(outcomes, PushSendStatus.DEVICE_NOT_REGISTERED);
 
-        // 전부 실패 (제공자 장애 등): 기사를 대기로 남기고 무효 기기만 정리
+        // 전부 실패 (제공자 장애 등): 기록 취소, 기사를 대기로 남기고 무효 기기만 정리
         if (acceptedCount == 0 && failedCount > 0) {
-            urgentAlertRecorder.deleteUnregisteredDevices(outcomes);
+            urgentAlertRecorder.cancelDispatch(notification.getId(), outcomes);
             log.warn("[urgent alert] failed 502 : all sends failed : articles={}, devices={}",
-                    pendingArticles.size(), pushMessages.size());
+                    pendingArticles.size(), deliveryPlan.pushMessages().size());
             return new UrgentAlertDispatchResult(pendingArticles.size(), 0, failedCount, unregisteredCount, true);
         }
 
         urgentAlertRecorder.recordDispatch(pendingArticles.stream().map(Article::getId).toList(), now,
-                outcomes, deviceIdByPushToken);
-        log.info("[urgent alert] dispatched : articles={}, accepted={}, failed={}, unregistered={}",
-                pendingArticles.size(), acceptedCount, failedCount, unregisteredCount);
+                notification == null ? null : notification.getId(), deliveryPlan, outcomes);
+        log.info("[urgent alert] dispatched : articles={}, accepted={}, failed={}, unregistered={}, held={}",
+                pendingArticles.size(), acceptedCount, failedCount, unregisteredCount,
+                deliveryPlan.heldDeliveries().size());
         return new UrgentAlertDispatchResult(pendingArticles.size(), acceptedCount, failedCount, unregisteredCount, false);
     }
 
+    // 알림함 기록: 전체 글 + 대표 종류 + 기사 (알림 순서, 기사마다 종류)
+    private Notification saveAlertNotification(List<Article> orderedArticles, Instant now) {
+        List<NotificationArticle> notificationArticles = new ArrayList<>();
+        for (int position = 0; position < orderedArticles.size(); position++) {
+            Article article = orderedArticles.get(position);
+            notificationArticles.add(new NotificationArticle(position, article.getId(),
+                    UrgentAlertPolicy.toAlertCategory(article)));
+        }
+        return urgentAlertRecorder.saveAlertNotification(UrgentAlertPolicy.toContent(orderedArticles),
+                notificationArticles.get(0).getAlertCategory(), notificationArticles, now);
+    }
+
     // 같은 종류 조합을 켠 기기는 같은 글을 받음 (조합마다 글을 한 번만 만듦)
-    private static List<PushMessage> toPushMessages(List<Article> pendingArticles, List<PushDevice> pushDevices,
-                                                    Map<String, Long> deviceIdByPushToken) {
+    private static List<PushDelivery> toPushDeliveries(Notification notification, List<Article> alertWorthyArticles,
+                                                       List<PushDevice> pushDevices) {
         Map<Set<AlertCategory>, Optional<UrgentAlertContent>> contentByCategories = new HashMap<>();
-        List<PushMessage> pushMessages = new ArrayList<>();
+        List<PushDelivery> pushDeliveries = new ArrayList<>();
         for (PushDevice pushDevice : pushDevices) {
             Optional<UrgentAlertContent> content = contentByCategories.computeIfAbsent(
                     Set.copyOf(pushDevice.getEnabledAlertCategories()),
-                    enabledAlertCategories -> toContent(pendingArticles, enabledAlertCategories));
-            if (content.isEmpty()) {
-                continue;
-            }
-            deviceIdByPushToken.put(pushDevice.getPushToken(), pushDevice.getId());
-            pushMessages.add(new PushMessage(pushDevice.getPushToken(), content.get().title(), content.get().body(),
-                    UrgentAlertPolicy.toPushData(content.get()),
-                    UrgentAlertPolicy.ANDROID_CHANNEL_ID));
+                    enabledAlertCategories -> toContent(alertWorthyArticles, enabledAlertCategories));
+            content.ifPresent(urgentAlertContent -> pushDeliveries.add(new PushDelivery(pushDevice,
+                    new PushContent(notification.getId(), NotificationKind.ALERT, urgentAlertContent.title(),
+                            urgentAlertContent.body(), urgentAlertContent.articleId(),
+                            urgentAlertContent.articleCount()))));
         }
-        return pushMessages;
+        return pushDeliveries;
     }
 
-    private static Optional<UrgentAlertContent> toContent(List<Article> pendingArticles,
+    private static Optional<UrgentAlertContent> toContent(List<Article> alertWorthyArticles,
                                                          Set<AlertCategory> enabledAlertCategories) {
-        List<Article> matchedArticles = pendingArticles.stream()
+        List<Article> matchedArticles = alertWorthyArticles.stream()
                 .filter(article -> enabledAlertCategories.contains(UrgentAlertPolicy.toAlertCategory(article)))
                 .toList();
         return matchedArticles.isEmpty() ? Optional.empty() : Optional.of(UrgentAlertPolicy.toContent(matchedArticles));
-    }
-
-    private static int countByStatus(List<PushSendOutcome> outcomes, PushSendStatus status) {
-        return (int) outcomes.stream().filter(outcome -> outcome.status() == status).count();
     }
 }

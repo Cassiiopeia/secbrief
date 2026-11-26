@@ -128,7 +128,7 @@ class AdminPageRenderTest extends PostgresContainerTestSupport {
                 .andExpect(jsonPath("$.series", hasSize(1)))
                 .andExpect(jsonPath("$.series[0].key").value("AI_COST"));
         getAsAdmin("/admin/stats/api/api-usage").andExpect(status().isOk())
-                .andExpect(jsonPath("$.series", hasSize(8)));
+                .andExpect(jsonPath("$.series", hasSize(9)));
         getAsAdmin("/admin/stats/api/push-devices").andExpect(status().isOk())
                 .andExpect(jsonPath("$.series", hasSize(1)));
         // 틀린 기간 값은 기본값으로, 366일을 넘는 기간은 366칸으로

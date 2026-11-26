@@ -7,7 +7,7 @@ import { ArticleInfiniteList } from '../articles/article-infinite-list';
 import { toTopicLabel } from '../articles/article-labels';
 import { useImportanceFilteredArticles } from '../articles/use-importance-filtered-articles';
 import { usePullRefresh } from '../articles/use-pull-refresh';
-import { SEARCH_MASTHEAD_ACTION } from '../search/search-action';
+import { useTabMastheadActions } from '../notifications/use-tab-masthead-actions';
 import {
   NEWS_CHIP_TOPICS,
   type NewsCategory,
@@ -37,6 +37,7 @@ const TOPIC_OPTIONS: SbFilterChipOption<NewsTopicFilter>[] = [
  * 고른 칩은 경로 파라미터에 둠 (홈의 전체 보기가 카테고리를 정해서 열 수 있게)
  */
 export function NewsScreen() {
+  const mastheadActions = useTabMastheadActions();
   const selection = toNewsSelection(useLocalSearchParams<NewsRouteParams>());
   const { category, topicFilter } = selection;
   const { baseFilter, importanceView } = toNewsFeedQuery(category, topicFilter);
@@ -61,7 +62,7 @@ export function NewsScreen() {
         skeletonVariant="articleRows"
         listHeader={
           <View>
-            <SbMasthead titleLines={MASTHEAD_TITLE_LINES} action={SEARCH_MASTHEAD_ACTION} />
+            <SbMasthead titleLines={MASTHEAD_TITLE_LINES} actions={mastheadActions} />
             <SbFilterChips options={CATEGORY_OPTIONS} selectedValue={category} onSelected={onCategorySelected} />
             {hasTopicChips(category) && <SbFilterChips options={TOPIC_OPTIONS} selectedValue={topicFilter} onSelected={onTopicSelected} tone="quiet" />}
             {isShowingAllInstead && <SbInlineNotice message="AI 가 고른 주요 소식이 아직 없어서 전체 소식을 보여 드려요." />}

@@ -229,6 +229,7 @@
     }
 
     // 폼 속성 data-confirm-message 가 있으면 제출 전에 확인 모달 (data-confirm-title, -label, -tone 선택)
+    // 켠 체크 상자에 data-confirm-message-when-checked 가 있으면 그 문구로 (예: 푸시도 보내기)
     // 제출은 동기라 Promise 를 기다릴 수 없음 > 막고, 확인하면 같은 버튼으로 다시 제출
     function confirmBeforeSubmit(submitEvent) {
         const form = submitEvent.target;
@@ -238,7 +239,9 @@
             return;
         }
         submitEvent.preventDefault();
-        confirm(form.dataset.confirmMessage, {
+        const checkedOverride = form.querySelector('input[type="checkbox"][data-confirm-message-when-checked]:checked');
+        const confirmMessage = checkedOverride ? checkedOverride.dataset.confirmMessageWhenChecked : form.dataset.confirmMessage;
+        confirm(confirmMessage, {
             title: form.dataset.confirmTitle,
             confirmLabel: form.dataset.confirmLabel,
             tone: form.dataset.confirmTone

@@ -5,22 +5,32 @@ import { useSbTheme } from '../theme/use-sb-theme';
 import { sbSize } from '../tokens';
 import type { SbIconName } from './sb-bottom-tab-bar';
 import { SbPressable } from './sb-pressable';
+import { SbUnreadDot } from './sb-unread-dot';
 
 interface SbIconButtonProps {
   iconName: SbIconName;
   accessibilityLabel: string;
   onPress: () => void;
+  /** 아이콘 오른쪽 위 안 본 글 점 (예: 알림 종) */
+  hasDot?: boolean;
 }
 
 const ICON_SIZE = 24;
 
-/** 아이콘 버튼 (검색, 뒤로, 지우기): 보이는 것은 아이콘, 터치 영역은 최소 터치 크기 */
-export function SbIconButton({ iconName, accessibilityLabel, onPress }: SbIconButtonProps) {
+/** 아이콘 버튼 (검색, 뒤로, 지우기, 알림 종): 보이는 것은 아이콘 (+ 안 본 글 점), 터치 영역은 최소 터치 크기 */
+export function SbIconButton({ iconName, accessibilityLabel, onPress, hasDot = false }: SbIconButtonProps) {
   const { colors } = useSbTheme();
   return (
     <SbPressable accessibilityLabel={accessibilityLabel} onPress={onPress} feedback="dim">
       <View style={styles.button}>
-        <MaterialIcons name={iconName} size={ICON_SIZE} color={colors.label} />
+        <View>
+          <MaterialIcons name={iconName} size={ICON_SIZE} color={colors.label} />
+          {hasDot && (
+            <View style={styles.dot}>
+              <SbUnreadDot />
+            </View>
+          )}
+        </View>
       </View>
     </SbPressable>
   );
@@ -33,4 +43,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // 아이콘 오른쪽 위 모서리에 점 (아이콘 테두리에 반쯤 걸치게)
+  dot: { position: 'absolute', top: 0, right: 0 },
 });

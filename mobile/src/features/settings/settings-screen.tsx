@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Linking, ScrollView, StyleSheet } from 'react-native';
 
 import { appInfo } from '@/core/config/app-info';
@@ -18,8 +19,10 @@ import {
 
 import { openOriginalArticle } from '../articles/open-original-article';
 import { usePullRefresh } from '../articles/use-pull-refresh';
+import { APP_ROUTES } from '../navigation/app-routes';
 import { AlertCategorySettingsSection } from '../notifications/alert-category-settings-section';
-import { SEARCH_MASTHEAD_ACTION } from '../search/search-action';
+import { QuietHoursSettingsSection } from '../notifications/quiet-hours-settings-section';
+import { useTabMastheadActions } from '../notifications/use-tab-masthead-actions';
 import { toSourceStatusRowView } from './settings-view-state';
 import { useCollectSourceStatuses } from './use-collect-source-statuses';
 
@@ -39,8 +42,9 @@ async function openContactMail() {
   await openOriginalArticle(supportLinks.supportPageUrl);
 }
 
-/** 더보기 탭: 알림 > 문의 > 약관 > 출처(마지막 갱신) > 앱 정보. 출처 조회 실패는 그 구역에만. 당겨서 출처 새로고침 */
+/** 더보기 탭: 알림(알림함, 종류, 방해 금지 시간) > 문의 > 약관 > 출처(마지막 갱신) > 앱 정보. 출처 조회 실패는 그 구역에만. 당겨서 출처 새로고침 */
 export function SettingsScreen() {
+  const mastheadActions = useTabMastheadActions();
   const { colors } = useSbTheme();
   const sourceStatusesQuery = useCollectSourceStatuses();
   const { isPullRefreshing, onPullRefresh } = usePullRefresh(sourceStatusesQuery.refetch);
@@ -50,9 +54,17 @@ export function SettingsScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={createSbRefreshControl({ colors, isRefreshing: isPullRefreshing, onRefresh: onPullRefresh })}>
-        <SbMasthead titleLines={MASTHEAD_TITLE_LINES} action={SEARCH_MASTHEAD_ACTION} />
+        <SbMasthead titleLines={MASTHEAD_TITLE_LINES} actions={mastheadActions} />
         <SbSectionHeader title="알림" />
+        <SbListRow
+          title="알림함"
+          detail="받은 알림과 공지사항을 모아 봐요"
+          trailingIconName="chevron-right"
+          accessibilityLabel="알림함 열기, 받은 알림과 공지사항을 모아 봐요"
+          onPress={() => router.push(APP_ROUTES.notifications)}
+        />
         <AlertCategorySettingsSection />
+        <QuietHoursSettingsSection />
         <SettingsContactSection />
         <SettingsTermsSection />
         <SbSectionHeader title="출처" />
