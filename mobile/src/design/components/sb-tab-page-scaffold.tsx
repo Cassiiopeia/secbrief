@@ -1,21 +1,21 @@
-import type { SbIconName } from './sb-bottom-tab-bar';
 import { SbMasthead } from './sb-masthead';
 import { SbScreen } from './sb-screen';
+import type { SbStateIllustrationKind } from './sb-state-illustration-sources';
 import { SbEmptyState } from './sb-state-views';
 
 interface SbTabPageScaffoldProps {
   titleLines: string[];
   emptyTitle: string;
   emptyDescription: string;
-  emptyIconName?: SbIconName;
+  emptyIllustration?: SbStateIllustrationKind;
 }
 
 /** 아직 내용이 없는 탭 화면 틀: 머리 + 빈 상태 */
-export function SbTabPageScaffold({ titleLines, emptyTitle, emptyDescription, emptyIconName }: SbTabPageScaffoldProps) {
+export function SbTabPageScaffold({ titleLines, emptyTitle, emptyDescription, emptyIllustration }: SbTabPageScaffoldProps) {
   return (
     <SbScreen>
       <SbMasthead titleLines={titleLines} />
-      <SbEmptyState title={emptyTitle} description={emptyDescription} iconName={emptyIconName} />
+      <SbEmptyState title={emptyTitle} description={emptyDescription} illustration={emptyIllustration} />
     </SbScreen>
   );
 }

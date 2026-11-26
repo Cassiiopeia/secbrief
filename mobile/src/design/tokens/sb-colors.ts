@@ -26,6 +26,8 @@ export interface SbColors {
   onFeature: string;
   /** 긴급 표시 (레일 점, 속보 라벨). 바탕과 대비되는 쪽을 테마별로 고름 */
   urgent: string;
+  /** 알림 막대(본문색 알약) 위 확인 아이콘: 먹색 알약엔 민트, 흰 알약엔 보라 */
+  toastIcon: string;
   /** 취약점 심각도 4단계 (CVSS: 9.0 이상, 7.0 이상, 4.0 이상, 그 미만) */
   severityCritical: string;
   severityHigh: string;
@@ -49,6 +51,7 @@ export const sbLightColors: SbColors = {
   feature: '#5200FF',
   onFeature: '#FFFFFF',
   urgent: '#5200FF',
+  toastIcon: '#3CFFD0',
   severityCritical: '#D92D20',
   severityHigh: '#C2570C',
   severityMedium: '#9A7500',
@@ -71,6 +74,7 @@ export const sbDarkColors: SbColors = {
   feature: '#5200FF',
   onFeature: '#FFFFFF',
   urgent: '#3CFFD0',
+  toastIcon: '#5200FF',
   severityCritical: '#FF6B5E',
   severityHigh: '#FFA24A',
   severityMedium: '#F2CF4A',

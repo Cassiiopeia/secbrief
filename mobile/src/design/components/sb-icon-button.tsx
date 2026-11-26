@@ -25,11 +25,9 @@ export function SbIconButton({ iconName, accessibilityLabel, onPress, hasDot = f
       <View style={styles.button}>
         <View>
           <MaterialIcons name={iconName} size={ICON_SIZE} color={colors.label} />
-          {hasDot && (
-            <View style={styles.dot}>
-              <SbUnreadDot />
-            </View>
-          )}
+          <View style={styles.dot}>
+            <SbUnreadDot isVisible={hasDot} />
+          </View>
         </View>
       </View>
     </SbPressable>

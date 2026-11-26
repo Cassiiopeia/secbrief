@@ -18,6 +18,8 @@ export const sbMotion = {
   pressEasing: Easing.out(Easing.quad),
   pressScale: 0.97,
   pressOpacity: 0.55,
+  /** 축소 누름을 뗄 때 제 크기로 돌아오는 스프링 (살짝 탄력) */
+  pressReleaseSpring: { damping: 20, stiffness: 420, mass: 0.6 },
   /** 썸네일 이미지가 커버 그림 위로 나타나는 시간 */
   imageFadeMilliseconds: 220,
   /** 반복 맥박 (과녁 고리, 최신 항목 레일 점) */
@@ -37,7 +39,41 @@ export const sbMotion = {
   skeletonMilliseconds: 1100,
   skeletonEasing: Easing.inOut(Easing.quad),
   skeletonDimmestOpacity: 0.45,
+  /** 조건부 구역 펼침·접힘 (방해 금지 시각 행, 상태 안내): 나타남, 사라짐, 시작 위치 */
+  revealMilliseconds: 260,
+  revealEasing: Easing.out(Easing.cubic),
+  concealMilliseconds: 160,
+  concealEasing: Easing.in(Easing.quad),
+  revealOffset: 8,
+  /** 상태 그림 등장 (빈 상태·오류): 살짝 작게 시작해 부드럽게 제 크기로 (튕김 거의 없음) */
+  illustrationSpring: { damping: 18, stiffness: 180, mass: 1 },
+  illustrationStartScale: 0.88,
+  /** 상태 화면 글이 그림 뒤에 따라 나오는 순번 */
+  stateTextOrder: 1,
+  /** 새 글 점: 톡 튀어나오고(스프링) 읽으면 줄어들며 사라짐 */
+  dotPopSpring: { damping: 12, stiffness: 340, mass: 0.6 },
+  dotHideMilliseconds: 180,
+  /** 알림 막대(저장 확인 등): 위에서 내려오는 스프링, 보이는 시간, 사라지는 시간, 시작 위치 */
+  toastSpring: { damping: 20, stiffness: 240, mass: 0.9 },
+  toastVisibleMilliseconds: 2200,
+  toastHideMilliseconds: 200,
+  toastOffset: 28,
 } as const;
+
+/** 동작 줄이기 반영 지속시간 (켜져 있으면 0: 바로 바뀜) */
+export function toSbMotionMilliseconds(durationMilliseconds: number, isMotionReduced: boolean): number {
+  return isMotionReduced ? 0 : durationMilliseconds;
+}
+
+/** 순차 등장 지연 (순번 x 순차 지연, 동작 줄이기면 0) */
+export function toSbStaggerDelayMilliseconds(order: number, isMotionReduced: boolean): number {
+  return isMotionReduced ? 0 : Math.max(order, 0) * sbMotion.entranceStaggerMilliseconds;
+}
+
+/** 목록 항목 순차 등장 여부 (앞쪽 몇 건만: 긴 목록 스크롤 중 늦게 뜨지 않게) */
+export function shouldStaggerListItem(itemIndex: number): boolean {
+  return itemIndex >= 0 && itemIndex < sbMotion.entranceListItemCount;
+}
 
 /** 세어 올리기 진행도 곡선 (0~1 > 0~1, easeOutCubic) */
 export function toCountUpProgress(linearProgress: number): number {
