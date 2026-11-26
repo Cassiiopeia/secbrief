@@ -125,13 +125,13 @@ public class ArticleSummaryProcessService {
         if (!attempt.isAccepted()) {
             return recordFailure(article.getId(), sourceText, attempt.failureReason());
         }
-        if (attempt.isRepairedSummaryUsed()) {
+        if (attempt.isRepairedBriefUsed()) {
             log.info("[article summary] repaired : articleId={}, cause={}", article.getId(),
                     attempt.firstDraftValidation().problems().get(0).reason());
         }
         try {
             boolean isRecorded = articleSummaryResultRecorder.recordSuccess(
-                    article.getId(), sourceText, attempt.acceptedSummary());
+                    article.getId(), sourceText, attempt.acceptedBrief());
             if (!isRecorded) {
                 log.info("[article summary] skipped : source text changed while summarizing : articleId={}", article.getId());
             }

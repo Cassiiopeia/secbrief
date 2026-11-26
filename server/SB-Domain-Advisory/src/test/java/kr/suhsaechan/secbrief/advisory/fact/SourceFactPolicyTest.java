@@ -46,6 +46,17 @@ class SourceFactPolicyTest {
     }
 
     @Test
+    void doesNotSplitSurrogatePairWhenTruncatingValue() {
+        // 표시(…) 앞 자리 끝이 이모지 앞 절반인 위치: 이모지는 빼고 … 를 붙임
+        int keptLength = SourceFactPolicy.MAXIMUM_VALUE_LENGTH - 1;
+        String longValue = "가".repeat(keptLength - 1) + "😀" + "나".repeat(10);
+
+        List<SourceFact> storableFacts = SourceFactPolicy.toStorableFacts(List.of(new SourceFact("라벨", longValue)));
+
+        assertThat(storableFacts.get(0).value()).isEqualTo("가".repeat(keptLength - 1) + "…");
+    }
+
+    @Test
     void keepsExistingValuesAndAddsOnlyNewLabels() {
         // NVD 행에 KEV 등재분이 합쳐짐: 같은 라벨(CWE)은 기존 값, KEV 고유 라벨은 추가
         assertThat(SourceFactPolicy.mergeKeepingExisting(NVD_FACTS, KEV_FACTS)).containsExactly(

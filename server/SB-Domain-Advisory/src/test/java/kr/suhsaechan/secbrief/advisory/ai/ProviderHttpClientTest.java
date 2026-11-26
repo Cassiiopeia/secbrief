@@ -83,6 +83,14 @@ class ProviderHttpClientTest {
     }
 
     @Test
+    void returnsEmptyEndpointUrlWhenBaseUrlIsNotSet() {
+        assertThat(ProviderHttpClient.toEndpointUrlOrEmpty(null, "/api/chat")).isEmpty();
+        assertThat(ProviderHttpClient.toEndpointUrlOrEmpty("  ", "/api/chat")).isEmpty();
+        assertThat(ProviderHttpClient.toEndpointUrlOrEmpty("http://ollama.local:11434//", "/api/chat"))
+                .isEqualTo("http://ollama.local:11434/api/chat");
+    }
+
+    @Test
     void readsTokenCountOnlyFromIntegralNumbers() throws Exception {
         JsonNode usage = OBJECT_MAPPER.readTree("{\"input_tokens\":812,\"output_tokens\":\"96\"}");
 

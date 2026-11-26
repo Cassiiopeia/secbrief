@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { type AccessibilityRole, type AccessibilityState, type Insets, Pressable, StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { sbMotion } from '../tokens';
 
@@ -41,8 +41,14 @@ export function SbPressable({
       ? { transform: [{ scale: 1 - (1 - sbMotion.pressScale) * pressProgress.value }] }
       : { opacity: 1 - (1 - sbMotion.pressOpacity) * pressProgress.value },
   );
+  // 누를 때는 짧은 곡선, 축소 누름을 뗄 때는 스프링 (흐려짐은 넘침 없이 곡선으로)
   const animateTo = (targetProgress: number) => {
-    pressProgress.set(withTiming(targetProgress, { duration: sbMotion.pressMilliseconds, easing: sbMotion.pressEasing }));
+    const isScaleRelease = feedback === 'scale' && targetProgress === 0;
+    pressProgress.set(
+      isScaleRelease
+        ? withSpring(targetProgress, sbMotion.pressReleaseSpring)
+        : withTiming(targetProgress, { duration: sbMotion.pressMilliseconds, easing: sbMotion.pressEasing }),
+    );
   };
   return (
     <Pressable

@@ -1,7 +1,10 @@
-# 요약 하네스 평가 (#49)
+# 요약 하네스 평가 (#49, #67)
 
-같은 표본에 **기준선(하네스 이전 지시문, 호출 1회)** 과 **하네스(글 종류별 규칙 + 고쳐 쓰기)** 를 돌려 비교한다.
+작성 규칙이나 구조를 바꾸면 **같은 표본에 이전 판과 새 판**을 돌려 비교한다.
 생성은 둘 다 `claude-haiku-5-5` 만 쓴다. 채점만 더 강한 모델을 쓴다.
+
+- 3장: 브리핑 구조(#67)와 이전 구조(#49 하네스)의 비교
+- 5장: 하네스를 처음 만들 때(#49)의 측정 기록
 
 ## 1. 평가 기준
 
@@ -9,26 +12,31 @@
 
 | 지표 | 뜻 |
 |---|---|
-| 첫 초안 통과 | 작성 1회의 요약이 검증을 통과한 비율 |
-| 첫 초안이 버린 곳 없이 통과 | 핵심 정리·대응 안내도 하나도 버리지 않고 통과 |
+| 첫 초안 통과 | 작성 1회의 글이 검증을 통과한 비율 (필수 필드 2개가 걸리지 않음) |
+| 첫 초안이 버린 곳 없이 통과 | 선택 필드·목록 항목도 하나도 버리지 않고 통과 |
 | 최종 통과 | 고쳐 쓰기까지 한 뒤 통과 (시도 1회 기준, 운영은 시도 3회라 더 높아짐) |
 | 표본당 제공자 호출 | 비용 |
+| 필드 길이·채움 | 한 줄 결론 길이, 무슨 일 길이, 왜 중요·영향 대상·대응이 있는 비율과 개수 |
 
-첫 초안 통과는 두 가지 검증 규칙으로 센다: **이전 규칙**(v0.6.1 운영)과 **현재 규칙**(이번에 고친 규칙).
-규칙을 느슨하게 해서 숫자가 좋아진 것과 글이 좋아진 것을 구분하기 위해서다.
+보고서의 "첫 초안 통과"는 저장된 초안을 그 시점의 검증 규칙으로 다시 계산한다. 검증 규칙만 바꿨다면 생성을 다시 돌리지 않아도 된다.
 
 ### 채점 (LLM 심사, 기준 6개, 1~5점)
 
-채점 지시문: `server/SB-Tool/src/main/resources/summary-evaluation/judge-instruction.md`. 어느 쪽 글인지 알려 주지 않는다.
+채점 지시문: `server/SB-Tool/src/main/resources/summary-evaluation/judge-instruction.md`.
+이전 구조(문단 + 핵심 정리 + 대응 안내)와 브리핑 구조(필드 5개)를 **같은 기준**으로 채점한다. 글의 모양은 심사 모델에게 그대로 보인다.
 
 | 기준 | 5점 | 1점 |
 |---|---|---|
-| faithfulness | 모든 사실·숫자·버전·날짜·CVE ID·이름이 입력(제목 포함)에 있음 | 지어낸 숫자·버전·날짜·사건 |
-| coverage | 무슨 일·누가 영향받나·왜 중요한가를 입력에 있는 만큼 담음 | 요지가 빠지거나 틀림 |
-| actionGuide | 입력에 적힌 조치만, 없으면 null | 지어낸 조언 |
+| faithfulness | 모든 사실·숫자·버전·날짜·이름이 입력(제목 포함)에 있음 | 지어낸 숫자·버전·날짜·사건 |
+| glanceability | 화면을 5초쯤 봐도 무슨 일·왜 중요한지(누가 영향받는지)·무엇을 할지가 제자리에서 바로 보임 | 다 읽어도 무슨 일인지 모름 |
+| coverage | 입력의 주요 사실(무슨 일, 영향 대상, 영향, 조치)을 담음 | 요지가 빠지거나 틀림 |
+| nonRedundancy | 한 사실을 한 번만 말하고 필드·항목마다 새 정보가 있음 | 대부분 되풀이·군더더기 |
+| actionCorrectness | 입력에 적힌 조치만, 없으면 비움 | 지어낸 조언 |
 | koreanStyle | 해요체·능동형, 번역투 없음, 글 자체를 가리키지 않음 | 어색하거나 틀린 한국어 |
-| originality | 고르고 다시 엮어 자기 말로 씀 | 문장을 그대로 옮기거나 직역 |
-| concision | 군더더기·반복 없음, 핵심 정리가 요약을 되풀이하지 않음 | 장황함 |
+
+- 빈 필드는 입력에 근거가 없으면 맞는 답으로 채점한다.
+- 앱이 따로 보여 주는 값(CVE ID, CVSS, 날짜)이 없다고 coverage 를 깎지 않고, 그것만 적은 항목은 nonRedundancy 를 깎는다.
+- 한 줄 결론이 본문을 줄인 것은 되풀이가 아니다. 다른 필드가 거의 같은 말로 다시 쓰면 되풀이다.
 
 ## 2. 실행 방법
 
@@ -41,31 +49,140 @@ TOOL="./gradlew -q :SB-Tool:summaryTool"
 # 1) 표본 만들기: 입력이 든 대상 파일(inputs.jsonl, backfill.md 의 recover 결과)에서 출처·글 종류별로 고르게
 $TOOL --args="sample --inputs $W/inputs.jsonl --per-group 6 --output $W/sample.jsonl"
 
-# 2) 생성 (둘 다 claude-haiku-5-5): 기준선은 이전 지시문 + 호출 1회, 하네스는 현재 규칙 + 고쳐 쓰기
-$TOOL --args="evaluate --variant baseline --sample $W/sample.jsonl --output $W/eval-baseline.jsonl --empty-directory $W/empty"
-$TOOL --args="evaluate --variant harness  --sample $W/sample.jsonl --output $W/eval-harness.jsonl  --empty-directory $W/empty"
+# 2) 생성 (claude-haiku-5-5): 지금의 작성 규칙 + 고쳐 쓰기. --variant 는 출력 줄과 보고서에 적히는 이름표
+$TOOL --args="evaluate --variant new --sample $W/sample.jsonl --output $W/eval-new.jsonl --empty-directory $W/empty"
 
 # 3) 채점 (생성보다 강한 모델로만)
-$TOOL --args="judge --judge-model claude-sonnet-5-5 --sample $W/sample.jsonl --outputs $W/eval-baseline.jsonl --scores $W/scores-baseline.jsonl --empty-directory $W/empty"
-$TOOL --args="judge --judge-model claude-sonnet-5-5 --sample $W/sample.jsonl --outputs $W/eval-harness.jsonl  --scores $W/scores-harness.jsonl  --empty-directory $W/empty"
+$TOOL --args="judge --judge-model claude-sonnet-5-5 --sample $W/sample.jsonl --outputs $W/eval-new.jsonl --scores $W/scores-new.jsonl --empty-directory $W/empty"
 
 # 4) 보고서 (숫자만 담김)
-$TOOL --args="evaluation-report --variant baseline --sample $W/sample.jsonl --outputs $W/eval-baseline.jsonl --scores $W/scores-baseline.jsonl --output $W/report-baseline.md"
-$TOOL --args="evaluation-report --variant harness  --sample $W/sample.jsonl --outputs $W/eval-harness.jsonl  --scores $W/scores-harness.jsonl  --output $W/report-harness.md"
+$TOOL --args="evaluation-report --variant new --sample $W/sample.jsonl --outputs $W/eval-new.jsonl --scores $W/scores-new.jsonl --output $W/report-new.md"
 ```
 
-- 기준선 지시문은 비교용으로 굳혀 둔 사본이다 (`summary-evaluation/baseline-system-instruction.txt`, v0.6.1 의 `SYSTEM_INSTRUCTION`). 운영에는 쓰지 않는다.
-- 보고서의 "첫 초안 통과"는 저장된 초안을 그 시점의 검증 규칙으로 다시 계산한다. 검증 규칙만 바꿨다면 생성을 다시 돌리지 않아도 된다.
-- 출력 파일에 이미 있는 표본은 건너뛴다. 다시 재려면 출력 파일 이름을 바꾼다.
+- **이전 판과 비교**: 이전 판의 커밋을 임시 작업 폴더에 받아(`git worktree add`) 같은 표본으로 2)를 돌려 출력 파일을 만들고,
+  3)의 채점은 **지금 도구**로 두 출력 파일에 각각 돌린다 (채점 기준이 같아야 비교가 됨).
+  채점은 브리핑 구조(`finalBrief`)와 이전 구조(`finalSummary`)의 출력 줄을 둘 다 읽는다.
+- 출력 파일에 이미 있는 표본은 건너뛴다. `claude -p` 가 중간에 실패하면 같은 명령을 다시 돌리면 이어서 한다.
+- 생성 로그 끝에 토큰 사용량이 한 줄 남는다 (`token usage : calls, averageAnswerTokens, maximumAnswerTokens, averageThinkingTokens`).
+  답 토큰이 운영의 출력 토큰 상한(`ArticleSummaryPrompt.MAXIMUM_OUTPUT_TOKENS`)과 견줄 값이다.
+- #49 의 기준선(하네스 이전 지시문)은 이전 구조의 글이라 지금의 출력 스키마와 맞지 않는다. `evaluate` 는 더는 기준선 지시문을 쓰지 않는다
+  (`BaselineInstructionCompletionClient`, `baseline-system-instruction.txt` 는 남아 있지만 쓰는 곳이 없다).
 
-## 3. 측정 결과 (2026-11-26)
+## 3. 측정 결과: 브리핑 구조 (#67, 2026-11-26)
+
+- 표본 61건: 운영 DB 의 기사 중 공개 출처에서 요약 입력을 다시 받은 것 (모두 공개 피드·공개 API 가 준 글).
+  NVD 6, CISA KEV 6, GitHub 권고 12, Red Hat 6, Ubuntu 6, 데일리시큐 11, The Hacker News 8, BleepingComputer 6.
+  글 종류로는 `CVE_ENTRY` 12, `PACKAGE_ADVISORY` 12, `VENDOR_ADVISORY` 12, `NEWS_ARTICLE` 18, `EVENT_NOTICE` 7.
+- 생성: `claude-haiku-5-5` (`claude -p --effort low`, 생각 켜짐: 4장). 채점: `claude-sonnet-5-5`, 1회.
+- 이전 구조의 글: 이 변경 직전 커밋(#49 하네스)으로 같은 표본에서 생성. 채점은 두 쪽 모두 지금의 채점 지시문.
+
+### 자동 지표
+
+| 지표 | 이전 구조 | 브리핑 구조 (최종 규칙) |
+|---|---:|---:|
+| 첫 초안 통과 | 59 / 61 (97%) | 58 / 61 (95%) |
+| 첫 초안이 버린 곳 없이 통과 | 58 / 61 (95%) | 57 / 61 (93%) |
+| 최종 통과 (시도 1회) | 61 / 61 (100%) | 60 / 61 (98%) |
+| 표본당 제공자 호출 | 1.05 | 1.07 |
+| 글 전체 길이 평균 (모든 필드 합) | 293자 | 229자 |
+| 한 줄 결론 길이 | 없음 | 평균 42자, 최대 59자 (40자 이내 29건, 45자 이내 41건) |
+| 무슨 일 길이 평균 | 요약 159자 | 103자 |
+| 왜 중요 있음 | 없음 | 41 / 60 (68%) |
+| 영향 대상 1개 이상 (평균 개수) | 없음 | 42 / 60 (0.77개) |
+| 대응 있음 (평균 개수) | 19 / 61 | 18 / 60 (0.70개) |
+
+- 브리핑 구조의 검증은 이전보다 엄격하다 (사유 6개 > 12개). 그런데도 첫 초안 통과율은 비슷하다.
+- 최종 탈락 1건은 한 줄 결론이 고쳐 쓴 뒤에도 60자를 넘었다 (운영·적재 도구는 시도 3회라 다시 쓴다).
+- 첫 초안에서 걸린 곳 4건: 한 줄 결론 길이 2, 무슨 일이 한 줄 결론을 되풀이 1, 입력에 없는 대상 이름 1.
+- 답 토큰(생각 제외): 평균 384, 최대 798. 운영 상한 2500 안쪽이다.
+
+### 채점 평균 (1~5점)
+
+| 기준 | 이전 구조 (61건) | 브리핑 구조 (60건) | 차이 | 같은 표본 짝 비교 (더 높음 / 같음 / 더 낮음) |
+|---|---:|---:|---:|---|
+| faithfulness | 4.15 | 4.08 | −0.07 | 7 / 42 / 11 |
+| glanceability | 4.03 | **4.48** | **+0.45** | 28 / 29 / 3 |
+| coverage | 4.16 | 4.02 | −0.14 | 6 / 39 / 15 |
+| nonRedundancy | 3.67 | 3.73 | +0.06 | 19 / 28 / 13 |
+| actionCorrectness | 4.48 | 4.48 | 0.00 | 6 / 47 / 7 |
+| koreanStyle | 4.03 | 4.03 | 0.00 | 6 / 49 / 5 |
+
+- **glanceability 만 분명히 올랐다.** 5점이 11건에서 31건으로 늘었고, 4점 이상은 51건에서 58건이다.
+- **나머지는 오차 범위(0.1~0.2) 안에서 같다.** faithfulness 는 5점이 16건에서 10건으로 줄고 2점 이하는 1건에서 0건이 됐다:
+  필드가 늘면서 "한 줄 결론이 원문보다 조금 세다" 같은 4점짜리 지적이 늘었다.
+- **coverage 는 조금 낮다.** 필드가 짧아져 긴 권고(GitHub 권고, 여러 CVE 를 묶은 Ubuntu 공지)의 세부가 더 빠진다. 이전 구조도 같은 지적을 받았다 (5장).
+- **nonRedundancy 는 나아지지 않았다.** 2점 이하는 2건에서 0건이 됐지만 평균은 같다. 남은 지적은 구조에서 나온다:
+  한 줄 결론·무슨 일·영향 대상이 같은 제품 이름을 다시 말하고, 사실이 하나뿐인 입력(정형 공지, 한 문장짜리 기사)은 필수 필드 2개가 그 사실을 나눠 쓴다.
+
+### 글 종류별 (이전 구조 > 브리핑 구조)
+
+| 글 종류 | 표본 | faithfulness | glanceability | coverage | nonRedundancy | actionCorrectness | koreanStyle |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| CVE_ENTRY | 12 | 4.25 > 4.00 | 3.83 > 4.45 | 4.42 > 4.18 | 3.17 > 3.36 | 4.42 > 4.18 | 3.83 > 4.00 |
+| PACKAGE_ADVISORY | 12 | 3.83 > 4.00 | 3.67 > 4.58 | 3.58 > 3.42 | 3.83 > 3.92 | 3.75 > 3.67 | 4.08 > 3.92 |
+| VENDOR_ADVISORY | 12 | 4.50 > 4.33 | 4.17 > 4.42 | 4.42 > 4.42 | 3.92 > 3.67 | 4.50 > 4.58 | 4.08 > 4.08 |
+| NEWS_ARTICLE | 18 | 4.06 > 4.11 | 4.28 > 4.39 | 4.33 > 4.06 | 3.72 > 3.78 | 4.78 > 4.94 | 4.11 > 3.94 |
+| EVENT_NOTICE | 7 | 4.14 > 3.86 | 4.14 > 4.71 | 3.86 > 4.00 | 3.71 > 4.00 | 5.00 > 5.00 | 4.00 > 4.43 |
+
+(`CVE_ENTRY` 의 브리핑 구조는 11건: 1건은 시도 1회에서 탈락)
+
+### 브리핑 구조가 더 나쁘거나 같은 곳
+
+- **정형 공지(`VENDOR_ADVISORY`)의 nonRedundancy 가 3.92 > 3.67.** Red Hat 공지는 사실이 3개(패키지, 대상 릴리스, 등급)인데 채울 자리가 4개다.
+  등급을 한 줄 결론에만 쓰고 왜 중요를 비우게 한 뒤에도 "한 줄 결론과 무슨 일이 같은 업데이트를 다시 말한다"는 지적이 남는다.
+- **`CVE_ENTRY` 의 faithfulness·actionCorrectness 가 0.2 낮다.** KEV 의 긴 `Required action:` 을 조치 항목 여러 개로 나누면서 조건이나 지침 이름이 빠진다는 지적이다.
+  지침 이름을 남기라고 고친 뒤에도 같은 수준이다.
+- **`PACKAGE_ADVISORY` 의 coverage·actionCorrectness.** 권고 본문의 "메인테이너가 이렇게 고치면 된다"를 대응으로 쓰지 않게 했는데 심사 모델은 그것도 조치로 본다 (#49 와 같은 충돌).
+- **영향 대상에 이름만 있는 항목**(조건 없음)을 심사 모델은 되풀이로 본다. 화면에서는 "누가 영향받나"에 바로 답하는 자리라 남겼다.
+
+### 고친 순서
+
+같은 표본 61건으로 생성·채점을 다시 한 기록이다. 판마다 규칙 차이는 작아서, 채점 평균의 움직임은 대부분 오차다.
+
+| 판 | 바꾼 것 | 첫 초안 통과 | 고쳐 쓴 글 사용 | 호출 | faithfulness | glanceability | coverage | nonRedundancy |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| 이전 구조 | #49 하네스 | 97% | 5% | 1.05 | 4.15 | 4.03 | 4.16 | 3.67 |
+| v1 | 필드 5개, 한 줄 결론을 마지막에 씀 (되풀이 검증은 글자 전체 겹침 0.7) | 93% | 7% | 1.07 | 채점 안 함 | | | |
+| v2 | 한 줄 결론 해요체 검증, 되풀이 검증을 한글 겹침 0.55 로, 무슨 일을 되풀이한 왜 중요 검증, 글 자체를 가리키는 말 추가 | 80% | 20% | 1.20 | 4.11 | 4.69 | 4.13 | 3.67 |
+| v3 | **한 줄 결론을 먼저 씀**, 정형 공지는 등급을 한 줄 결론에만, 확실성을 약하게도 바꾸지 않기, 되풀이 기준 0.5 | 84% | 23% | 1.23 | 4.10 | 4.64 | 4.13 | 3.67 |
+| v4 | 행사 안내의 좋은 예가 행사를 두 번 알리던 것을 고침 | 90% | 10% | 1.10 | 4.05 | 4.49 | 3.92 | 3.67 |
+| v5 (최종) | 정형 공지의 좋은 예가 등급을 매긴 팀을 업데이트를 낸 주체로 쓰던 것을 고침, KEV 지침 이름 남김 | 95% | 5% | 1.07 | 4.08 | 4.48 | 4.02 | 3.73 |
+
+배운 것:
+
+- **쓰는 순서가 되풀이를 만든다.** 한 줄 결론을 마지막에 쓰면 무슨 일의 첫 문장을 줄인 글이 된다 (v2: 첫 초안 61건 중 10건이 되풀이 검증에 걸림).
+  결론을 먼저 쓰고 "결론이 못 담은 것부터 이어 쓴다"고 하면 줄어든다.
+- **좋은 예가 규칙을 어기면 모델은 예를 따른다.** v3 의 행사·정형 공지 예는 한 줄 결론과 무슨 일이 같은 말을 했고, 그 종류에서 되풀이가 몰렸다.
+  예를 고친 v4·v5 는 되풀이가 0~1건이다. v3·v4 의 정형 공지 예("…Product Security 가 수정판을 내놨어요")의 틀린 주체도 그대로 따라 썼다
+  (v4 에서 그 종류의 faithfulness 3.92, 예를 고친 v5 는 4.33).
+  그래서 테스트가 좋은 예를 검증 규칙에 통과시키고, 한 줄 결론 길이도 확인한다.
+- **검증을 늘리면 고쳐 쓰기 호출이 늘지만, 지시문과 예가 맞으면 다시 줄어든다** (1.20 > 1.07).
+
+## 4. 이 측정의 한계
+
+- **로컬 생성은 생각을 켠 Haiku 다.** `claude -p` 는 생각(adaptive thinking)을 끌 수 없었다: 호출당 생각 토큰 1,100~1,600 (실측).
+  `MAX_THINKING_TOKENS=0`, `CLAUDE_CODE_DISABLE_THINKING`, `--settings '{"alwaysThinkingEnabled":false}'` 모두 효과가 없었다.
+  운영 API 는 생각을 끈다 (`thinking: disabled`, 노력 low). 그래서 **이 문서의 숫자는 운영에서 그대로 나온다는 보장이 없다.**
+  이전 구조와 새 구조는 같은 조건으로 만들었으므로 둘의 비교는 유효하다. #49 의 측정(5장)도 같은 조건이었다.
+- 표본 61건, 채점 1회다. 같은 규칙으로 다시 생성·채점해도 평균이 0.1~0.2 움직였다 (3장의 판별 표). 그 안쪽 차이는 오차로 본다.
+- 심사 모델은 글의 모양을 보므로 어느 쪽이 새 구조인지 안다 (가릴 수 없음).
+- KISA 공지는 표본에 없다. KISA 피드는 요약문을 주지 않아 요약 입력이 생기지 않는다 (`KISA_NOTICE` 규칙은 지어낸 예시로만 확인).
+- 그 밖의 차이: 운영은 Messages API 의 구조화 출력(`output_config.format`)·출력 토큰 상한 2500 이고,
+  `claude -p` 는 `--json-schema`(도구 호출 방식)이며 출력 토큰 상한 옵션이 없다. 지시문·사용자 메시지·스키마·검증은 같다.
+
+## 5. 이전 측정 (#49: 하네스 도입, 이전 구조)
+
+아래는 하네스를 처음 만들 때의 기록이다. 채점 기준이 지금과 다르다 (그때는 faithfulness, coverage, actionGuide, koreanStyle, originality, concision).
+"기준선"은 하네스 이전의 단일 지시문(v0.6.1)이고 "하네스"는 #49 의 글 종류별 규칙 + 고쳐 쓰기다.
+
+### 측정 결과
 
 - 표본 56건: 운영 DB 의 요약 대기·미작성 기사 중 공개 출처에서 입력을 다시 받은 것 + 최근 3일 뉴스 (모두 공개 피드·공개 API 가 준 글).
   NVD 6, CISA KEV 6, GitHub 권고 8, Red Hat 6, Ubuntu 6, 데일리시큐 10, The Hacker News 8, BleepingComputer 6.
   글 종류로는 `CVE_ENTRY` 12, `PACKAGE_ADVISORY` 8, `VENDOR_ADVISORY` 12, `NEWS_ARTICLE` 18, `EVENT_NOTICE` 6.
 - 생성: `claude-haiku-5-5` (`claude -p --effort low`). 채점: `claude-sonnet-5-5`, 1회.
 
-### 자동 지표
+#### 자동 지표
 
 | 지표 | 기준선 | 하네스 |
 |---|---:|---:|
@@ -82,7 +199,7 @@ $TOOL --args="evaluation-report --variant harness  --sample $W/sample.jsonl --ou
 - **통과율이 오른 것의 대부분은 검증 규칙을 고친 효과다** (73% > 91%). 지시문만으로는 이전 규칙에서 73% > 75% 로 거의 같다.
   남은 탈락(한국어 옮겨 싣기 5건)은 지시문이 줄였고(5 > 2), 나머지는 고쳐 쓰기가 모두 살렸다.
 
-### 채점 평균 (1~5점)
+#### 채점 평균 (1~5점)
 
 | 기준 | 기준선 (통과한 51건) | 하네스 (56건) | 차이 |
 |---|---:|---:|---:|
@@ -95,7 +212,7 @@ $TOOL --args="evaluation-report --variant harness  --sample $W/sample.jsonl --ou
 
 faithfulness 5점: 기준선 4건, 하네스 19건. 2점 이하는 양쪽 모두 0건.
 
-### 글 종류별 (하네스 − 기준선)
+#### 글 종류별 (하네스 − 기준선)
 
 | 글 종류 | 표본 | faithfulness | coverage | actionGuide | koreanStyle | originality | concision |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -107,7 +224,7 @@ faithfulness 5점: 기준선 4건, 하네스 19건. 2점 이하는 양쪽 모두
 
 (기준선의 `NEWS_ARTICLE` 은 16건, `EVENT_NOTICE` 는 3건만 채점됨: 나머지는 검증 탈락으로 글이 없음)
 
-### 하네스가 더 나쁜 곳
+#### 하네스가 더 나쁜 곳
 
 - **coverage 가 0.27 낮다.** 요약이 276자에서 166자로, 핵심 정리가 3.3개에서 2.0개로 줄었다. 긴 권고(GitHub 권고, 여러 CVE 를 묶은 Ubuntu 공지)에서
   세부 원인·개별 CVE 영향이 빠졌다는 지적이 많다. "입력보다 확실히 짧게"와 "입력에 없는 말을 덧붙이지 않기"를 얻은 대가다.
@@ -116,7 +233,7 @@ faithfulness 5점: 기준선 4건, 하네스 19건. 2점 이하는 양쪽 모두
   심사 모델은 그것도 조치로 본다.
 - `VENDOR_ADVISORY` 의 koreanStyle 이 4.17 > 4.00. 긴 영어 제품 이름을 그대로 두어 문장이 딱딱하다는 지적이다 (이름을 바꾸지 않는 규칙과 충돌).
 
-### 고친 순서
+#### 고친 순서
 
 | 판 | 바꾼 것 | faithfulness | coverage | concision |
 |---|---|---:|---:|---:|
@@ -128,7 +245,8 @@ faithfulness 5점: 기준선 4건, 하네스 19건. 2점 이하는 양쪽 모두
 \* v1 은 채점 지시문을 고치기 전 숫자라 뒤의 판과 바로 비교할 수 없다 (제목에만 있는 사실을 근거 없음으로 채점하던 문제를 고침. 같은 채점 지시문으로 잰 기준선은 위 표의 3.92 / 4.43 / 2.65).
 v3 과 v4 의 차이는 채점 오차 범위다.
 
-## 4. 이 측정의 한계
+
+### 그 측정의 한계
 
 - 표본 56건, 채점 1회다. 0.1~0.2 차이는 오차로 본다.
 - KISA 공지는 표본에 없다. KISA 피드는 요약문을 주지 않아 요약 입력이 생기지 않는다 (`KISA_NOTICE` 규칙은 지어낸 예시로만 확인).

@@ -20,7 +20,7 @@ import { toBrowseHref } from '../browse/browse-target';
 import { TrendingKeywordStrip } from '../keywords/trending-keyword-strip';
 import { APP_ROUTES } from '../navigation/app-routes';
 import { toNewsHref } from '../news/news-feed-filter';
-import { SEARCH_MASTHEAD_ACTION } from '../search/search-action';
+import { useTabMastheadActions } from '../notifications/use-tab-masthead-actions';
 import type { AlertLevelView } from './alert-level-view';
 import { TodayHeadlineSection } from './today-headline-section';
 import type { TodayStreamItemView, TodayUrgentView, TodayViewState } from './today-view-state';
@@ -51,10 +51,11 @@ const onShortcutPressed = (browseKey: string) => router.push(toBrowseHref(browse
  * 소식을 누르면 앱 안 상세 화면
  */
 export function TodayBriefingContent({ mastheadTitleLines, state, alertLevel }: TodayBriefingContentProps) {
+  const mastheadActions = useTabMastheadActions();
   return (
     <View>
       <SbEntrance order={MASTHEAD_ORDER}>
-        <SbMasthead titleLines={mastheadTitleLines} trailingLines={state.mastheadTrailingLines} action={SEARCH_MASTHEAD_ACTION} />
+        <SbMasthead titleLines={mastheadTitleLines} trailingLines={state.mastheadTrailingLines} actions={mastheadActions} />
       </SbEntrance>
       {alertLevel !== undefined && <TodayAlertLevelBand alertLevel={alertLevel} />}
       {state.headline !== undefined && (

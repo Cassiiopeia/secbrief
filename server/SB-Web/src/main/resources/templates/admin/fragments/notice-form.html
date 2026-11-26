@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  공지사항 입력 칸 (새 공지·고치기 공용): 제목, 본문(줄바꿈 그대로), 선택 링크, 맨 위 고정
+  fields(noticeForm, maximumTitleLength, maximumBodyLength)
+-->
+<body>
+
+<th:block th:fragment="fields(noticeForm, maximumTitleLength, maximumBodyLength)">
+  <label class="flex flex-col gap-1">
+    <span class="text-sm font-medium">제목</span>
+    <input type="text" name="title" class="input w-full" required
+           th:value="${noticeForm.title}" th:attr="maxlength=${maximumTitleLength}"/>
+  </label>
+  <label class="flex flex-col gap-1">
+    <span class="text-sm font-medium">본문</span>
+    <textarea name="body" class="textarea min-h-40 w-full" required
+              th:attr="maxlength=${maximumBodyLength}" th:text="${noticeForm.body}"></textarea>
+    <span class="text-xs text-base-content/60"
+          th:text="|글자만 써요. 줄바꿈은 앱에서도 그대로 보여요 (최대 ${maximumBodyLength}자)|">글자만 써요</span>
+  </label>
+  <label class="flex flex-col gap-1">
+    <span class="text-sm font-medium">링크 <span class="font-normal text-base-content/50">(선택)</span></span>
+    <input type="url" name="linkUrl" class="input w-full" placeholder="https://"
+           th:value="${noticeForm.linkUrl}"/>
+    <span class="text-xs text-base-content/60">넣으면 앱 공지 아래에 바로 가기 버튼이 생겨요</span>
+  </label>
+  <label class="flex items-center gap-2">
+    <input type="checkbox" name="pinned" value="true" class="checkbox checkbox-sm"
+           th:checked="${noticeForm.isPinned()}"/>
+    <span class="text-sm">맨 위에 고정</span>
+  </label>
+</th:block>
+
+</body>
+</html>

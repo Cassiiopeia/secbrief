@@ -1,6 +1,6 @@
 import { Linking } from 'react-native';
 
-import { SbErrorState, SbInlineNotice, SbListRow, SbSwitchRow } from '@/design';
+import { SbInlineErrorState, SbInlineNotice, SbListRow, SbReveal, SbSwitchRow } from '@/design';
 
 import { toAlertCategoryRowViews, toPushUnavailableMessage } from './alert-category-view-state';
 import { useAlertCategorySettings } from './use-alert-category-settings';
@@ -36,18 +36,20 @@ export function AlertCategorySettingsSection() {
     }
     if (settings.isPermissionDenied) {
       return (
-        <SbListRow
-          title="기기 설정에서 알림을 허용해 주세요"
-          detail="허용한 뒤 스위치를 다시 켜 주세요."
-          trailingIconName="open-in-new"
-          accessibilityLabel="기기 설정에서 알림 허용하기"
-          onPress={() => Linking.openSettings()}
-        />
+        <SbReveal>
+          <SbListRow
+            title="기기 설정에서 알림을 허용해 주세요"
+            detail="허용한 뒤 스위치를 다시 켜 주세요."
+            trailingIconName="open-in-new"
+            accessibilityLabel="기기 설정에서 알림 허용하기"
+            onPress={() => Linking.openSettings()}
+          />
+        </SbReveal>
       );
     }
     if (settings.saveFailure !== undefined) {
       return (
-        <SbErrorState
+        <SbInlineErrorState
           message={settings.saveFailure.userMessage}
           errorCode={settings.saveFailure.errorCode}
           onRetry={settings.onSaveRetried}

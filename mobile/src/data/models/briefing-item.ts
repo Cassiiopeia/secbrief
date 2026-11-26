@@ -42,6 +42,8 @@ export interface BriefingItem {
   title: string;
   /** AI 한국어 제목 (해외 항목이고 검증 통과한 경우만) */
   translatedTitle?: string;
+  /** AI 가 쓴 한 줄 결론 (약 60자). 브리핑이 아직 없거나 이 필드가 생기기 전 서버면 없음 */
+  oneLine?: string;
   originalUrl: string;
   /** 대표 이미지 서버 경로 (예: /api/v1/articles/123/image). 이미지가 없으면 없음 */
   imagePath?: string;

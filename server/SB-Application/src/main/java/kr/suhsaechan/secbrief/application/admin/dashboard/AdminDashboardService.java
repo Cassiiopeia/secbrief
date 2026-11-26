@@ -5,7 +5,7 @@ import kr.suhsaechan.secbrief.application.admin.stats.AdminStatsCache;
 import org.springframework.stereotype.Service;
 
 /**
- * 대시보드 숫자: 오늘·이번 주 수집, AI 대기·호출·비용, 알림 기기, 앱 요청 (60초 캐시)
+ * 대시보드 숫자: 오늘·이번 주 수집, AI 대기·실패·호출·비용, 알림 발송·보류, 공지, 알림 기기, 앱 요청 (60초 캐시)
  */
 @Service
 public class AdminDashboardService {

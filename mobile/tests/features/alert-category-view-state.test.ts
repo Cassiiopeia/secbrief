@@ -1,10 +1,9 @@
 /**
- * 알림 설정 뷰 상태: 스위치 행 3개, 스위치 바꾼 뒤 목록, 쓸 수 없는 이유 문구, 알림 누름 > 탭 경로
+ * 알림 설정 뷰 상태: 스위치 행 3개, 스위치 바꾼 뒤 목록, 쓸 수 없는 이유 문구 (알림 누름 경로는 notification-target-route.test)
  */
 import { toAlertCategories } from '@/data/models/alert-category';
 import {
   toAlertCategoryRowViews,
-  toNotificationTargetRoute,
   toPushUnavailableMessage,
   toToggledAlertCategories,
 } from '@/features/notifications/alert-category-view-state';
@@ -32,21 +31,6 @@ test('쓸 수 없는 이유마다 해요체 안내', () => {
   expect(toPushUnavailableMessage('NOT_PHYSICAL_DEVICE')).toBe('알림은 실제 기기에서 받을 수 있어요.');
   expect(toPushUnavailableMessage('NO_PROJECT_ID')).toBe('이 빌드는 알림을 준비하고 있어요.');
 });
-
-test('articleId 가 숫자면 그 기사 상세, 숫자가 아니면 탭', () => {
-  expect(toNotificationTargetRoute({ targetTab: 'vulnerability', articleId: '123' })).toBe('/articles/123');
-  expect(toNotificationTargetRoute({ targetTab: 'vulnerability', articleId: '../settings' })).toBe('/vulnerability');
-  expect(toNotificationTargetRoute({ articleId: 123 })).toBe('/');
-});
-test('targetTab 이 vulnerability 면 취약점 탭', () => {
-  expect(toNotificationTargetRoute({ targetTab: 'vulnerability' })).toBe('/vulnerability');
-});
-test.each([[{ targetTab: 'today' }], [{ targetTab: 'unknown' }], [{}], [undefined], [null], ['vulnerability']])(
-  '그 밖의 data %p 는 오늘 탭',
-  (notificationData) => {
-    expect(toNotificationTargetRoute(notificationData)).toBe('/');
-  },
-);
 
 test('저장값·서버 응답에서 모르는 종류와 중복을 뺀다', () => {
   expect(toAlertCategories(['CRITICAL_CVE', 'NEW_KIND', 'KEV', 'KEV'])).toEqual(['KEV', 'CRITICAL_CVE']);

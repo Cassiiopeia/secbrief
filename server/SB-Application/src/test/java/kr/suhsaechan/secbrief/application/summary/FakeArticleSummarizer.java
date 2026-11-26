@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummarizer;
-import kr.suhsaechan.secbrief.advisory.summary.ArticleSummary;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleBrief;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryOutcome;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryRequest;
 import kr.suhsaechan.secbrief.advisory.summary.SummaryProblem;
@@ -69,7 +69,7 @@ class FakeArticleSummarizer implements ArticleSummarizer {
     }
 
     @Override
-    public ArticleSummaryOutcome repair(ArticleSummaryRequest request, ArticleSummary rejectedDraft,
+    public ArticleSummaryOutcome repair(ArticleSummaryRequest request, ArticleBrief rejectedDraft,
                                         List<SummaryProblem> problems) {
         receivedRepairProblems.add(problems);
         return repairOutcomeByTitle.getOrDefault(request.title(), ArticleSummaryOutcome.failed("no fake repair response"));

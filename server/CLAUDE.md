@@ -12,9 +12,9 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 | 모듈 | 역할 |
 |---|---|
 | `SB-Common` | ErrorCode, CustomException, 표준 응답(ApiResponse, ErrorResponse), BaseEntity |
-| `SB-Domain-Member` | 푸시 기기(토큰, 켠 알림 종류), 푸시 발송 규약과 Expo 구현 |
+| `SB-Domain-Member` | 푸시 기기(토큰, 켠 알림 종류, 방해 금지 시간), 알림함 기록(긴급 알림·공지사항), 보류 푸시, 푸시 발송 규약과 Expo 구현 |
 | `SB-Domain-Advisory` | 수집한 보안 공지·뉴스, 취약점, 관심 제품 |
-| `SB-Application` | 여러 도메인을 묶는 유스케이스 (수집, AI 제목 분석·요약, 임베딩, 긴급 알림, 이미지 저장) |
+| `SB-Application` | 여러 도메인을 묶는 유스케이스 (수집, AI 제목 분석·요약, 임베딩, 긴급 알림·알림함·공지·방해 금지, 이미지 저장) |
 | `SB-Web` | 시작점, Controller, 전역 예외 처리, 스케줄러, Flyway 마이그레이션 |
 | `SB-Tool` | 로컬 전용 도구 (요약 하네스 평가, 밀린 요약 적재). 서버 이미지에 들어가지 않음 |
 
@@ -27,8 +27,9 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 - 비밀값은 환경변수로만 받는다. `application-dev.yml`, `application-prod.yml`은 커밋하지 않는다.
 - 로그는 영어로 쓰고 기능 접두사를 붙인다 (`[advisory collect] failed 502 : ...`). 외부에서 들어온 값은 정리한 뒤 넣는다.
 
-- 기사 요약의 작성 규칙은 `SB-Domain-Advisory/src/main/resources/summary-harness/*.md` 가 단일 원본이다 (공통 규칙 + 글 종류별 안내 + 고쳐 쓰기).
-  고칠 때는 [docs/summary-harness](../docs/summary-harness/README.md) 의 평가 순서로 기준선과 비교한다. 요약 1건의 제공자 호출은 시도마다 최대 2회다.
+- 기사 요약은 브리핑 구조다 (한 줄 결론·무슨 일·왜 중요·영향 대상·대응, #67). 작성 규칙은 `SB-Domain-Advisory/src/main/resources/summary-harness/*.md` 가 단일 원본이다 (공통 규칙 + 글 종류별 안내 + 고쳐 쓰기).
+  고칠 때는 [docs/summary-harness](../docs/summary-harness/README.md) 의 평가 순서로 이전 판과 비교한다. 요약 1건의 제공자 호출은 시도마다 최대 2회다.
+  이전 구조 열(`summary`, `summary_key_points`, `summary_action_guide`)은 브리핑에서 옮긴 값을 함께 저장한다 (`ArticleBrief.toLegacySummary` 한 곳, 이전 앱 빌드용).
 
 ## 외부 연동 설정 (환경변수 또는 운영 설정 파일)
 
@@ -60,7 +61,37 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 | 기사 요약 | `summary.batch-size`, `summary.tick-budget-seconds`, `summary.tick-milliseconds`, `summary.initial-delay-milliseconds` | 10건, 90초, 3분, 210초 |
 | 기사 이미지 처리 | `image.batch-size`, `image.tick-budget-seconds`, `image.tick-milliseconds`, `image.initial-delay-milliseconds` | 20건, 60초, 2분, 150초 |
 | 제목 임베딩 | `embedding.batch-size`, `embedding.request-batch-size`, `embedding.tick-milliseconds`, `embedding.initial-delay-milliseconds` | 100건, 25건, 5분, 210초 |
-| 긴급 알림 | `push.alert-tick-milliseconds`, `push.alert-initial-delay-milliseconds`, `push.receipt-tick-milliseconds`, `push.receipt-initial-delay-milliseconds` | 5분, 2분, 15분, 3분 |
+| 긴급 알림 (방해 금지 보류분 발송도 같은 틱) | `push.alert-tick-milliseconds`, `push.alert-initial-delay-milliseconds`, `push.receipt-tick-milliseconds`, `push.receipt-initial-delay-milliseconds` | 5분, 2분, 15분, 3분 |
+| 알림함 보관 정리 | `notification.retention-enabled`, `notification.retention-tick-milliseconds`, `notification.retention-initial-delay-milliseconds` | 켜짐, 6시간, 10분 (긴급 알림 기록 30일 보관, 공지사항은 지우지 않음) |
+
+## 알림함 · 공지사항 · 방해 금지 시간 (#70)
+
+| API (인증 없음) | 응답 `data` |
+|---|---|
+| `GET /api/v1/notifications?kind=ALERT\|NOTICE&cursor=&size=` | `{items, nextCursor}` (ALERT 최신순, NOTICE 고정 먼저 > 최신순, size 기본 20 · 최대 50) |
+| `GET /api/v1/notifications/latest` | `{latestAlertId, latestNoticeId}` (앱 알림 점, 이용 집계에서 뺌) |
+| `GET /api/v1/notifications/{id}` | 상세: 본문 전체, `linkUrl`(공지), `articleSections[{alertCategory, articles}]`(긴급 알림, 종류 순서 KEV > KISA_URGENT > CRITICAL_CVE), `articleGuides`(기사별 대응 안내 요약, #71) |
+| `PUT /api/v1/push-devices` | 요청에 `quietHours {isEnabled, startTime "HH:mm", endTime, timeZone}` 선택 (없으면 저장값 유지), 응답에 `quietHours` 항상 |
+
+- 긴급 알림 틱마다 알릴 기사 전체를 알림함 기록(`notification` kind ALERT + `notification_article`) 1건으로 남기고, 그 번호를 푸시 data 에 싣는다. 발송이 전부 실패하면 기록을 지우고 기사를 대기로 남긴다.
+- 푸시 data 키 원본은 `NotificationPushData` 다: `notificationId`, `notificationKind`(`ALERT`·`NOTICE`·`QUIET_HOURS_DIGEST`), `articleId`(기사 1건 알림만), `targetTab`(이전 앱용, 항상). 앱 `toNotificationTargetRoute` 와 함께 바꾼다.
+- 방해 금지 시간은 기기 시간대 기준 `[시작, 끝)`, 끝이 이르면 자정을 넘긴다. 켰을 때 시작 == 끝은 `QUIET_HOURS_SAME_TIME`, 모르는 시간대는 `INVALID_TIME_ZONE`. 기존·새 기기 모두 기본 꺼짐.
+- 방해 금지 시간이면 그 기기가 받을 글을 `push_device_held_push` 에 보류하고 (KEV 도 예외 없음), 끝난 뒤 첫 알림 틱에 1건이면 그대로, 여러 건이면 모음 1건을 보낸다. 실패하면 보류분을 남긴다.
+- 공지사항은 관리자 화면(`/admin/notices`)에서 쓰고, 올릴 때 "푸시도 보내기"를 고르면 알림을 켠 기기 전체에 보낸다 (방해 금지면 보류). 고칠 때는 다시 보내지 않는다. 발송 기록 화면은 `/admin/alerts`.
+
+## 대응 모아보기 (#71)
+
+같은 취약점을 다룬 공개 자료를 기사 상세와 알림 상세에 붙인다. 기준 값·구역 판정은 `ResponseGuidePolicy`, 조회 SQL 은 `ArticleRepository.findResponseGuideCandidates`, 조립은 `ResponseGuideQueryService` 한 곳이다.
+
+| 응답 | 필드 |
+|---|---|
+| `GET /api/v1/articles/{id}` | `responseGuideSections[{section, totalCount, items[{article, sourceName, matchReason, matchedCveId, actionDueDate}]}]` (빈 구역은 뺌, 구역마다 5건). `relatedItems` 는 이전 앱 빌드용으로 계속 채움 |
+| `GET /api/v1/notifications/{id}` | `articleGuides[{articleId, actions, officialCount, factCount, newsCount, leadOfficialItem}]` (알린 순서 앞 20건, NOTICE 는 빈 목록) |
+
+- 구역은 출처 종류로만 정한다: ADVISORY 공식 대응(`OFFICIAL`), VULNERABILITY 확인된 취약점 정보(`FACT`), NEWS 관련 기사(`NEWS`). `KISA_ALERT_LEVEL` 은 넣지 않는다. 새 출처는 `source.kind` 만 맞으면 자동으로 들어간다.
+- 묶는 규칙 3개 (확실한 순): 같은 CVE(전용 열·제목, 1년) > 같은 제품 이름(소문자·문장부호 정리 후 같음, 게시일 ±14일) > KISA 보안공지 제조사 이름 = 상대 이름의 앞 낱말(±14일).
+- 잘못 묶이지 않게: 행사·정책·개인정보 주제는 제품으로 묶지 않음, 양쪽 모두 CVE 가 있는데 겹치지 않으면 버림, CVE 가 있는 기사에는 다른 CVE 항목을 제품 이름만으로 붙이지 않음, 제조사 앞 낱말 일치는 KISA 보안공지에만.
+- 조치 기한은 KEV 사실 값(`조치 기한`) 원문 그대로, 기사 본문은 싣지 않는다 (기사는 목록과 같은 `ArticleResponse`).
 
 ## 설정 저장소 (관리자 화면에서 바꾸는 값)
 

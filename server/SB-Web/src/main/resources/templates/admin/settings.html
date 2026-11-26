@@ -12,9 +12,16 @@
     <span>암호화 마스터 키가 없어 비밀값을 저장할 수 없어요. 운영 설정에 <code>secbrief.secret.master-key</code> 를 넣고 서버를 다시 띄워 주세요. (SECRET_MASTER_KEY_MISSING)</span>
   </div>
 
-  <section class="card border border-base-300 bg-base-100" th:each="settingGroup : ${settingGroups}">
+  <!--/* 묶음 바로 가기 (설정이 많아 긴 화면) */-->
+  <nav class="flex flex-wrap gap-2" aria-label="설정 묶음 바로 가기">
+    <a class="btn btn-sm" th:each="settingGroup : ${settingGroups}" th:href="|#${settingGroup.group.name()}|"
+       th:text="|${settingGroup.group.label} (${#lists.size(settingGroup.configViews)})|">묶음</a>
+  </nav>
+
+  <section class="card scroll-mt-20 border border-base-300 bg-base-100" th:each="settingGroup : ${settingGroups}"
+           th:id="${settingGroup.group.name()}">
     <div class="card-body gap-0 p-0">
-      <h3 class="border-b border-base-300 px-4 py-3 text-lg font-bold" th:text="${settingGroup.group.label}">묶음</h3>
+      <h2 class="border-b border-base-300 px-4 py-3 text-lg font-bold" th:text="${settingGroup.group.label}">묶음</h2>
 
       <div class="grid gap-4 border-b border-base-300 px-4 py-4 last:border-b-0 lg:grid-cols-2"
            th:each="configView : ${settingGroup.configViews}" th:with="configKey=${configView.key}">
@@ -68,17 +75,17 @@
               <option th:each="allowedValue : ${configKey.valueRule.allowedValues}" th:value="${allowedValue}"
                       th:text="${allowedValue}" th:selected="${allowedValue == configView.displayValue}">값</option>
             </select>
-            <input type="text" name="value" class="input input-sm w-56" required th:if="${valueType == 'STRING'}"
+            <input type="text" name="value" class="input input-sm w-52" required th:if="${valueType == 'STRING'}"
                    th:value="${configView.displayValue}"
                    th:attr="maxlength=${configKey.valueRule.maximumLength},aria-label=${configKey.label}"/>
             <th:block th:if="${valueType == 'SECRET'}">
               <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${configView.hasSecretValue()} ? 'success' : 'ghost', ${configView.hasSecretValue()} ? '설정됨' : '없음')}"></span>
               <span class="admin-number text-sm text-base-content/60" th:text="${configView.displayValue}">••••</span>
-              <input type="password" name="value" class="input input-sm w-56" autocomplete="new-password"
+              <input type="password" name="value" class="input input-sm w-52" autocomplete="new-password"
                      placeholder="새 값을 넣으면 바꿔요" th:disabled="${!canStoreSecret}"
                      th:attr="maxlength=${configKey.valueRule.maximumLength},aria-label=${configKey.label} + ' 새 값'"/>
             </th:block>
-            <input type="text" name="reason" class="input input-sm w-48" maxlength="500" placeholder="바꾸는 이유 (선택)"
+            <input type="text" name="reason" class="input input-sm w-40" maxlength="500" placeholder="바꾸는 이유 (선택)"
                    th:attr="aria-label=${configKey.label} + ' 바꾸는 이유'"/>
             <button type="submit" class="btn btn-primary btn-sm">저장</button>
           </form>

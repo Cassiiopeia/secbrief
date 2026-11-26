@@ -4,7 +4,7 @@
   쓰는 쪽:
     <html th:replace="~{admin/fragments/admin-layout :: page('제목', 'menu-key', ~{::content})}">
     <main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6"> ... </main>
-  menu-key 7개: dashboard, sources, settings, ai-keys, ai-calls, audit, password
+  menu-key 9개: dashboard, sources, notices, alerts, settings, ai-keys, ai-calls, audit, password
   리다이렉트 뒤 토스트: flashMessage(성공), flashError(실패 문구 + 에러 코드) 모델·flash 속성
 -->
 <html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
@@ -13,6 +13,9 @@
   <th:block th:replace="~{admin/fragments/admin-head :: assets(${title})}"></th:block>
 </head>
 <body class="min-h-screen bg-base-200 text-base-content">
+<!-- 키보드 사용자: 메뉴를 건너뛰고 본문으로 -->
+<a href="#adminMainContent"
+   class="btn btn-primary btn-sm fixed left-2 top-2 z-50 -translate-y-20 focus:translate-y-0">본문으로 건너뛰기</a>
 <div class="drawer lg:drawer-open">
   <input id="adminDrawerToggle" type="checkbox" class="drawer-toggle"/>
 
@@ -23,8 +26,9 @@
           <i data-lucide="menu" class="size-5"></i>
         </label>
       </div>
+      <!-- 화면 제목은 본문 pageHeader 의 h1 하나: 상단바에는 좁은 화면(사이드바가 접힘)에서만 보임 -->
       <div class="min-w-0 flex-1">
-        <h1 class="truncate px-2 text-lg font-bold" th:text="${title}">제목</h1>
+        <span class="block truncate px-2 text-lg font-bold lg:hidden" th:text="${title}">제목</span>
       </div>
       <div class="flex flex-none items-center gap-1">
         <span class="hidden px-2 text-sm text-base-content/70 sm:inline" sec:authentication="name">admin</span>
@@ -45,10 +49,12 @@
     <div id="adminFlash" hidden th:if="${flashMessage != null or flashError != null}"
          th:attr="data-message=${flashMessage},data-error=${flashError}"></div>
 
-    <th:block th:replace="${content}"></th:block>
+    <div id="adminMainContent" tabindex="-1" class="flex flex-1 flex-col outline-none">
+      <th:block th:replace="${content}"></th:block>
+    </div>
   </div>
 
-  <div class="drawer-side z-40">
+  <div class="drawer-side admin-sidebar z-40">
     <label for="adminDrawerToggle" class="drawer-overlay" aria-label="메뉴 닫기"></label>
     <aside class="flex min-h-full w-64 flex-col border-r border-base-300 bg-base-100">
       <a th:href="@{/admin}" class="flex items-center gap-2 border-b border-base-300 px-5 py-4">
@@ -61,6 +67,9 @@
         <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'dashboard', '/admin', 'layout-dashboard', '대시보드')}"></li>
         <li class="menu-title">수집</li>
         <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'sources', '/admin/sources', 'rss', '출처 관리')}"></li>
+        <li class="menu-title">알림</li>
+        <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'notices', '/admin/notices', 'megaphone', '공지사항')}"></li>
+        <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'alerts', '/admin/alerts', 'bell-ring', '알림 기록')}"></li>
         <li class="menu-title">설정</li>
         <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'settings', '/admin/settings', 'sliders-horizontal', '설정')}"></li>
         <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'ai-keys', '/admin/ai-keys', 'key-round', 'AI 키')}"></li>

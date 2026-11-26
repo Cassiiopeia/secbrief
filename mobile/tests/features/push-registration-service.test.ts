@@ -6,7 +6,9 @@ import { AppFailure } from '@/core/error/app-failure';
 import * as alertCategoryStorage from '@/data/sources/alert-category-storage';
 import * as deviceNotificationClient from '@/data/sources/device-notification-client';
 import * as pushDeviceSource from '@/data/sources/push-device-source';
-import { saveAlertCategories, syncPushRegistrationOnLaunch } from '@/features/notifications/push-registration-service';
+import * as quietHoursStorage from '@/data/sources/quiet-hours-storage';
+import { DEFAULT_QUIET_HOURS, type QuietHours } from '@/data/models/quiet-hours';
+import { saveAlertCategories, saveQuietHours, syncPushRegistrationOnLaunch } from '@/features/notifications/push-registration-service';
 
 // 네이티브 모듈(저장소, 알림)을 불러오지 않게 가짜를 직접 만듦
 jest.mock('@/data/sources/alert-category-storage', () => ({
@@ -22,10 +24,13 @@ jest.mock('@/data/sources/device-notification-client', () => ({
   requestPushPermission: jest.fn(),
 }));
 jest.mock('@/data/sources/push-device-source', () => ({ savePushDevice: jest.fn() }));
+jest.mock('@/data/sources/quiet-hours-storage', () => ({ readStoredQuietHours: jest.fn(), saveStoredQuietHours: jest.fn() }));
+jest.mock('@/data/sources/device-time-zone', () => ({ getDeviceTimeZone: () => 'Asia/Seoul' }));
 
 const storage = jest.mocked(alertCategoryStorage);
 const device = jest.mocked(deviceNotificationClient);
 const server = jest.mocked(pushDeviceSource);
+const quietHoursStore = jest.mocked(quietHoursStorage);
 
 const PUSH_TOKEN = 'ExponentPushToken[test]';
 
@@ -35,7 +40,12 @@ beforeEach(() => {
   device.getPushPlatform.mockReturnValue('ANDROID');
   device.isPushPermissionGranted.mockResolvedValue(true);
   device.fetchExpoPushToken.mockResolvedValue(PUSH_TOKEN);
-  server.savePushDevice.mockImplementation(async (registration) => registration.enabledAlertCategories);
+  quietHoursStore.readStoredQuietHours.mockResolvedValue(DEFAULT_QUIET_HOURS);
+  // 기본: 서버가 받은 값을 그대로 돌려줌
+  server.savePushDevice.mockImplementation(async (registration) => ({
+    enabledAlertCategories: registration.enabledAlertCategories,
+    quietHours: registration.quietHours,
+  }));
 });
 
 test('켜기: 채널 > 권한 요청 > 토큰 > 서버 > 기기 저장 순서', async () => {
@@ -44,7 +54,7 @@ test('켜기: 채널 > 권한 요청 > 토큰 > 서버 > 기기 저장 순서', 
 
   await expect(saveAlertCategories(['KEV'])).resolves.toEqual(['KEV']);
 
-  expect(server.savePushDevice).toHaveBeenCalledWith({ pushToken: PUSH_TOKEN, platform: 'ANDROID', enabledAlertCategories: ['KEV'] });
+  expect(server.savePushDevice).toHaveBeenCalledWith({ pushToken: PUSH_TOKEN, platform: 'ANDROID', enabledAlertCategories: ['KEV'], quietHours: DEFAULT_QUIET_HOURS });
   expect(storage.saveEnabledAlertCategories).toHaveBeenCalledWith(['KEV']);
   // Android 13 은 채널이 있어야 권한 창이 뜸
   expect(device.ensureUrgentAlertChannel.mock.invocationCallOrder[0]).toBeLessThan(
@@ -102,6 +112,7 @@ test('시작 동기화: 권한이 허용이면 토큰을 다시 받아 서버에
     pushToken: PUSH_TOKEN,
     platform: 'ANDROID',
     enabledAlertCategories: ['KEV', 'CRITICAL_CVE'],
+    quietHours: DEFAULT_QUIET_HOURS,
   });
   expect(device.requestPushPermission).not.toHaveBeenCalled();
 });
@@ -109,10 +120,10 @@ test('시작 동기화: 권한이 허용이면 토큰을 다시 받아 서버에
 test('시작 동기화: 권한이 꺼졌으면 기기 값을 모두 끔으로 맞추고 서버 기기도 지운다', async () => {
   storage.readEnabledAlertCategories.mockResolvedValue(['KEV']);
   device.isPushPermissionGranted.mockResolvedValue(false);
-  server.savePushDevice.mockResolvedValue([]);
+  server.savePushDevice.mockResolvedValue({ enabledAlertCategories: [] });
   await expect(syncPushRegistrationOnLaunch()).resolves.toEqual([]);
   expect(storage.saveEnabledAlertCategories).toHaveBeenCalledWith([]);
-  expect(server.savePushDevice).toHaveBeenCalledWith({ pushToken: PUSH_TOKEN, platform: 'ANDROID', enabledAlertCategories: [] });
+  expect(server.savePushDevice).toHaveBeenCalledWith({ pushToken: PUSH_TOKEN, platform: 'ANDROID', enabledAlertCategories: [], quietHours: DEFAULT_QUIET_HOURS });
 });
 
 test('시작 동기화: 권한이 꺼진 기기가 토큰을 못 받아도 끔으로 맞춘다', async () => {
@@ -128,4 +139,48 @@ test('시작 동기화: 서버 실패는 던지고 기기 값은 그대로 둔�
   server.savePushDevice.mockRejectedValue(new AppFailure('APP_NETWORK', '인터넷 연결을 확인해 주세요.'));
   await expect(syncPushRegistrationOnLaunch()).rejects.toMatchObject({ errorCode: 'APP_NETWORK' });
   expect(storage.saveEnabledAlertCategories).not.toHaveBeenCalled();
+});
+
+const NIGHT_QUIET_HOURS: QuietHours = { isEnabled: true, startTime: '23:00', endTime: '07:00', timeZone: 'Europe/London' };
+
+test('방해 금지 시간 저장: 켠 종류와 함께 보내고, 시간대는 지금 기기 값, 서버 값을 기기에 저장', async () => {
+  storage.readEnabledAlertCategories.mockResolvedValue(['KEV']);
+
+  await expect(saveQuietHours(NIGHT_QUIET_HOURS)).resolves.toEqual({ ...NIGHT_QUIET_HOURS, timeZone: 'Asia/Seoul' });
+
+  expect(server.savePushDevice).toHaveBeenCalledWith({
+    pushToken: PUSH_TOKEN,
+    platform: 'ANDROID',
+    enabledAlertCategories: ['KEV'],
+    quietHours: { ...NIGHT_QUIET_HOURS, timeZone: 'Asia/Seoul' },
+  });
+  expect(quietHoursStore.saveStoredQuietHours).toHaveBeenCalledWith({ ...NIGHT_QUIET_HOURS, timeZone: 'Asia/Seoul' });
+});
+
+test('방해 금지 시간 저장: 켠 알림 종류가 없으면 APP_QUIET_HOURS_WITHOUT_ALERT, 서버 호출 없음', async () => {
+  storage.readEnabledAlertCategories.mockResolvedValue([]);
+  await expect(saveQuietHours(NIGHT_QUIET_HOURS)).rejects.toMatchObject({ errorCode: 'APP_QUIET_HOURS_WITHOUT_ALERT' });
+  expect(server.savePushDevice).not.toHaveBeenCalled();
+});
+
+test('방해 금지 시간을 모르는 이전 서버면 보낸 값을 기기에 저장한다', async () => {
+  storage.readEnabledAlertCategories.mockResolvedValue(['KEV']);
+  server.savePushDevice.mockResolvedValue({ enabledAlertCategories: ['KEV'] });
+  await saveQuietHours(NIGHT_QUIET_HOURS);
+  expect(quietHoursStore.saveStoredQuietHours).toHaveBeenCalledWith({ ...NIGHT_QUIET_HOURS, timeZone: 'Asia/Seoul' });
+});
+
+test('방해 금지 시간 저장 서버 실패는 그 코드 그대로, 기기 저장 없음', async () => {
+  storage.readEnabledAlertCategories.mockResolvedValue(['KEV']);
+  server.savePushDevice.mockRejectedValue(new AppFailure('QUIET_HOURS_SAME_TIME', '시작과 끝을 다르게 정해 주세요.'));
+  await expect(saveQuietHours(NIGHT_QUIET_HOURS)).rejects.toMatchObject({ errorCode: 'QUIET_HOURS_SAME_TIME' });
+  expect(quietHoursStore.saveStoredQuietHours).not.toHaveBeenCalled();
+});
+
+test('알림 종류를 바꿀 때 기기에 저장된 방해 금지 시간도 함께 보낸다 (서버 기기가 새로 생겨도 유지)', async () => {
+  quietHoursStore.readStoredQuietHours.mockResolvedValue(NIGHT_QUIET_HOURS);
+  await saveAlertCategories(['KEV']);
+  expect(server.savePushDevice).toHaveBeenCalledWith(
+    expect.objectContaining({ quietHours: { ...NIGHT_QUIET_HOURS, timeZone: 'Asia/Seoul' } }),
+  );
 });

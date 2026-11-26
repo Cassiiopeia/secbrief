@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import kr.suhsaechan.secbrief.advisory.ai.ProviderHttpClient;
 import kr.suhsaechan.secbrief.advisory.entity.ArticleEmbedding;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
@@ -47,7 +48,7 @@ public class OllamaTextEmbeddingProvider implements TextEmbeddingProvider {
         requestFactory.setReadTimeout(READ_TIMEOUT);
         this.restClient = RestClient.builder().requestFactory(requestFactory).build();
         this.isEnabled = isEnabled;
-        this.embedUrl = toEmbedUrl(baseUrl);
+        this.embedUrl = ProviderHttpClient.toEndpointUrlOrEmpty(baseUrl, EMBED_PATH);
         this.model = model == null ? "" : model.strip();
         this.apiKey = apiKey == null ? "" : apiKey.strip();
     }
@@ -140,11 +141,5 @@ public class OllamaTextEmbeddingProvider implements TextEmbeddingProvider {
             embedding[dimensionIndex] = valueNode.floatValue();
         }
         return embedding;
-    }
-
-    // base-url 끝의 / 제거 후 /api/embed 붙임 (비어 있으면 빈 문자열 = 미설정)
-    private static String toEmbedUrl(String baseUrl) {
-        String trimmedBaseUrl = baseUrl == null ? "" : baseUrl.strip().replaceAll("/+$", "");
-        return trimmedBaseUrl.isEmpty() ? "" : trimmedBaseUrl + EMBED_PATH;
     }
 }

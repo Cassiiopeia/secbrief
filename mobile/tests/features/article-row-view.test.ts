@@ -1,8 +1,8 @@
 /**
- * 목록 행 표시: 게시자(KEV 등재), 번역 제목·원문 제목·AI 번역, 메타(추정 게시일), 배지(색조), 썸네일, 주제 이름
+ * 목록 행 표시: 게시자(KEV 등재), 번역 제목·원문 제목·AI 번역, 제목 아래 줄(한 줄 결론 우선), 메타(추정 게시일), 배지(색조), 썸네일, 주제 이름
  */
 import { apiConfig } from '@/core/config/api-config';
-import { toArticleRowView, toCvssSeverityTone, toPublisherLabel, toTopicLabel } from '@/features/articles/article-row-view';
+import { toArticleRowView, toArticleSecondaryLine, toCvssSeverityTone, toPublisherLabel, toTopicLabel } from '@/features/articles/article-row-view';
 
 import { NOW, kevOnlyItem, kisaItem, nvdItem, overseasNewsItem } from './briefing-item-fixtures';
 
@@ -83,4 +83,24 @@ test('이미지 경로는 서버 기본 주소를 붙인 절대 주소로', () =
 test('공지·취약점 행은 이미지가 있을 때만 썸네일', () => {
   expect(toArticleRowView(kisaItem, NOW).thumbnail).toBeUndefined();
   expect(toArticleRowView({ ...nvdItem, imagePath: '/api/v1/articles/2/image' }, NOW).thumbnail?.imageUrl).toBeDefined();
+});
+test('제목 아래 줄: 한 줄 결론이 있으면 원문 제목 대신 한 줄 결론', () => {
+  const translatedItem = { ...overseasNewsItem, title: 'Critical flaw in Next.js', translatedTitle: 'Next.js 심각 취약점' };
+  expect(toArticleRowView({ ...translatedItem, oneLine: '예시 결론이에요' }, NOW).secondaryLine).toEqual({ text: '예시 결론이에요', tone: 'summary' });
+  // 번역이 없는 국내 항목도 한 줄 결론이 있으면 보임
+  expect(toArticleRowView({ ...kisaItem, oneLine: '예시 결론이에요' }, NOW).secondaryLine).toEqual({ text: '예시 결론이에요', tone: 'summary' });
+});
+test('제목 아래 줄: 한 줄 결론이 없으면 지금처럼 (번역 항목은 원문 제목, 그 밖은 없음)', () => {
+  const translatedItem = { ...overseasNewsItem, title: 'Critical flaw in Next.js', translatedTitle: 'Next.js 심각 취약점' };
+  expect(toArticleRowView(translatedItem, NOW).secondaryLine).toEqual({ text: 'Critical flaw in Next.js', tone: 'reference' });
+  expect(toArticleRowView(kisaItem, NOW).secondaryLine).toBeUndefined();
+  expect(toArticleSecondaryLine(undefined, undefined)).toBeUndefined();
+});
+test('한 줄 결론이 있어도 상세 머리의 원문 제목은 그대로', () => {
+  const view = toArticleRowView({ ...overseasNewsItem, title: 'Critical flaw in Next.js', translatedTitle: 'Next.js 심각 취약점', oneLine: '예시 결론이에요' }, NOW);
+  expect(view.originalTitle).toBe('Critical flaw in Next.js');
+});
+test('읽기 도우미 문구: 한 줄 결론은 제목 다음에 AI 요약으로 읽음', () => {
+  const view = toArticleRowView({ ...kisaItem, oneLine: '예시 결론이에요' }, NOW);
+  expect(view.accessibilityLabel).toBe(`${kisaItem.title}, AI 요약, 예시 결론이에요, ${view.metaLabel}, 자세히 보기`);
 });

@@ -22,7 +22,8 @@ public enum ApiUsageGroup {
     KEYWORD("키워드", true),
     TREND("주간 추이", true),
     SOURCE("출처 상태", true),
-    PUSH_DEVICE("알림 기기 등록", true);
+    PUSH_DEVICE("알림 기기 등록", true),
+    NOTIFICATION("알림함", true);
 
     // 집계 대상 경로 앞부분 (그 밖의 경로는 세지 않음: 상태 확인 등)
     private static final String API_PATH_PREFIX = "/api/v1/";
@@ -30,6 +31,8 @@ public enum ApiUsageGroup {
     private static final String ARTICLE_SEGMENT = "articles";
     private static final String ARTICLE_SEARCH_SEGMENT = "search";
     private static final String ARTICLE_IMAGE_SEGMENT = "image";
+    // 알림 점 확인 (앱을 열 때마다 불림): 화면 요청이 아니라 세지 않음
+    private static final String NOTIFICATION_LATEST_SEGMENT = "latest";
 
     private final String label;
     private final boolean isScreenView;
@@ -59,6 +62,8 @@ public enum ApiUsageGroup {
             case "trends" -> Optional.of(TREND);
             case "sources" -> onlyWhenSingleSegment(segments, SOURCE);
             case "push-devices" -> onlyWhenSingleSegment(segments, PUSH_DEVICE);
+            case "notifications" -> segments.length == 2 && NOTIFICATION_LATEST_SEGMENT.equals(segments[1])
+                    ? Optional.empty() : Optional.of(NOTIFICATION);
             default -> Optional.empty();
         };
     }

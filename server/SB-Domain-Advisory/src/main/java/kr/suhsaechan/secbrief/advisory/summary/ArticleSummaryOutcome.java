@@ -1,12 +1,12 @@
 package kr.suhsaechan.secbrief.advisory.summary;
 
 /**
- * 요약 1건의 결과: 성공(summary) 또는 실패(failureReason, 로그용 영어 사유)
+ * 요약 1건의 결과: 성공(brief, 검증 전 브리핑) 또는 실패(failureReason, 로그용 영어 사유)
  */
-public record ArticleSummaryOutcome(ArticleSummary summary, String failureReason) {
+public record ArticleSummaryOutcome(ArticleBrief brief, String failureReason) {
 
-    public static ArticleSummaryOutcome succeeded(ArticleSummary summary) {
-        return new ArticleSummaryOutcome(summary, null);
+    public static ArticleSummaryOutcome succeeded(ArticleBrief brief) {
+        return new ArticleSummaryOutcome(brief, null);
     }
 
     public static ArticleSummaryOutcome failed(String failureReason) {
@@ -14,6 +14,6 @@ public record ArticleSummaryOutcome(ArticleSummary summary, String failureReason
     }
 
     public boolean isSuccessful() {
-        return summary != null;
+        return brief != null;
     }
 }

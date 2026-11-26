@@ -114,6 +114,7 @@ export function ArticleInfiniteList({
     }
     return (
       <SbEmptyState
+        illustration="feedEmpty"
         title={emptyTitle}
         description={emptyDescription}
         actionLabel={emptyAction?.label}

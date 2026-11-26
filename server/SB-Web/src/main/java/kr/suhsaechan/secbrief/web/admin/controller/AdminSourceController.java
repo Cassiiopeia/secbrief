@@ -1,6 +1,8 @@
 package kr.suhsaechan.secbrief.web.admin.controller;
 
 import java.security.Principal;
+import java.util.List;
+import kr.suhsaechan.secbrief.application.admin.source.AdminSourceRow;
 import kr.suhsaechan.secbrief.application.admin.source.AdminSourceService;
 import kr.suhsaechan.secbrief.application.admin.source.SourceSettingChange;
 import kr.suhsaechan.secbrief.common.audit.AdminAuditAction;
@@ -8,6 +10,7 @@ import kr.suhsaechan.secbrief.common.audit.AdminAuditService;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import kr.suhsaechan.secbrief.web.admin.support.AdminFlash;
+import kr.suhsaechan.secbrief.web.admin.support.AdminSourceHealth;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
@@ -35,7 +38,9 @@ public class AdminSourceController {
 
     @GetMapping(SOURCES_PATH)
     public String showSources(Model model) {
-        model.addAttribute("sourceRows", adminSourceService.findAllSources());
+        List<AdminSourceRow> sourceRows = adminSourceService.findAllSources();
+        model.addAttribute("sourceRows", sourceRows);
+        model.addAttribute("sourceHealth", AdminSourceHealth.of(sourceRows));
         return SOURCES_VIEW;
     }
 

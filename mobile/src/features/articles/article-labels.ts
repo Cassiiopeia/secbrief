@@ -59,6 +59,14 @@ export function toMetaLabel(item: BriefingItem, now: Date): string {
 // 번역 항목 표시 꼬리 (AI 번역 배지가 없는 자리의 메타 줄 끝에 붙임)
 const TRANSLATION_SUFFIX = ` · ${AI_TRANSLATION_NOTICE_LABEL}`;
 
+/** 한 줄 결론을 읽기 도우미가 읽을 때 앞에 붙이는 말 (화면에서는 반짝 아이콘이 대신함) */
+const AI_SUMMARY_ACCESSIBILITY_PREFIX = 'AI 요약';
+
+/** 한 줄 결론의 읽기 도우미 문구 (예: AI 요약, 결론), 한 줄 결론이 없으면 없음 */
+export function toOneLineAccessibilityLabel(item: BriefingItem): string | undefined {
+  return item.oneLine === undefined ? undefined : `${AI_SUMMARY_ACCESSIBILITY_PREFIX}, ${item.oneLine}`;
+}
+
 /** 번역 항목이면 ' · AI 번역', 아니면 빈 글 */
 export function toTranslationSuffix(item: BriefingItem): string {
   return item.translatedTitle !== undefined ? TRANSLATION_SUFFIX : '';

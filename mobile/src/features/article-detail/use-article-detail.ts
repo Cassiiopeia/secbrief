@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { shouldRetryQuery } from '@/core/error/app-failure';
 import { fetchArticleDetail } from '@/data/sources/article-detail-source';
 
 import type { ArticleRowView } from '../articles/article-row-view';
@@ -8,7 +9,7 @@ import { toArticleDetailView } from './article-detail-view';
 
 /**
  * 기사 상세 조회 + 목록에서 넘겨받은 표시 내용
- * 조회가 끝나기 전이나 실패했을 때도 넘겨받은 내용으로 제목·원문 버튼을 먼저 그림
+ * 조회가 끝나기 전이나 실패했을 때도 넘겨받은 내용으로 제목·원문 버튼을 먼저 그림, 없는 기사는 재시도 없이 바로 실패
  */
 export function useArticleDetail(articleId: string) {
   const queryClient = useQueryClient();
@@ -17,6 +18,7 @@ export function useArticleDetail(articleId: string) {
     queryKey: ['articles', 'detail', articleId],
     queryFn: () => fetchArticleDetail(articleId),
     select: (detail) => toArticleDetailView(detail, new Date()),
+    retry: shouldRetryQuery,
   });
   return { detailQuery, article: detailQuery.data?.article ?? previewArticle };
 }

@@ -2,6 +2,7 @@ package kr.suhsaechan.secbrief.advisory.policy;
 
 import java.util.Locale;
 import java.util.regex.Pattern;
+import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import org.springframework.web.util.HtmlUtils;
 
 /**
@@ -56,14 +57,11 @@ public final class SourceTextPolicy {
                 && !cleanedTitle.toLowerCase(Locale.ROOT).contains(sourceText.toLowerCase(Locale.ROOT));
     }
 
-    // 길이 제한 (잘린 끝이 서로게이트 쌍 절반이면 그 글자는 뺌: DB 인코딩 오류 방지)
+    // 길이 제한 (잘랐을 때만 끝 공백 정리)
     private static String truncate(String text) {
         if (text.length() <= MAXIMUM_SOURCE_TEXT_LENGTH) {
             return text;
         }
-        int endIndex = Character.isHighSurrogate(text.charAt(MAXIMUM_SOURCE_TEXT_LENGTH - 1))
-                ? MAXIMUM_SOURCE_TEXT_LENGTH - 1
-                : MAXIMUM_SOURCE_TEXT_LENGTH;
-        return text.substring(0, endIndex).strip();
+        return TextTruncation.truncateKeepingSurrogatePairs(text, MAXIMUM_SOURCE_TEXT_LENGTH).strip();
     }
 }

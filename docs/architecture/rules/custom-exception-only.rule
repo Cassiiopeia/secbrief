@@ -1,0 +1,5 @@
+description=예외 클래스는 CustomException 하나만 (도메인별 예외 클래스 금지, server/CLAUDE.md)
+paths=server/SB-Common/src/main/java/,server/SB-Domain-Member/src/main/java/,server/SB-Domain-Advisory/src/main/java/,server/SB-Application/src/main/java/,server/SB-Web/src/main/java/,server/SB-Tool/src/main/java/
+extensions=.java
+exclude=server/SB-Common/src/main/java/kr/suhsaechan/secbrief/common/exception/CustomException.java
+pattern=class \w+Exception\b[^{]*\bextends\b

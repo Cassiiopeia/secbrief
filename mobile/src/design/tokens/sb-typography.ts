@@ -39,6 +39,8 @@ export const sbTypography = {
   reading: { fontFamily: sbFontFamily.sansRegular, fontSize: 15, lineHeight: 24 },
   /** 확인된 정보 값 (버전·날짜 등 원문 값): 고정폭 13 */
   factValue: { fontFamily: sbFontFamily.monoRegular, fontSize: 13, lineHeight: 19 },
+  /** 기사 상세 AI 브리핑의 한 줄 결론: 19 / 800 (제목 22 보다 작고 본문 15 보다 큼) */
+  briefLead: { fontFamily: sbFontFamily.sansExtraBold, fontSize: 19, lineHeight: 27, letterSpacing: -0.5 },
   /** 기사 상세 제목: 22 / 800 */
   detailTitle: { fontFamily: sbFontFamily.sansExtraBold, fontSize: 22, lineHeight: 29, letterSpacing: -0.6 },
   body: { fontFamily: sbFontFamily.sansRegular, fontSize: 14, lineHeight: 21 },

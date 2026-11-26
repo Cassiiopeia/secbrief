@@ -15,10 +15,8 @@
   <!--/* 제공자 우선순위 */-->
   <section class="card border border-base-300 bg-base-100">
     <div class="card-body gap-4">
-      <div>
-        <h3 class="text-lg font-bold">AI 제공자 우선순위</h3>
-        <p class="text-sm text-base-content/60">1순위 제공자부터 부르고, 호출이 실패하면 다음 순위로 넘어가요. 준비가 안 된 제공자는 건너뛰어요.</p>
-      </div>
+      <div th:replace="~{admin/fragments/admin-ui :: cardHeader('AI 제공자 우선순위',
+           '1순위 제공자부터 부르고, 호출이 실패하면 다음 순위로 넘어가요. 준비가 안 된 제공자는 건너뛰어요.')}"></div>
       <div class="flex flex-wrap gap-2">
         <div class="flex items-center gap-2 rounded-box border border-base-300 px-3 py-2" th:each="providerView : ${providerViews}">
           <span class="font-medium" th:text="${providerView.providerCode}">anthropic</span>

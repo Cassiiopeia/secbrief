@@ -8,7 +8,7 @@ bootJar { enabled = false }
 
 allprojects {
     group = 'kr.suhsaechan.secbrief'
-    version = '0.7.0'
+    version = '0.7.1'
     repositories {
         mavenCentral()
     }

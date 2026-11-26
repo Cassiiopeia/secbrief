@@ -1,0 +1,4 @@
+description=컨트롤러는 저장소(Repository)를 직접 import 하지 않음 (서비스를 거침)
+paths=server/SB-Web/src/main/java/
+extensions=Controller.java
+pattern=^import [\w.]+\.repository\.

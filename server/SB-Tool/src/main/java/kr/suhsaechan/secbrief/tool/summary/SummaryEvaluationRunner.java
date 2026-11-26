@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummarizer;
-import kr.suhsaechan.secbrief.advisory.summary.ArticleSummary;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleBrief;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryAttempt;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryHarness;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryPrompt;
@@ -19,14 +19,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 평가용 생성: 표본마다 요약 시도 1회 > 첫 초안·검증 결과·최종 글을 한 줄로 기록 (첫 통과율·고쳐 쓰기 효과·채점 입력)
- * 기준선은 호출 상한 1 (고쳐 쓰기 없음), 하네스는 2. 출력 파일에 이미 있는 표본은 건너뜀
+ * 평가용 생성: 표본마다 요약 시도 1회 > 첫 초안·검증 결과·최종 브리핑을 한 줄로 기록 (첫 통과율·고쳐 쓰기 효과·채점 입력)
+ * 출력 파일에 이미 있는 표본은 건너뜀
  */
 @Slf4j
 @RequiredArgsConstructor
 public class SummaryEvaluationRunner {
 
-    public static final String FINAL_SUMMARY_FIELD = "finalSummary";
+    public static final String FINAL_BRIEF_FIELD = "finalBrief";
+    // 이전 구조(#49 하네스)로 만든 출력 파일의 최종 글 이름: 구조 비교 채점에서만 읽음
+    public static final String LEGACY_FINAL_SUMMARY_FIELD = "finalSummary";
     public static final String FIRST_DRAFT_FIELD = "firstDraft";
 
     private final ArticleSummarizer articleSummarizer;
@@ -57,7 +59,7 @@ public class SummaryEvaluationRunner {
         row.put("sourceCode", target.sourceCode());
         row.put("writingKind", target.writingKind().name());
         row.put("modelCallCount", attempt.modelCallCount());
-        row.set(FIRST_DRAFT_FIELD, toSummaryNode(attempt.firstDraft()));
+        row.set(FIRST_DRAFT_FIELD, toBriefNode(attempt.firstDraft()));
         row.put("isFirstDraftAccepted", attempt.isFirstDraftAccepted());
         row.put("isFirstDraftClean", attempt.isFirstDraftClean());
         ArrayNode problemArray = row.putArray("firstDraftProblems");
@@ -68,20 +70,15 @@ public class SummaryEvaluationRunner {
                         .put("field", problem.fieldName()).put("problem", problem.reason()).put("fragment", problem.fragment());
             }
         }
-        row.set(FINAL_SUMMARY_FIELD, toSummaryNode(attempt.acceptedSummary()));
-        row.put("isRepairedSummaryUsed", attempt.isRepairedSummaryUsed());
+        row.set(FINAL_BRIEF_FIELD, toBriefNode(attempt.acceptedBrief()));
+        row.put("isRepairedBriefUsed", attempt.isRepairedBriefUsed());
         row.put("failureReason", attempt.failureReason());
         return row;
     }
 
-    static JsonNode toSummaryNode(ArticleSummary summary) {
-        if (summary == null) {
-            return OBJECT_MAPPER.nullNode();
-        }
-        ObjectNode summaryNode = OBJECT_MAPPER.createObjectNode();
-        summaryNode.put(ArticleSummaryPrompt.SUMMARY_FIELD, summary.summary());
-        summaryNode.set(ArticleSummaryPrompt.KEY_POINTS_FIELD, OBJECT_MAPPER.valueToTree(summary.keyPoints()));
-        summaryNode.put(ArticleSummaryPrompt.ACTION_GUIDE_FIELD, summary.actionGuide());
-        return summaryNode;
+    static JsonNode toBriefNode(ArticleBrief brief) {
+        return brief == null
+                ? OBJECT_MAPPER.nullNode()
+                : OBJECT_MAPPER.valueToTree(ArticleSummaryPrompt.toBriefFields(brief));
     }
 }

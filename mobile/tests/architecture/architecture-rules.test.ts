@@ -88,6 +88,55 @@ describe('화면 코드의 디자인 값 직접 쓰기 금지', () => {
   });
 });
 
+// 화면 코드의 움직임·그림 직접 쓰기 금지 (디자인 시스템 기본 부품만: SbEntrance, SbListEntrance, SbReveal, SbPressable,
+// SbLoadingSkeleton, SbStateIllustration 이 담긴 상태 화면, showSbToast)
+const FORBIDDEN_MOTION_AND_ASSET_PATTERNS: { name: string; pattern: RegExp }[] = [
+  { name: 'Reanimated 직접 import (움직임은 디자인 시스템 부품으로)', pattern: /from 'react-native-reanimated'/ },
+  { name: 'RN Animated·LayoutAnimation 직접 사용', pattern: /import\s*\{[^}]*\b(Animated|LayoutAnimation)\b[^}]*\}\s*from 'react-native'/ },
+  { name: '애니메이션 함수 직접 호출', pattern: /\b(withTiming|withSpring|withDelay|withRepeat|withSequence)\(/ },
+  { name: '곡선 직접 지정', pattern: /\bEasing\./ },
+  { name: '붙고 떨어지는 움직임 직접 지정 (SbReveal 사용)', pattern: /\b(entering|exiting)=\{/ },
+  { name: '지연 숫자', pattern: /\bdelay\s*:\s*\d/ },
+  { name: '돌아가는 고리 (로딩 뼈대 SbLoadingSkeleton 사용)', pattern: /ActivityIndicator/ },
+  { name: '이미지 직접 사용 (그림은 디자인 시스템 부품으로)', pattern: /from 'expo-image'|<Image[\s>]/ },
+  // 글꼴 파일은 루트 레이아웃이 불러옴 (아래 예외 패턴으로 허용)
+  { name: '자산 경로 직접 require (글꼴 빼고)', pattern: /require\('@\/assets\/(?!fonts\/)/ },
+];
+
+describe('화면 코드의 움직임·그림 직접 쓰기 금지', () => {
+  const screenFiles = [...listSourceFiles('app'), ...listSourceFiles('features')];
+  for (const { name, pattern } of FORBIDDEN_MOTION_AND_ASSET_PATTERNS) {
+    test(`${name} 없음`, () => {
+      const violations = screenFiles.filter((file) =>
+        readSource(file).split('\n').some((line) => !line.trim().startsWith('//') && pattern.test(line)),
+      );
+      expect(violations).toEqual([]);
+    });
+  }
+});
+
+// 움직임 값(지속시간·지연·곡선) 원본: 디자인 시스템 안에서도 sb-motion.ts 에만 숫자로 둔다
+// 예외 목록: 파일 > 이유
+const DESIGN_MOTION_LITERAL_EXCEPTIONS: Record<string, string> = {};
+
+describe('움직임 값 단일 원본', () => {
+  test('디자인 시스템 부품에 지속시간·지연 숫자, 곡선 직접 정의가 없다 (sbMotion 토큰 사용)', () => {
+    const violations = listSourceFiles(path.join('design', 'components'))
+      .filter((file) => !(file in DESIGN_MOTION_LITERAL_EXCEPTIONS))
+      .filter((file) =>
+        readSource(file)
+          .split('\n')
+          .some((line) => !line.trim().startsWith('//') && /\b(duration|delay)\s*:\s*\d|\.duration\(\d|Easing\.(in|out|inOut|bezier)\(/.test(line)),
+      );
+    expect(violations).toEqual([]);
+  });
+
+  test('붙고 떨어지는 움직임 정의(entering·exiting 값)는 sb-layout-motion.ts 에만 있다', () => {
+    const definingFiles = listSourceFiles('').filter((file) => /new Keyframe\(|\b(FadeIn|FadeOut|ZoomIn|ZoomOut|SlideIn\w*|SlideOut\w*)\b/.test(readSource(file)));
+    expect(definingFiles).toEqual([path.join('design', 'components', 'sb-layout-motion.ts')]);
+  });
+});
+
 describe('운영 빌드에 샘플 데이터 금지', () => {
   test('src 아래에 sample 파일이 없다', () => {
     expect(listSourceFiles('').filter((file) => /(^|\/)sample-/.test(file))).toEqual([]);
@@ -110,6 +159,54 @@ describe('기기 알림 연동은 한 곳', () => {
     expect(listSourceFiles('').filter((file) => /from 'expo-notifications'/.test(readSource(file)))).toEqual([
       path.join('data', 'sources', 'device-notification-client.ts'),
     ]);
+  });
+});
+
+describe('기기 저장소는 한 곳', () => {
+  test('AsyncStorage 는 data/sources/device-json-storage.ts 에서만 import 한다 (키 목록 DEVICE_STORAGE_KEYS)', () => {
+    expect(listSourceFiles('').filter((file) => /from '@react-native-async-storage\/async-storage'/.test(readSource(file)))).toEqual([
+      path.join('data', 'sources', 'device-json-storage.ts'),
+    ]);
+  });
+
+  test("저장 키 글자('secbrief.…')는 device-json-storage.ts 에만 있다", () => {
+    expect(listSourceFiles('').filter((file) => /['"`]secbrief\.[A-Za-z]/.test(readSource(file)))).toEqual([
+      path.join('data', 'sources', 'device-json-storage.ts'),
+    ]);
+  });
+});
+
+describe('날짜·시각 표기는 core/format 한 곳', () => {
+  test('core/format 밖에서 Date 부분값(getHours·getMonth 등)·padStart 로 표기를 조립하지 않는다', () => {
+    const datePartPattern = /\.(getFullYear|getMonth|getDate|getDay|getHours|getMinutes)\(\)|\.padStart\(/;
+    const violations = listSourceFiles('')
+      .filter((file) => !file.startsWith(path.join('core', 'format') + path.sep))
+      .filter((file) => datePartPattern.test(readSource(file)));
+    expect(violations).toEqual([]);
+  });
+});
+
+// 계층별 금지 라이브러리: 서버 상태(react-query)·화면 이동(expo-router)은 features·app 에서만
+const LAYER_FORBIDDEN_LIBRARIES: { library: string; forbiddenLayers: string[] }[] = [
+  { library: '@tanstack/react-query', forbiddenLayers: ['core', 'data', 'design'] },
+  { library: 'expo-router', forbiddenLayers: ['core', 'data', 'design'] },
+];
+
+describe('계층별 금지 라이브러리', () => {
+  for (const { library, forbiddenLayers } of LAYER_FORBIDDEN_LIBRARIES) {
+    test(`${library} 는 ${forbiddenLayers.join(', ')} 에서 import 하지 않는다`, () => {
+      const violations = forbiddenLayers
+        .flatMap((layer) => listSourceFiles(layer))
+        .filter((file) => readSource(file).includes(`from '${library}'`));
+      expect(violations).toEqual([]);
+    });
+  }
+
+  test('fontWeight 로 굵기를 고르지 않는다 (굵기별 글꼴 이름 sbFontFamily 사용)', () => {
+    const violations = listSourceFiles('').filter((file) =>
+      readSource(file).split('\n').some((line) => !/^\s*(\/\/|\*)/.test(line) && /\bfontWeight\s*:/.test(line)),
+    );
+    expect(violations).toEqual([]);
   });
 });
 

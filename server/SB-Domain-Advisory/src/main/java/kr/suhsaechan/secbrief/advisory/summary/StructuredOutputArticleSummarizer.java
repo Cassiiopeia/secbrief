@@ -40,7 +40,7 @@ public class StructuredOutputArticleSummarizer implements ArticleSummarizer {
     }
 
     @Override
-    public ArticleSummaryOutcome repair(ArticleSummaryRequest request, ArticleSummary rejectedDraft,
+    public ArticleSummaryOutcome repair(ArticleSummaryRequest request, ArticleBrief rejectedDraft,
                                         List<SummaryProblem> problems) {
         return requestSummary(ArticleSummaryPrompt.toRepairSystemInstruction(request.writingKind()),
                 ArticleSummaryPrompt.toRepairUserMessage(request, rejectedDraft, problems));
@@ -59,7 +59,7 @@ public class StructuredOutputArticleSummarizer implements ArticleSummarizer {
         if (completion.isRefused()) {
             return ArticleSummaryOutcome.failed("refused");
         }
-        // 잘린 응답: 끊긴 요약을 싣지 않음 (JSON 도 닫히지 않음)
+        // 잘린 응답: 끊긴 브리핑을 싣지 않음 (JSON 도 닫히지 않음)
         if (completion.isTruncated()) {
             log.warn("[article summary] truncated : provider={}", getProviderCode());
             return ArticleSummaryOutcome.failed("truncated");
