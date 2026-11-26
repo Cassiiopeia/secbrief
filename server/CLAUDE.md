@@ -84,7 +84,7 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 
 설계: [docs/superpowers/specs/2026-11-27-interest-alerts-tag-catalog-design.md](../docs/superpowers/specs/2026-11-27-interest-alerts-tag-catalog-design.md)
 
-- 기술 분야·생태계·제품·인기 묶음은 **DB `catalog_tag` 가 단일 원본**이다 (V0.9.0 시드, 관리자 화면 `/admin/catalog-tags` 에서 추가·이름·순서·숨김·분류 낱말). Java·앱에 목록을 두지 않는다. 기사·기기는 `code` 만 저장한다.
+- 기술 분야·생태계·제품·인기 묶음은 **DB `catalog_tag` 가 단일 원본**이다 (V0.9.1 시드, 관리자 화면 `/admin/catalog-tags` 에서 추가·이름·순서·숨김·분류 낱말). Java·앱에 목록을 두지 않는다. 기사·기기는 `code` 만 저장한다.
 - 스냅샷은 `TagCatalogProvider` 한 곳 (30초마다, 관리자 변경 즉시). 분류·AI 분야 선택지·API·관심 판정이 모두 이 스냅샷을 쓴다.
 - 분류(`ArticleClassifier`): 사실 값의 CPE 제조사·제품(NVD `영향 제품`) > KEV 제조사·제품 > GitHub 패키지 > 제목 속 이름 > 제목 순서로 제품 사전(가장 긴 낱말) > 분야 낱말(강한 > `~` 약한) > AI 분야 > `other`. 생태계는 GitHub 권고 ecosystem 원문 값. KISA 경보단계·보고서는 분류하지 않음.
 - AI 분야는 제목 분석 호출의 스키마 `field`(카탈로그 code enum 또는 null)로 받는다 (추가 호출 없음). AI 결과 기록 때 바로 분류한다.

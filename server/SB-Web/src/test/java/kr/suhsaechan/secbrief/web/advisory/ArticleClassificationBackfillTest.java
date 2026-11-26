@@ -58,7 +58,7 @@ class ArticleClassificationBackfillTest extends PostgresContainerTestSupport {
         assertThat(first.countOf(ClassificationSource.PRODUCT)).isEqualTo(1);
         assertThat(first.countOf(ClassificationSource.KEYWORD)).isEqualTo(1);
         assertThat(first.aiRequestedCount()).isEqualTo(1);
-        // 두 번째: AI 대기로 돌린 행은 AI 가 끝날 때까지 고르지 않음 > 대상 0
+        // 두 번째: 모두 분류됨 (AI 대기로 돌린 행도 일단 other) > 대상 0
         assertThat(second.targetCount()).isZero();
         assertThat(find(fortinet)).satisfies(article -> {
             assertThat(article.getFieldCode()).isEqualTo("network");
@@ -68,7 +68,8 @@ class ArticleClassificationBackfillTest extends PostgresContainerTestSupport {
         });
         assertThat(find(redHat).getFieldCode()).isEqualTo("os");
         assertThat(find(unmatched).getAiStatus()).isEqualTo(AiStatus.PENDING);
-        assertThat(find(unmatched).getClassifiedAt()).isNull();
+        assertThat(find(unmatched).getFieldCode()).isEqualTo("other");
+        assertThat(find(unmatched).getClassifiedAt()).isNotNull();
         assertThat(find(alertLevel).getFieldCode()).isNull();
         assertThat(find(alertLevel).getFieldSource()).isEqualTo(ClassificationSource.NONE);
     }

@@ -13,13 +13,13 @@ import kr.suhsaechan.secbrief.advisory.catalog.TagCatalog;
 import kr.suhsaechan.secbrief.advisory.constant.CatalogTagKind;
 
 /**
- * 시험용 카탈로그: V0.9.0 마이그레이션의 catalog_tag 시드 행을 그대로 읽어 스냅샷으로 (운영 시드와 같은 값으로 분류 규칙을 시험)
+ * 시험용 카탈로그: V0.9.1 마이그레이션의 catalog_tag 시드 행을 그대로 읽어 스냅샷으로 (운영 시드와 같은 값으로 분류 규칙을 시험)
  */
 public final class CatalogSeedFixtures {
 
     // 모듈 작업 폴더 기준 시드 파일 (SB-Domain-Advisory, SB-Application 모두 SB-Web 과 같은 단계)
     private static final Path SEED_MIGRATION = Path.of(
-            "../SB-Web/src/main/resources/db/migration/V0.9.0__add_tag_catalog_interest_alerts_digest.sql");
+            "../SB-Web/src/main/resources/db/migration/V0.9.1__add_tag_catalog_interest_alerts_digest.sql");
     private static final Pattern INSERT_PATTERN = Pattern.compile(
             "insert into catalog_tag \\(([^)]*)\\) values(.*?);\\s*$", Pattern.DOTALL | Pattern.MULTILINE);
 

@@ -18,7 +18,7 @@
 
 ## 2. 데이터
 
-### `catalog_tag` (V0.9.0)
+### `catalog_tag` (V0.9.1)
 
 | 열 | 뜻 |
 |---|---|
@@ -133,6 +133,10 @@
 분류 틱 `ArticleClassificationScheduler`(1분, `secbrief.classification.*`)가 `classified_at is null` 인 행을 200건씩 규칙으로 분류한다. 마이그레이션 뒤 기존 행 전체가 대상이라 배포 뒤 첫 몇 틱이 곧 1회 백필이다.
 규칙으로 분야를 못 정한 예전 AI 완료 행만 AI 대기로 돌려 제목 분석(같은 호출, 분야 포함)이 1번 고른다. 건수는 로그 `[article classify] classified : targets=…, byProduct=…, byKeyword=…, byAi=…, other=…, aiRequested=…`.
 이미 분류된 행은 고르지 않아 다시 돌려도 같다. 관리자 화면 "기사 전체 다시 분류"는 `classified_at` 을 비워 차례로 다시 돌린다 (AI 는 다시 부르지 않음, 알림도 다시 보내지 않음).
+
+운영 DB 읽기 전용 사본(기사 1,210건, 11.27 06:57 수집분까지)에 로컬 서버로 돌린 결과 (AI 끔): 첫 틱에 1,210건 모두 분류.
+제품 사전 307 · 분야 낱말 617 · AI 분야 고르기로 돌림 75 (뉴스 제외) · 그 밖 191 (뉴스) · 분류 안 함 20 (KISA 경보단계·보고서).
+생태계는 GitHub 권고 78건 중 73건 (PyPI 23, Go 18, Packagist 12, npm 8, Maven 5, crates.io 4, NuGet 3), 주요는 전체 419건, GitHub 권고 78건 중 13건 (최근 7일 52건 중 10건).
 
 ## 6. #97 확인 결과 (운영 DB 읽기 전용, 2026-11-27)
 

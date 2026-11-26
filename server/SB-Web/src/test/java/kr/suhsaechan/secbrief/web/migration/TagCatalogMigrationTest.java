@@ -2,25 +2,30 @@ package kr.suhsaechan.secbrief.web.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
 import kr.suhsaechan.secbrief.web.support.PostgresContainerTestSupport;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationInfo;
+import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 /**
- * V0.9.0 마이그레이션: 이전 스키마(V0.8.1)에 기사·기기·알림 기록이 있는 상태에서 올려도 성공
+ * V0.9.1 마이그레이션: 바로 앞 스키마(0.9.0 이하 마지막 버전)에 기사·기기·알림 기록이 있는 상태에서 올려도 성공
  * 긴급 아닌 기존 기사는 알림 처리됨(새 관심 판정에 걸리지 않음), 알림 대기 긴급 기사는 그대로, 모든 기사 분류 대기,
  * 세 종류를 다 켠 기기만 그 밖의 고위험을 끔, 기존 기기 받는 방식은 아침 요약 08:00, 카탈로그 시드 13·9·4 개
  */
 class TagCatalogMigrationTest extends PostgresContainerTestSupport {
 
-    private static final String MIGRATION_SCHEMA = "migration_check_0_9_0";
-    private static final String PREVIOUS_VERSION = "0.8.1";
+    private static final String MIGRATION_SCHEMA = "migration_check_0_9_1";
+    // 시험 대상 버전 (바로 앞 버전은 파일 목록에서 찾음: 다른 이슈의 마이그레이션이 사이에 들어와도 그 위에서 시험)
+    private static final String MIGRATION_VERSION = "0.9.1";
 
     @Test
     void migratesPreviousSchemaWithExistingRows() {
@@ -30,14 +35,14 @@ class TagCatalogMigrationTest extends PostgresContainerTestSupport {
         jdbcTemplate.execute("drop schema if exists " + MIGRATION_SCHEMA + " cascade");
 
         // 이전 버전까지 > 기존 행 > 이번 버전까지
-        toFlyway(dataSource).target(PREVIOUS_VERSION).load().migrate();
+        toFlyway(dataSource).target(findPreviousVersion(dataSource)).load().migrate();
         insertArticle(jdbcTemplate, "https://example.test/routine", false, false);
         insertArticle(jdbcTemplate, "https://example.test/urgent-pending", true, false);
         insertArticle(jdbcTemplate, "https://example.test/urgent-notified", true, true);
         insertDevice(jdbcTemplate, "ExponentPushToken[all-three]", List.of("KEV", "KISA_URGENT", "CRITICAL_CVE"));
         insertDevice(jdbcTemplate, "ExponentPushToken[critical-only]", List.of("CRITICAL_CVE"));
         jdbcTemplate.update("insert into notification (kind, alert_category, title, body) values ('ALERT', 'KEV', '제목', '본문')");
-        toFlyway(dataSource).load().migrate();
+        toFlyway(dataSource).target(MIGRATION_VERSION).load().migrate();
 
         Map<String, Boolean> isProcessedByUrl = Map.of(
                 "https://example.test/routine", true,
@@ -84,6 +89,18 @@ class TagCatalogMigrationTest extends PostgresContainerTestSupport {
     private static List<String> categoriesOf(JdbcTemplate jdbcTemplate, String pushToken) {
         return jdbcTemplate.queryForList("select c.alert_category from push_device_alert_category c join push_device d "
                 + "on d.id = c.push_device_id where d.push_token = ?", String.class, pushToken);
+    }
+
+    // 시험 대상 바로 앞 마이그레이션 버전
+    private static String findPreviousVersion(DataSource dataSource) {
+        MigrationVersion migrationVersion = MigrationVersion.fromVersion(MIGRATION_VERSION);
+        return Arrays.stream(toFlyway(dataSource).load().info().all())
+                .map(MigrationInfo::getVersion)
+                .filter(version -> version.getVersion() != null)
+                .filter(version -> migrationVersion.isNewerThan(version.getVersion()))
+                .max(Comparator.naturalOrder())
+                .orElseThrow()
+                .getVersion();
     }
 
     private static FluentConfiguration toFlyway(DataSource dataSource) {

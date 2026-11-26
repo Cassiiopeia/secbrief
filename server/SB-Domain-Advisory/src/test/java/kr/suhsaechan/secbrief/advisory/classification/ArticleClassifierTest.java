@@ -36,7 +36,7 @@ class ArticleClassifierTest {
             REDHAT_RHSA        | RHSA-2026:103484: Important: raptor2 security update | RHSA-2026:103484 | os | -
             DEBIAN_DSA         | DSA-6652-1 linux - security update | linux | os | -
             UBUNTU_USN         | USN-9190-2: Linux kernel (HWE) vulnerabilities | Linux | os | linux-kernel
-            GHSA               | Mustache for Ruby: RCE using built-in method access | Mustache for Ruby | web-server | -
+            GHSA               | Mustache for Ruby: RCE using built-in method access | Mustache for Ruby | dev-tool | -
             NVD                | CVE-2026-133336: Joomla! extension - chronoengine ChronoForms SQL injection | Joomla | web-app | -
             """)
     void classifiesRealTitlesByProductThenFieldTerms(String sourceCode, String title, String subjectName,

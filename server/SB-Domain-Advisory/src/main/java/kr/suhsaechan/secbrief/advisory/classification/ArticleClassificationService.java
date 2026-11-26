@@ -8,6 +8,7 @@ import java.util.Map;
 import kr.suhsaechan.secbrief.advisory.catalog.TagCatalog;
 import kr.suhsaechan.secbrief.advisory.catalog.TagCatalogProvider;
 import kr.suhsaechan.secbrief.advisory.constant.AiStatus;
+import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ClassificationSource;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
@@ -19,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 기사 분류 유스케이스: 1건 분류(AI 결과 기록 때) / 대기 묶음 분류(AI 대기 기한 초과·백필·다시 분류)
- * 묶음에서 규칙으로 분야를 못 정했고 AI 분야도 없는 예전 행은 AI 대기로 돌려 제목 분석이 분야를 고르게 함 (1번만)
+ * 묶음에서 규칙으로 분야를 못 정했고 AI 분야도 없는 예전 행은 일단 other 로 두고 AI 대기로 돌려 제목 분석이 분야를 고르게 함 (1번만)
  */
 @Slf4j
 @Service
@@ -52,8 +53,10 @@ public class ArticleClassificationService {
         for (Article article : targets) {
             ArticleClassification classification =
                     ArticleClassifier.classify(ArticleClassificationInput.from(article), catalog);
+            // 규칙 결과로 먼저 분류해 두고 AI 대기로 (AI 결과 기록 때 다시 분류, 다음 묶음이 다시 고르지 않게)
             if (isAiFieldNeeded(article, classification)) {
                 article.requestAiFieldAnalysis();
+                apply(article, classification, catalog);
                 aiRequestedCount++;
                 continue;
             }
@@ -71,9 +74,10 @@ public class ArticleClassificationService {
         return requestedCount;
     }
 
-    // 규칙 실패 + AI 분야 없음 + AI 를 이미 마친 + 한 번도 분류한 적 없는 행 (분야 열이 생기기 전 행)
+    // 규칙 실패 + AI 분야 없음 + AI 를 이미 마친 + 한 번도 분류한 적 없는 행 (분야 열이 생기기 전 행), 뉴스는 제외 (분야 칩·관심 알림에 안 씀)
     private static boolean isAiFieldNeeded(Article article, ArticleClassification classification) {
-        return !ArticleClassifier.hasRuleField(classification)
+        return article.getKind() != ArticleKind.NEWS
+                && !ArticleClassifier.hasRuleField(classification)
                 && classification.fieldCode() != null
                 && article.getAiFieldCode() == null
                 && article.getAiStatus() == AiStatus.DONE
