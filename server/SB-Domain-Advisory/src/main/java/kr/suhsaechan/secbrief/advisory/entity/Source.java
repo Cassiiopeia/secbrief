@@ -81,6 +81,9 @@ public class Source extends BaseEntity {
     @Column(length = FEED_LAST_MODIFIED_MAX_LENGTH)
     private String feedLastModified;
 
+    // 지난 글 1회 채우기(KISA 게시판 쪽 넘김)를 마친 시각 (null: 아직 안 함 또는 채우기 대상 아님, #96)
+    private Instant backfillCompletedAt;
+
     /**
      * DB 에 저장하지 않는 출처 값: 운영에서 내보낸 출처 값으로 수집기·정규화를 그대로 돌릴 때 씀 (로컬 요약 적재 도구)
      */
@@ -121,6 +124,13 @@ public class Source extends BaseEntity {
     public void replaceFeedValidators(String feedEtag, String feedLastModified) {
         this.feedEtag = toStorableValidator(feedEtag, FEED_ETAG_MAX_LENGTH);
         this.feedLastModified = toStorableValidator(feedLastModified, FEED_LAST_MODIFIED_MAX_LENGTH);
+    }
+
+    /**
+     * 지난 글 1회 채우기 끝 표시 (다음 기동부터 다시 하지 않음)
+     */
+    public void markBackfillCompleted(Instant completedAt) {
+        this.backfillCompletedAt = completedAt;
     }
 
     private static String toStorableValidator(String validator, int maxLength) {

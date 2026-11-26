@@ -8,6 +8,9 @@ secbrief:
     flush-enabled: false
   collect:
     enabled: false
+  alert-level:
+    # 해외 지표는 테스트가 보관소를 직접 부름 (실제 외부 호출 방지)
+    enabled: false
   ai:
     enabled: false
     anthropic-api-key: ""

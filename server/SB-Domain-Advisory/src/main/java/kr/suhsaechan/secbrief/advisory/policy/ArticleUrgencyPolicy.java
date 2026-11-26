@@ -1,10 +1,13 @@
 package kr.suhsaechan.secbrief.advisory.policy;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import kr.suhsaechan.secbrief.advisory.constant.SourceCode;
 
 /**
  * 긴급 판정 규칙 4개: CVSS 9.0 이상, KEV 등재, KISA 공지 제목의 '긴급', KISA 경보단계 '상향' 중 하나면 긴급
+ * KISA 경보단계 글은 게시 후 7일까지만 긴급 (경보단계는 몇 달 이어지는 상태라 지난 변경 글은 새 소식이 아님, #96)
  * 주제 분류는 규칙이 아니라 AI 가 맡음
  */
 public final class ArticleUrgencyPolicy {
@@ -15,6 +18,8 @@ public final class ArticleUrgencyPolicy {
     public static final String KISA_URGENT_TITLE_KEYWORD = "긴급";
     // KISA 경보단계 공지 제목에 이 단어가 있으면 긴급 (예: '관심' → '주의' 상향 조정)
     public static final String KISA_ALERT_LEVEL_RAISED_KEYWORD = "상향";
+    // KISA 경보단계 글을 긴급으로 두는 기간 (게시 후 7일)
+    public static final Duration KISA_ALERT_LEVEL_URGENT_DURATION = Duration.ofDays(7);
 
     private ArticleUrgencyPolicy() {
     }
@@ -27,6 +32,23 @@ public final class ArticleUrgencyPolicy {
                 || isKev
                 || hasUrgentKisaTitle(sourceCode, title)
                 || isRaisedKisaAlertLevel(sourceCode, title);
+    }
+
+    /**
+     * 기준 시각의 긴급 여부: 규칙 4개 중 하나 + KISA 경보단계 글이면 게시 후 7일 이내 (게시일 없으면 기간 확인 안 함)
+     */
+    public static boolean isUrgentAt(String sourceCode, String title, BigDecimal cvssScore, boolean isKev,
+                                     Instant publishedAt, Instant now) {
+        return isUrgent(sourceCode, title, cvssScore, isKev) && !isExpiredAlertLevelArticle(sourceCode, publishedAt, now);
+    }
+
+    /**
+     * 긴급 기간(게시 후 7일)이 지난 KISA 경보단계 글인지
+     */
+    public static boolean isExpiredAlertLevelArticle(String sourceCode, Instant publishedAt, Instant now) {
+        return SourceCode.KISA_ALERT_LEVEL.equals(sourceCode)
+                && publishedAt != null
+                && publishedAt.isBefore(now.minus(KISA_ALERT_LEVEL_URGENT_DURATION));
     }
 
     private static boolean hasUrgentCvssScore(BigDecimal cvssScore) {

@@ -109,6 +109,28 @@ class ArticleNormalizerTest {
     }
 
     @Test
+    void unescapesZeroPaddedNumericReferenceInTitle() {
+        // 기사 800: KISA 경보단계 피드가 &#039; 로 줌 (#96)
+        Optional<ArticleDraft> draft = normalize(createCollectedArticle(
+                "국내·외 사이버 위협 우려가 고조됨에 따라 &#039;주의&#039; 경보 발령", "https://a.kr/3", NOW), kisaSource, NOW);
+
+        assertThat(draft.orElseThrow().title()).isEqualTo("국내·외 사이버 위협 우려가 고조됨에 따라 '주의' 경보 발령");
+    }
+
+    @Test
+    void oldRaisedAlertLevelArticleIsNotUrgentWhenFirstCollected() {
+        Source alertLevelSource = createSource(SourceCode.KISA_ALERT_LEVEL, ArticleKind.ADVISORY, ArticleRegion.DOMESTIC,
+                FeedFormat.RSS, null);
+        String raisedTitle = "사이버위기 경보 단계 '관심' → '주의' 상향 조정";
+
+        // 지난 글 채우기로 들어온 예전 상향 공지는 긴급 아님, 갓 올라온 상향 공지는 긴급
+        assertThat(normalize(createCollectedArticle(raisedTitle, "https://a.kr/4", NOW.minus(Duration.ofDays(40))),
+                alertLevelSource, NOW).orElseThrow().isUrgent()).isFalse();
+        assertThat(normalize(createCollectedArticle(raisedTitle, "https://a.kr/5", NOW.minus(Duration.ofHours(3))),
+                alertLevelSource, NOW).orElseThrow().isUrgent()).isTrue();
+    }
+
+    @Test
     void collapsesNonBreakingSpaceInTitle() {
         ArticleDraft draft = normalize(createCollectedArticle("\u00A0Ivanti\u00A0\u00A0패치\u00A0", "https://a.kr/1", NOW), kisaSource, NOW).orElseThrow();
 
