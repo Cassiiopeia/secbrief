@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--/*
+  기사 공유 미리보기 (/a/{articleId}): 머리 > 그림 > 출처·게시일 > 제목 > (원문 제목) > 한 줄 결론·무슨 일(브리핑 있을 때만) > 앱 열기·스토어 > 원문 보기
+  기사 본문은 싣지 않음. 링크 미리보기(OG·Twitter)는 제목 + 한 줄 결론(없으면 원문 제목) + 대표 이미지(없으면 앱 아이콘)
+*/-->
+<head>
+  <th:block th:replace="~{share/fragments/share-page :: assets}"></th:block>
+  <title th:text="${page.article.title} + ' · 시큐브리프'">시큐브리프</title>
+  <meta name="description" th:content="${page.description}"/>
+  <link rel="canonical" th:href="${page.pageUrl}"/>
+  <!--/* iOS Safari 앱 배너: 앱이 있으면 열기, 없으면 받기 */-->
+  <meta name="apple-itunes-app" th:content="'app-id=' + ${links.appStoreId} + ', app-argument=' + ${page.pageUrl}"/>
+  <meta property="og:type" content="article"/>
+  <meta property="og:site_name" content="시큐브리프"/>
+  <meta property="og:locale" content="ko_KR"/>
+  <meta property="og:title" th:content="${page.article.title}"/>
+  <meta property="og:description" th:content="${page.description}"/>
+  <meta property="og:url" th:content="${page.pageUrl}"/>
+  <meta property="og:image" th:content="${page.previewImageUrl}"/>
+  <meta name="twitter:card" th:content="${page.hasArticleImage()} ? 'summary_large_image' : 'summary'"/>
+  <meta name="twitter:title" th:content="${page.article.title}"/>
+  <meta name="twitter:description" th:content="${page.description}"/>
+  <meta name="twitter:image" th:content="${page.previewImageUrl}"/>
+</head>
+<body>
+<main>
+  <div th:replace="~{share/fragments/share-page :: brand}"></div>
+
+  <article class="card">
+    <img th:if="${page.hasArticleImage()}" class="cover" th:src="${page.articleImagePath}" alt="" loading="lazy"/>
+    <p class="meta muted">
+      <span th:text="${page.article.sourceName}">출처</span><th:block th:if="${page.publishedDateLabel != null}"> · <span th:text="${page.publishedDateLabel}">게시일</span></th:block>
+    </p>
+    <h1 th:text="${page.article.title}">제목</h1>
+    <p th:if="${page.article.originalTitle != null}" class="original-title muted" th:text="${page.article.originalTitle}">원문 제목</p>
+  </article>
+
+  <section th:if="${page.article.oneLine != null}" class="card" aria-label="AI 브리핑">
+    <span class="ai-badge">AI 가 요약했어요</span>
+    <p class="section-label muted">한 줄 결론</p>
+    <p class="one-line" th:text="${page.article.oneLine}">한 줄 결론</p>
+    <th:block th:if="${page.article.whatHappened != null}">
+      <p class="section-label muted">무슨 일이에요</p>
+      <p class="what-happened" th:text="${page.article.whatHappened}">무슨 일</p>
+    </th:block>
+  </section>
+
+  <th:block th:replace="~{share/fragments/share-page :: appActions(${page.appOpenUrl}, ${page.androidIntentUrl})}"></th:block>
+  <a class="button button-secondary" id="original-article" th:href="${page.article.originalUrl}" target="_blank" rel="noopener noreferrer nofollow"
+     th:text="${page.article.sourceName} + ' 원문 보기'">원문 보기</a>
+  <p class="notice muted">앱에서는 대응 방법·영향 대상·관련 공지까지 함께 볼 수 있어요.</p>
+
+  <footer th:replace="~{share/fragments/share-page :: footer}"></footer>
+</main>
+</body>
+</html>

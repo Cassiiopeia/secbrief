@@ -24,3 +24,16 @@ tasks.named('bootJar') {
     // 비밀 설정 jar 제외 (이미지 유출 방지): 운영은 호스트 config/ 를 /app/config 로 마운트해 읽음
     exclude 'application-prod.yml', 'application-dev.yml'
 }
+
+// 공유 미리보기 페이지 자산: 레포 원본에서 빌드 때 복사 (사본을 커밋하지 않음)
+// 브랜드 색 brand/brand-colors.json > classpath share/, 앱 아이콘 mobile/assets/images/icon.png > static/share/app-icon.png
+def repositoryRoot = rootProject.projectDir.parentFile
+tasks.named('processResources') {
+    from(new File(repositoryRoot, 'brand/brand-colors.json')) {
+        into 'share'
+    }
+    from(new File(repositoryRoot, 'mobile/assets/images/icon.png')) {
+        into 'static/share'
+        rename { 'app-icon.png' }
+    }
+}

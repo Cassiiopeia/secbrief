@@ -30,7 +30,7 @@ mobile/
 | `(tabs)/vulnerability` | 취약점 | 주요만 / 악용 중 / 전체, 출처 묶음 칩 |
 | `(tabs)/explore` | 탐색 | 검색 들머리, 키워드 순위, 주제 동향, 행사 소식 |
 | `(tabs)/settings` | 더보기 | 알림 설정, 출처, 문의, 약관, 앱 정보 |
-| `articles/[articleId]` | 기사 상세 | AI 브리핑(한 줄 결론, 무슨 일, 왜 중요, 영향 대상, 대응 — 없으면 이전 요약 카드), 확인된 정보, 대응 모아보기(공식 대응 > 확인된 취약점 정보 > 관련 기사, 비면 함께 보면 좋은 소식), 원문 보기. `?focus=responseGuide` 면 대응 모아보기로 내려감 |
+| `articles/[articleId]` | 기사 상세 | AI 브리핑(한 줄 결론, 무슨 일, 왜 중요, 영향 대상, 대응 — 없으면 이전 요약 카드), 확인된 정보, 대응 모아보기(공식 대응 > 확인된 취약점 정보 > 관련 기사, 비면 함께 보면 좋은 소식), 아래 줄 원문 보기·원문 링크 복사·공유. `?focus=responseGuide` 면 대응 모아보기로 내려감 |
 | `search` | 검색 | 글자·의미 검색, 요즘 키워드 |
 | `browse/[browseKey]` | 모아 보기 | 주제·출처·키워드별 목록 |
 | `notifications` | 알림함 | 알림 \| 공지사항 (`?segment=NOTICE`), 알림은 날짜별 묶음, 새 글 점. 탭 머리 종 아이콘·더보기에서 들어옴 |
@@ -40,6 +40,8 @@ mobile/
 - 버전·수치는 서버가 준 값만 보여 준다 (앱에서 만들지 않음). AI 가 쓴 부분에는 AI 표시를 붙인다.
 - 알림(`expo-notifications`)은 `data/sources/device-notification-client.ts` 한 곳에서만 부른다.
 - 기기 저장(`AsyncStorage`)은 `data/sources/device-json-storage.ts` 한 곳에서만 부른다. 저장 키는 `DEVICE_STORAGE_KEYS` 에 모은다.
+- 공유는 시큐브리프 링크 `https://api.secbrief.suhsaechan.kr/a/{id}` 를 보낸다 (`core/config/share-link-config.ts`, 원문 링크는 넣지 않음, #94). 원문 링크는 상세의 링크 복사 버튼(`expo-clipboard`, 토스트 확인)으로만.
+  앱이 있으면 유니버설 링크(`ios.associatedDomains`)·앱 링크(`android.intentFilters`, autoVerify)로 앱이 바로 열리고, `app/+native-intent.tsx` 가 `/a/{id}` 를 기사 상세로 바꾼다 (`incoming-link-route.ts`). 앱이 없으면 서버 미리보기 페이지가 열린다.
 - 알림을 누르면 `notification-target-route.ts` 가 열 곳을 정한다: `articleId` 기사 상세 > `notificationKind=NOTICE` 공지 상세 > `notificationId` 알림 상세 > `QUIET_HOURS_DIGEST` 알림함 > 이전 서버의 `targetTab`. 이동은 화면 스택이 준비된 뒤 (`use-is-root-navigator-ready`).
 - 알림함 읽음 기록(본 번호·연 글)과 방해 금지 시간은 기기에만 둔다 (`secbrief.notificationReadState`, `secbrief.quietHours`). 방해 금지 시간은 알림 기기 등록(`PUT /api/v1/push-devices` 의 `quietHours`)으로 서버에도 보낸다.
 - 알림 종류 문구(이름·배지·알린 이유)는 `features/notifications/alert-category-texts.ts` 가 단일 원본이다.

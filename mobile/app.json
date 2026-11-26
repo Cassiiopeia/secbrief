@@ -12,7 +12,10 @@
       "appleTeamId": "CUK22HY6YC",
       "config": {
         "usesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": [
+        "applinks:api.secbrief.suhsaechan.kr"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +26,24 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "kr.suhsaechan.secbrief",
-      "versionCode": 18
+      "versionCode": 18,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "api.secbrief.suhsaechan.kr",
+              "pathPrefix": "/a/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "output": "single",
