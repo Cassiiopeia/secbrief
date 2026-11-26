@@ -83,6 +83,8 @@ python3 brand/generate_platform_assets.py   # 레포 루트에서 실행 (Python
 ## 규칙 (tests/architecture 와 ESLint 가 강제)
 
 - 화면(`app`, `features`)에 색·글꼴·글자 크기·간격·모서리·지속시간 숫자를 직접 쓰지 않는다. 토큰이 없으면 토큰을 먼저 추가한다.
+- 움직임은 디자인 시스템 부품만 쓴다: 등장 `SbEntrance`·`SbListEntrance`, 조건부 구역 `SbReveal`, 누름 `SbPressable`, 로딩 `SbLoadingSkeleton`, 저장 확인 `showSbToast`. 화면에서 Reanimated·`withTiming`·`Easing`·`entering=` 직접 사용 금지. 값은 `sbMotion` 토큰 한 곳, 동작 줄이기가 켜져 있으면 바로 바뀐다.
+- 빈 상태·오류 그림은 `SbEmptyState`(`illustration`)·`SbErrorState`(에러 코드로 연결 끊김/문제 생김 자동 선택)로만 쓴다. 원본은 `assets/illustrations/*.webp` (408px, 밝은·어두운 바탕 공용, 40KB 이하), 목록은 `sb-state-illustration-sources.ts` 한 곳. 새 그림은 `pro-image` 로 같은 세트 그림을 참고로 그린다.
 - 글자는 `SbText` 만 쓴다 (한글 낱말 단위 줄바꿈이 여기 한 곳에 있다). `Text` 직접 사용 금지.
 - 다크 판정은 `useSbTheme` 한 곳. 테마 색이 필요한 스타일은 `useSbStyles(createStyles)`.
 - `style` 에 객체를 직접 쓰지 않는다. `StyleSheet` 로 이름을 붙인다.
