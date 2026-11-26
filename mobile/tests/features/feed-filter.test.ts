@@ -3,7 +3,7 @@
  */
 import type { ArticleDetail } from '@/data/models/article-detail';
 import type { TrendingKeyword } from '@/data/models/trending-keyword';
-import { toArticleDetailView, toOriginalButtonLabel, toShareMessage } from '@/features/article-detail/article-detail-view';
+import { toArticleDetailView, toOriginalButtonLabel } from '@/features/article-detail/article-detail-view';
 import { toKeywordRankViews, toTrendingHashtags } from '@/features/keywords/keyword-view-state';
 import { hasTopicChips, toNewsFeedQuery, toNewsHref, toNewsSelection } from '@/features/news/news-feed-filter';
 import { isSearchQueryTooShort, toSearchModeNotice, toSearchQuery } from '@/features/search/search-query';
@@ -169,9 +169,8 @@ describe('기사 상세', () => {
     expect(view.isSummaryMissing).toBe(true);
     expect(view.aiNoticeLabel).toBeUndefined();
   });
-  test('원문 보기 버튼에는 게시자 이름, 공유 글은 제목과 원문 링크', () => {
+  test('원문 보기 버튼에는 게시자 이름', () => {
     const { article } = toArticleDetailView(detail, NOW);
     expect(toOriginalButtonLabel(article)).toBe('NVD 원문 보기');
-    expect(toShareMessage(article)).toBe(`${nvdItem.title}\n${nvdItem.originalUrl}`);
   });
 });

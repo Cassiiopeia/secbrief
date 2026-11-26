@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--/*
+  공유 미리보기 공통 조각: <head> 공통(문자셋·화면 폭·아이콘·색), 머리(앱 이름), 앱 열기·스토어 버튼, 바닥 글
+  색은 SharePageBrandColors 가 brand/brand-colors.json 에서 만든 --sb-* 변수만 씀 (색 값을 직접 쓰지 않음)
+*/-->
+<head>
+<th:block th:fragment="assets">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="color-scheme" content="light dark"/>
+  <link rel="icon" type="image/png" th:href="@{/share/app-icon.png}"/>
+  <link rel="apple-touch-icon" th:href="@{/share/app-icon.png}"/>
+  <style th:utext="${brandCssVariables}"></style>
+  <style>
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0; min-height: 100vh; background: var(--sb-background); color: var(--sb-label);
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
+      line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere;
+    }
+    main { max-width: 560px; margin: 0 auto; padding: 20px 16px calc(40px + env(safe-area-inset-bottom)); }
+    .muted { color: color-mix(in srgb, var(--sb-label) 58%, transparent); }
+    .brand { display: flex; align-items: center; gap: 10px; margin: 4px 0 20px; color: inherit; text-decoration: none; }
+    .brand img { width: 36px; height: 36px; border-radius: 9px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--sb-label) 14%, transparent); }
+    .brand strong { font-size: 17px; letter-spacing: -0.01em; }
+    .brand span { font-size: 13px; }
+    .card { background: var(--sb-surface); border-radius: 20px; padding: 20px; margin-bottom: 12px; }
+    .cover { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 14px; margin-bottom: 16px;
+      background: var(--sb-surface-raised); }
+    .meta { font-size: 13px; margin: 0 0 8px; }
+    h1 { font-size: 22px; line-height: 1.4; letter-spacing: -0.02em; margin: 0; }
+    .original-title { font-size: 13px; margin: 8px 0 0; }
+    .ai-badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+      background: var(--sb-accent); color: var(--sb-on-accent); margin-bottom: 12px; }
+    .section-label { font-size: 13px; font-weight: 700; margin: 0 0 4px; }
+    .one-line { font-size: 17px; font-weight: 700; margin: 0 0 16px; }
+    .what-happened { font-size: 15px; margin: 0; }
+    .actions { display: grid; gap: 8px; margin: 20px 0 8px; }
+    .button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 52px; padding: 0 16px;
+      border-radius: 14px; font-size: 16px; font-weight: 700; text-decoration: none; }
+    .button-primary { background: var(--sb-feature); color: var(--sb-on-feature); }
+    .button-secondary { background: var(--sb-surface-raised); color: var(--sb-label); }
+    .stores { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stores .button { font-size: 14px; min-height: 46px; }
+    .notice { font-size: 13px; margin: 16px 4px 0; }
+    footer { font-size: 12px; margin: 28px 4px 0; }
+    @media (min-width: 720px) {
+      main { padding-top: 48px; }
+      h1 { font-size: 26px; }
+    }
+  </style>
+</th:block>
+</head>
+<body>
+
+<!--/* 머리: 앱 아이콘 + 이름 */-->
+<div th:fragment="brand" class="brand">
+  <img th:src="@{/share/app-icon.png}" alt="" width="36" height="36"/>
+  <div><strong>시큐브리프</strong><br/><span class="muted">보안 뉴스·취약점 알림</span></div>
+</div>
+
+<!--/* 앱 열기 + 스토어 2곳 (appOpenUrl: 스킴 주소, androidIntentUrl: Android 에서 앱이 없으면 Play 스토어로) */-->
+<th:block th:fragment="appActions(appOpenUrl, androidIntentUrl)">
+  <div class="actions">
+    <a class="button button-primary" id="open-in-app" th:href="${appOpenUrl}" th:attr="data-android-href=${androidIntentUrl}">앱에서 열기</a>
+    <div class="stores">
+      <a class="button button-secondary" th:href="${links.appStoreUrl}" rel="noopener">App Store</a>
+      <a class="button button-secondary" th:href="${links.playStoreUrl}" rel="noopener">Google Play</a>
+    </div>
+  </div>
+  <!--/* Android 는 intent 주소로 바꿔 앱이 없을 때 Play 스토어로 보냄 */-->
+  <script>
+    (function () {
+      var openButton = document.getElementById('open-in-app');
+      if (openButton && /Android/i.test(navigator.userAgent)) openButton.href = openButton.getAttribute('data-android-href');
+    })();
+  </script>
+</th:block>
+
+<footer th:fragment="footer" class="muted">
+  시큐브리프는 KISA·제품 공식 보안 공지·NVD 같은 공개 출처를 모아 한국어로 정리해요. 기사 본문은 옮겨 싣지 않아요.
+</footer>
+
+</body>
+</html>

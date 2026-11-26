@@ -107,6 +107,21 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 - 공통 알림 기록은 지금처럼 알림함 목록에 보인다. 관심만 맞은 여러 건 알림·아침 요약은 기기 전용 기록(`notification.push_device_id`)이라 목록에 보이지 않고 푸시로만 연다.
 - 아침 요약: 대기분(`push_device_digest_item`, 48시간 보관)을 기기 시각이 요약 시각을 지난 첫 알림 틱에 1건 (방해 금지 시간이면 끝난 뒤, 하루 1번).
 
+## 공유 링크 · 앱 링크 (#94)
+
+앱 공유 버튼은 `https://api.secbrief.suhsaechan.kr/a/{articleId}` 를 보낸다. 경로는 `web.share.SharePaths`, 값은 `secbrief.share-link`(application.yml: 공개 주소, 앱 스킴, Apple 팀 ID·번들·App Store ID, Android 패키지·서명 SHA-256 지문)가 단일 원본이다.
+
+| 경로 (인증 없음) | 응답 |
+|---|---|
+| `GET /a/{articleId}` | 미리보기 HTML (제목·출처·게시일·한 줄 결론·무슨 일·앱 열기·스토어·원문 보기, OG·Twitter 메타). 없는·숫자 아닌 id 는 같은 모양 404. 캐시 5분 (404 는 1분) |
+| `GET /.well-known/apple-app-site-association` | iOS 유니버설 링크 JSON (`/a/*`), 캐시 1시간 |
+| `GET /.well-known/assetlinks.json` | Android 앱 링크 JSON (Play 앱 서명 키 + 업로드 키 지문), 캐시 1시간 |
+| `GET /share/app-icon.png` | 앱 아이콘 (OG 기본 그림), 캐시 7일 |
+
+- 기사 본문은 싣지 않는다 (한 줄 결론·무슨 일만). 템플릿은 `templates/share/`, 색 값을 직접 쓰지 않는다 (`ShareTemplateRuleTest`).
+- 색·아이콘은 빌드 때 레포 원본에서 복사한다 (`SB-Web/build.gradle` processResources): `brand/brand-colors.json` > `share/brand-colors.json`, `mobile/assets/images/icon.png` > `static/share/app-icon.png`. 사본을 커밋하지 않는다.
+- Play 서명 키를 바꾸거나 업로드 키를 재설정하면 지문 목록도 바꾼다 (Play Console > 앱 무결성 > 앱 서명).
+
 ## 대응 모아보기 (#71)
 
 같은 취약점을 다룬 공개 자료를 기사 상세와 알림 상세에 붙인다. 기준 값·구역 판정은 `ResponseGuidePolicy`, 조회 SQL 은 `ArticleRepository.findResponseGuideCandidates`, 조립은 `ResponseGuideQueryService` 한 곳이다.
