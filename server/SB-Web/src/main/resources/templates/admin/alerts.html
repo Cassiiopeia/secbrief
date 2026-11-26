@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{admin/fragments/admin-layout :: page('알림 기록', 'alerts', ~{::content})}">
+<body>
+
+<main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6">
+  <div th:replace="~{admin/fragments/admin-ui :: pageHeader('알림 기록',
+       '앱 알림함의 알림 칸과 같은 내용이에요. 긴급 알림 기록은 30일 동안 보관해요.')}"></div>
+
+  <section class="card border border-base-300 bg-base-100">
+    <div class="card-body p-0">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>종류</th>
+            <th>알림</th>
+            <th class="text-right">기사 수</th>
+            <th>기록 시각</th>
+            <th>푸시 보낸 시각</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="alertRow : ${alertPage.items}">
+            <td>
+              <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${alertRow.alertCategory?.name() == 'KEV'} ? 'error' : 'warning', ${@adminAlertCategoryLabels.of(alertRow.alertCategory)})}"></span>
+            </td>
+            <td class="max-w-lg">
+              <div class="font-medium break-words" th:text="${alertRow.title}">제목</div>
+              <div class="break-words text-xs text-base-content/60" th:text="${alertRow.body}">본문</div>
+            </td>
+            <td class="admin-number text-right" th:text="${alertRow.articleCount}">1</td>
+            <td class="admin-number whitespace-nowrap text-sm" th:text="${@adminDateTimeFormatter.format(alertRow.createdAt)}">-</td>
+            <td class="admin-number whitespace-nowrap text-sm">
+              <span th:if="${alertRow.pushedAt != null}" th:text="${@adminDateTimeFormatter.format(alertRow.pushedAt)}">-</span>
+              <span th:if="${alertRow.pushedAt == null}" class="text-base-content/50">안 보냄 · 보류 중</span>
+            </td>
+          </tr>
+          <th:block th:if="${#lists.isEmpty(alertPage.items)}">
+            <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(5, '최근 30일 동안 보낸 긴급 알림이 없어요')}"></tr>
+          </th:block>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  <nav class="flex justify-end gap-2" aria-label="쪽 이동">
+    <a class="btn btn-sm" th:unless="${isFirstPage}" th:href="@{/admin/alerts}">처음으로</a>
+    <a class="btn btn-sm" th:if="${alertPage.nextCursor != null}"
+       th:href="@{/admin/alerts(cursor=${alertPage.nextCursor})}">다음 쪽</a>
+  </nav>
+</main>
+
+</body>
+</html>
