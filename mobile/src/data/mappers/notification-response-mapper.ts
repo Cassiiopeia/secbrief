@@ -65,27 +65,27 @@ export function toAppNotificationPage(response: AppNotificationPageApiResponse):
  */
 export function toAppNotificationSummary(response: unknown): AppNotificationSummary | undefined {
   if (!isObject(response)) return undefined;
-  const value = response as AppNotificationSummaryApiResponse;
-  const id = toPositiveInteger(value.id);
-  const kind = toAppNotificationKind(value.kind);
-  const createdAt = toDate(value.createdAt);
-  if (id === undefined || kind === undefined || createdAt === undefined || typeof value.title !== 'string') return undefined;
-  const alertCategories = toAlertCategoriesInOrder(value.alertCategories);
-  const alertCategory = toAlertCategory(value.alertCategory) ?? alertCategories[0];
+  const summaryResponse = response as AppNotificationSummaryApiResponse;
+  const id = toNonNegativeInteger(summaryResponse.id);
+  const kind = toAppNotificationKind(summaryResponse.kind);
+  const createdAt = toDate(summaryResponse.createdAt);
+  if (id === undefined || kind === undefined || createdAt === undefined || typeof summaryResponse.title !== 'string') return undefined;
+  const alertCategories = toAlertCategoriesInOrder(summaryResponse.alertCategories);
+  const alertCategory = toAlertCategory(summaryResponse.alertCategory) ?? alertCategories[0];
   return {
     id,
     kind,
     alertCategory,
     alertCategories: alertCategories.length > 0 || alertCategory === undefined ? alertCategories : [alertCategory],
-    title: value.title,
-    body: typeof value.body === 'string' ? value.body : '',
-    leadArticleId: toPositiveInteger(value.leadArticleId),
-    leadArticleTitle: toOptionalText(value.leadArticleTitle),
-    articleCount: toPositiveInteger(value.articleCount) ?? 0,
-    isPinned: value.isPinned === true,
+    title: summaryResponse.title,
+    body: typeof summaryResponse.body === 'string' ? summaryResponse.body : '',
+    leadArticleId: toNonNegativeInteger(summaryResponse.leadArticleId),
+    leadArticleTitle: toOptionalText(summaryResponse.leadArticleTitle),
+    articleCount: toNonNegativeInteger(summaryResponse.articleCount) ?? 0,
+    isPinned: summaryResponse.isPinned === true,
     createdAt,
-    updatedAt: toDate(value.updatedAt) ?? createdAt,
-    pushedAt: toDate(value.pushedAt),
+    updatedAt: toDate(summaryResponse.updatedAt) ?? createdAt,
+    pushedAt: toDate(summaryResponse.pushedAt),
   };
 }
 
@@ -105,8 +105,8 @@ export function toAppNotificationDetail(response: AppNotificationDetailApiRespon
 /** 최근 글 번호 응답 > 종류별 번호 (없거나 숫자가 아니면 없음) */
 export function toLatestAppNotificationIds(response: LatestAppNotificationIdsApiResponse): LatestAppNotificationIds {
   return {
-    latestAlertId: toPositiveInteger(response.latestAlertId),
-    latestNoticeId: toPositiveInteger(response.latestNoticeId),
+    latestAlertId: toNonNegativeInteger(response.latestAlertId),
+    latestNoticeId: toNonNegativeInteger(response.latestNoticeId),
   };
 }
 
@@ -125,7 +125,7 @@ function toArticleGuides(value: unknown): AppNotificationArticleGuide[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((guide): AppNotificationArticleGuide[] => {
     if (!isObject(guide)) return [];
-    const articleId = toPositiveInteger(guide.articleId);
+    const articleId = toNonNegativeInteger(guide.articleId);
     if (articleId === undefined) return [];
     const actions = Array.isArray(guide.actions)
       ? guide.actions.filter((action): action is string => typeof action === 'string' && action.trim() !== '')
@@ -134,9 +134,9 @@ function toArticleGuides(value: unknown): AppNotificationArticleGuide[] {
       {
         articleId: String(articleId),
         actions,
-        officialCount: toPositiveInteger(guide.officialCount) ?? 0,
-        factCount: toPositiveInteger(guide.factCount) ?? 0,
-        newsCount: toPositiveInteger(guide.newsCount) ?? 0,
+        officialCount: toNonNegativeInteger(guide.officialCount) ?? 0,
+        factCount: toNonNegativeInteger(guide.factCount) ?? 0,
+        newsCount: toNonNegativeInteger(guide.newsCount) ?? 0,
         leadOfficialItem: toResponseGuideItem(guide.leadOfficialItem),
       },
     ];
@@ -158,7 +158,8 @@ function toAlertCategoriesInOrder(value: unknown): AlertCategory[] {
   return [...new Set(categories)];
 }
 
-function toPositiveInteger(value: unknown): number | undefined {
+// 0 이상 정수만 (번호·건수)
+function toNonNegativeInteger(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
 }
 
