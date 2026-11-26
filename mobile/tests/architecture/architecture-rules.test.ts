@@ -162,6 +162,14 @@ describe('기기 알림 연동은 한 곳', () => {
   });
 });
 
+describe('기기 저장소는 한 곳', () => {
+  test('AsyncStorage 는 data/sources/device-json-storage.ts 에서만 import 한다 (키 목록 DEVICE_STORAGE_KEYS)', () => {
+    expect(listSourceFiles('').filter((file) => /from '@react-native-async-storage\/async-storage'/.test(readSource(file)))).toEqual([
+      path.join('data', 'sources', 'device-json-storage.ts'),
+    ]);
+  });
+});
+
 describe('브랜드 색 단일 원본', () => {
   test('색 토큰이 brand/brand-colors.json 과 같다', () => {
     const brandColors: Record<string, { light: string; dark: string } | string> = JSON.parse(
