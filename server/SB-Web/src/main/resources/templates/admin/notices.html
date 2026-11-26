@@ -11,7 +11,7 @@
     <form th:action="@{/admin/notices}" method="post" class="card-body gap-4"
           data-confirm-title="공지사항을 올릴까요?" data-confirm-label="올리기"
           data-confirm-message="앱 알림함에 바로 보여요. 푸시는 보내지 않아요.">
-      <h3 class="card-title text-base">새 공지 쓰기</h3>
+      <div th:replace="~{admin/fragments/admin-ui :: cardHeader('새 공지 쓰기', '')}"></div>
       <th:block th:replace="~{admin/fragments/notice-form :: fields(${noticeForm}, ${maximumTitleLength}, ${maximumBodyLength})}"></th:block>
       <label class="flex items-start gap-2 rounded-box border border-base-300 p-3">
         <input type="checkbox" name="sendPush" value="true" class="checkbox checkbox-sm checkbox-primary mt-0.5"
@@ -30,21 +30,25 @@
   </section>
 
   <section class="card border border-base-300 bg-base-100">
-    <div class="card-body p-0">
+    <div class="card-body p-0 py-4">
+      <div class="px-4">
+        <div th:replace="~{admin/fragments/admin-ui :: cardHeader('올린 공지',
+             |${#lists.size(noticeRows)}개 · 고정한 공지가 맨 위에 보여요|)}"></div>
+      </div>
       <div class="overflow-x-auto">
-        <table class="table">
+        <table class="table admin-stack-table">
           <thead>
           <tr>
             <th>제목</th>
             <th>올린 시각</th>
             <th>고친 시각</th>
             <th>푸시</th>
-            <th class="text-right">관리</th>
+            <th class="text-right">작업</th>
           </tr>
           </thead>
           <tbody>
           <tr th:each="noticeRow : ${noticeRows}">
-            <td class="max-w-md">
+            <td class="admin-stack-primary max-w-md">
               <div class="flex items-center gap-2">
                 <th:block th:if="${noticeRow.isPinned()}">
                   <span th:replace="~{admin/fragments/admin-ui :: toneBadge('info', '고정')}"></span>
@@ -53,12 +57,12 @@
               </div>
               <div class="line-clamp-2 text-xs text-base-content/60" th:text="${noticeRow.body}">본문</div>
             </td>
-            <td class="admin-number whitespace-nowrap text-sm" th:text="${@adminDateTimeFormatter.format(noticeRow.createdAt)}">-</td>
-            <td class="admin-number whitespace-nowrap text-sm" th:text="${@adminDateTimeFormatter.format(noticeRow.updatedAt)}">-</td>
-            <td>
+            <td class="admin-number whitespace-nowrap text-sm" data-label="올린 시각" th:text="${@adminDateTimeFormatter.format(noticeRow.createdAt)}">-</td>
+            <td class="admin-number whitespace-nowrap text-sm" data-label="고친 시각" th:text="${@adminDateTimeFormatter.format(noticeRow.updatedAt)}">-</td>
+            <td data-label="푸시">
               <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${noticeRow.pushedAt != null} ? 'success' : 'ghost', ${noticeRow.pushedAt != null} ? '보냄' : '안 보냄')}"></span>
             </td>
-            <td>
+            <td data-label="작업">
               <div class="flex flex-nowrap items-center justify-end gap-1 whitespace-nowrap">
                 <a class="btn btn-ghost btn-sm" th:href="@{/admin/notices/{noticeId}/edit(noticeId=${noticeRow.id})}">고치기</a>
                 <form method="post" th:action="@{/admin/notices/{noticeId}/pin(noticeId=${noticeRow.id})}">
@@ -66,9 +70,9 @@
                   <button type="submit" class="btn btn-ghost btn-sm" th:text="${noticeRow.isPinned()} ? '고정 풀기' : '고정'">고정</button>
                 </form>
                 <form method="post" th:action="@{/admin/notices/{noticeId}/delete(noticeId=${noticeRow.id})}"
-                      data-confirm-title="공지사항을 지울까요?" data-confirm-label="지우기" data-confirm-tone="danger"
-                      th:attr="data-confirm-message=|「${noticeRow.title}」 공지를 지우면 앱 알림함에서도 사라지고 되돌릴 수 없어요.|">
-                  <button type="submit" class="btn btn-ghost btn-sm text-error">지우기</button>
+                      data-confirm-title="공지사항을 삭제할까요?" data-confirm-label="삭제" data-confirm-tone="danger"
+                      th:attr="data-confirm-message=|「${noticeRow.title}」 공지를 삭제하면 앱 알림함에서도 사라지고 되돌릴 수 없어요.|">
+                  <button type="submit" class="btn btn-ghost btn-sm text-error">삭제</button>
                 </form>
               </div>
             </td>

@@ -52,7 +52,7 @@
       </form>
 
       <div class="overflow-x-auto">
-        <table class="table table-sm">
+        <table class="table table-sm admin-stack-table">
           <thead>
           <tr>
             <th>시각</th>
@@ -69,22 +69,22 @@
           </thead>
           <tbody>
           <tr th:each="callRow : ${callRows}">
-            <td class="admin-number whitespace-nowrap" th:text="${@adminDateTimeFormatter.format(callRow.createdAt)}">-</td>
-            <td class="whitespace-nowrap" th:text="${callRow.callTypeLabel}">종류</td>
-            <td th:text="${callRow.provider}">anthropic</td>
-            <td class="whitespace-nowrap text-sm text-base-content/70" th:text="${callRow.model} ?: '-'">모델</td>
-            <td th:text="${callRow.keyLabel} ?: '-'">별명</td>
-            <td>
+            <td class="admin-stack-primary admin-number whitespace-nowrap" th:text="${@adminDateTimeFormatter.format(callRow.createdAt)}">-</td>
+            <td class="whitespace-nowrap" th:text="${callRow.callTypeLabel}" data-label="종류">종류</td>
+            <td th:text="${callRow.provider}" data-label="제공자">anthropic</td>
+            <td class="whitespace-nowrap text-sm text-base-content/70" th:text="${callRow.model} ?: '-'" data-label="모델">모델</td>
+            <td th:text="${callRow.keyLabel} ?: '-'" data-label="키 별명">별명</td>
+            <td data-label="결과">
               <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${callRow.isSuccess()} ? 'success' : 'error', ${callRow.isSuccess()} ? '성공' : (${callRow.failureLabel} ?: '실패'))}"></span>
             </td>
             <td class="admin-number whitespace-nowrap text-right"
-                th:text="${callRow.latencyMilliseconds == null} ? '-' : |${#numbers.formatInteger(callRow.latencyMilliseconds, 1, 'COMMA')}ms|">-</td>
+                th:text="${callRow.latencyMilliseconds == null} ? '-' : |${#numbers.formatInteger(callRow.latencyMilliseconds, 1, 'COMMA')}ms|" data-label="걸린 시간">-</td>
             <td class="admin-number text-right"
-                th:text="${callRow.inputTokens == null} ? '-' : ${#numbers.formatInteger(callRow.inputTokens, 1, 'COMMA')}">-</td>
+                th:text="${callRow.inputTokens == null} ? '-' : ${#numbers.formatInteger(callRow.inputTokens, 1, 'COMMA')}" data-label="입력 토큰">-</td>
             <td class="admin-number text-right"
-                th:text="${callRow.outputTokens == null} ? '-' : ${#numbers.formatInteger(callRow.outputTokens, 1, 'COMMA')}">-</td>
+                th:text="${callRow.outputTokens == null} ? '-' : ${#numbers.formatInteger(callRow.outputTokens, 1, 'COMMA')}" data-label="출력 토큰">-</td>
             <td class="admin-number whitespace-nowrap text-right"
-                th:text="${callRow.estimatedCostUsd == null} ? '-' : ('$' + ${callRow.estimatedCostUsd.toPlainString()})">-</td>
+                th:text="${callRow.estimatedCostUsd == null} ? '-' : ('$' + ${callRow.estimatedCostUsd.toPlainString()})" data-label="추정 비용">-</td>
           </tr>
           <th:block th:if="${#lists.isEmpty(callRows)}">
             <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(10, '아직 남은 호출 기록이 없어요')}"></tr>

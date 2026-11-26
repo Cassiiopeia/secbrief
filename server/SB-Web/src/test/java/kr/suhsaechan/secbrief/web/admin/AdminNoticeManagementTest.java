@@ -51,7 +51,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 /**
  * 공지사항 관리 (DB): 올리기(푸시 없이 / 푸시도: 깨어 있는 기기는 발송, 방해 금지 기기는 보류), 입력 검증(쓴 내용 유지),
- * 고치기·고정·지우기 + 감사 기록, 공지·알림 기록 화면 (발송기는 가짜)
+ * 고치기·고정·삭제 + 감사 기록, 공지·알림 기록 화면 (발송기는 가짜)
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -166,7 +166,7 @@ class AdminNoticeManagementTest extends PostgresContainerTestSupport {
         assertThat(notificationRepository.findById(noticeId).orElseThrow().isPinned()).isTrue();
 
         mockMvc.perform(post(NOTICES_PATH + "/" + noticeId + "/delete").with(user(adminUsername).roles("ADMIN")).with(csrf()))
-                .andExpect(flash().attribute("flashMessage", "공지사항을 지웠어요"));
+                .andExpect(flash().attribute("flashMessage", "공지사항을 삭제했어요"));
         assertThat(notificationRepository.existsById(noticeId)).isFalse();
         assertThat(latestAuditAction()).isEqualTo(AdminAuditAction.NOTICE_DELETE);
 
