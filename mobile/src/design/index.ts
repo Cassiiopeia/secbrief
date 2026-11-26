@@ -3,6 +3,7 @@
  */
 export * from './components/sb-article-image';
 export * from './components/sb-article-row';
+export * from './components/sb-article-secondary-line';
 export * from './components/sb-badge';
 export * from './components/sb-bottom-action-bar';
 export * from './components/sb-bottom-tab-bar';

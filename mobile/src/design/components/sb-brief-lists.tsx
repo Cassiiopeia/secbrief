@@ -8,14 +8,14 @@ import { SbText } from './sb-text';
 
 const NUMBER_MARK_SIZE = 22;
 
-/** 번호 목록 (기사 상세의 핵심): 둥근 번호 + 한 줄씩 */
+/** 번호 목록 (기사 상세의 핵심·대응): 둥근 번호 + 한 줄씩. 읽기 도우미는 '1, 글' 한 항목으로 읽음 */
 export function SbNumberedList({ items }: { items: string[] }) {
   const { colors } = useSbTheme();
   const styles = useSbStyles(createStyles);
   return (
-    <View style={styles.list}>
+    <View style={styles.list} role="list">
       {items.map((item, itemIndex) => (
-        <View key={`${itemIndex}-${item}`} style={styles.numberedItem}>
+        <View key={`${itemIndex}-${item}`} style={styles.numberedItem} role="listitem" accessible accessibilityLabel={`${itemIndex + 1}, ${item}`}>
           <View style={styles.numberMark}>
             <SbText variant="capsLabel" color={colors.onFeature}>
               {String(itemIndex + 1)}

@@ -4,6 +4,7 @@ import type { SbFact } from '@/design';
 
 import { type ArticleRowView, toArticleRowView, toTopicLabel } from '../articles/article-row-view';
 import { BROWSABLE_TOPICS, toTopicBrowseKey } from '../browse/browse-target';
+import { AI_SUMMARY_NOTICE_LABEL, type ArticleBriefingView, toArticleBriefingView } from './article-briefing-view';
 
 /** 함께 볼 소식이 없을 때 대신 보여 주는 이동: 버튼 문구 + 모아 보기 묶음 키 (없으면 홈) */
 export interface MoreArticlesLink {
@@ -11,9 +12,13 @@ export interface MoreArticlesLink {
   browseKey?: string;
 }
 
-/** 기사 상세 화면 표시 내용 (요약·핵심·대응·확인된 정보·함께 볼 소식) */
+/**
+ * 기사 상세 화면 표시 내용: AI 브리핑(있으면 이것만) 또는 이전 방식 요약·핵심·대응 + 확인된 정보 + 함께 볼 소식
+ */
 export interface ArticleDetailView {
   article: ArticleRowView;
+  /** AI 브리핑 (있으면 요약·핵심·대응 카드 대신 이것을 보여 줌) */
+  briefing?: ArticleBriefingView;
   /** 요약 문단 (없으면 준비 중 안내) */
   summary?: string;
   keyPoints: string[];
@@ -29,9 +34,7 @@ export interface ArticleDetailView {
   moreArticlesLink?: MoreArticlesLink;
 }
 
-const AI_SUMMARY_NOTICE_LABEL = 'AI 가 요약했어요';
-
-/** 기사 상세 > 표시 내용: 기사 표시 내용 > 요약 > 핵심 > 대응 > 확인된 정보 > 함께 볼 소식(자기 자신 제외, 없으면 다른 소식 이동) */
+/** 기사 상세 > 표시 내용: 기사 표시 내용 > 브리핑 > 요약 > 핵심 > 대응 > 확인된 정보 > 함께 볼 소식(자기 자신 제외, 없으면 다른 소식 이동) */
 export function toArticleDetailView(detail: ArticleDetail, now: Date): ArticleDetailView {
   const keyPoints = detail.keyPoints.map((keyPoint) => keyPoint.trim()).filter((keyPoint) => keyPoint !== '');
   const relatedArticles = detail.relatedItems
@@ -39,6 +42,7 @@ export function toArticleDetailView(detail: ArticleDetail, now: Date): ArticleDe
     .map((relatedItem) => toArticleRowView(relatedItem, now));
   return {
     article: toArticleRowView(detail.article, now),
+    briefing: detail.brief && toArticleBriefingView(detail.brief),
     summary: detail.summary,
     keyPoints,
     actionGuide: detail.actionGuide,
