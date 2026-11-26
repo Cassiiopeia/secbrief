@@ -47,15 +47,20 @@ describe('카탈로그', () => {
     expect(catalog?.tags.map((tag) => tag.code)).toEqual(['field-a', 'eco-a', 'eco-b', 'group-a', 'product-a', 'product-search']);
     expect(index.productGroups[0].shortName).toBe('묶음 A');
   });
-  test('태그 배지: 생태계 > 분야 > 주요 이유(널리 쓰는 제품), 모르는 code 는 그리지 않음', () => {
-    expect(toTagBadges(taggedItem, index)).toEqual([
+  test('태그 배지: 주요 이유(널리 쓰는 제품) > 생태계 > 분야, 모르는 code 는 그리지 않음', () => {
+    expect(toTagBadges(taggedItem, index, true)).toEqual([
+      { label: '널리 씀', tone: 'notice' },
       { label: 'A', tone: 'neutral' },
       { label: '분야 A', tone: 'neutral' },
-      { label: '널리 씀', tone: 'notice' },
     ]);
-    expect(toTagBadges({ ...nvdItem, fieldCode: 'removed-field', isNotable: false, subjectName: 'Fortinet' }, index)).toEqual([
+    expect(toTagBadges({ ...nvdItem, fieldCode: 'removed-field', isNotable: false, subjectName: 'Fortinet' }, index, true)).toEqual([
       { label: 'Fortinet', tone: 'subject' },
     ]);
+  });
+  test('CVSS 게이지가 옆에 있으면 "CVSS 9.0 이상" 을 다시 쓰지 않음 (AI 중요만)', () => {
+    const criticalItem: BriefingItem = { ...nvdItem, productCode: undefined, fieldCode: 'field-a', cvssScore: 9.8, isNotable: true };
+    expect(toTagBadges(criticalItem, index, true)[0]).toEqual({ label: 'AI 중요', tone: 'notice' });
+    expect(toTagBadges(criticalItem, index, false)[0]).toEqual({ label: 'CVSS 9.0 이상 · AI 중요', tone: 'notice' });
   });
 });
 

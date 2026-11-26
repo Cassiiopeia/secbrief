@@ -85,10 +85,12 @@ export function ArticleFeedItem({ rowView, presentation, headlineLayout = 'wide'
   );
 }
 
-// 분류 태그가 있는 목록(취약점 탭): 강한 배지 1개(악용 중 > 긴급) + 분류 태그 (#93)
+// 분류 태그가 있는 목록(취약점 탭): 강한 배지 1개(악용 중 > 긴급) + 분류 태그(주요 이유 > 생태계 > 분야), 모두 3개까지 (#93)
 const STRONG_BADGE_TONES: SbBadgeContent['tone'][] = ['exploited', 'urgent'];
+const TAGGED_FEED_BADGE_MAXIMUM_COUNT = 3;
 
 function toTaggedFeedBadges(rowView: ArticleRowView): SbBadgeContent[] {
   const strongBadge = STRONG_BADGE_TONES.map((tone) => rowView.badges.find((badge) => badge.tone === tone)).find((badge) => badge !== undefined);
-  return strongBadge === undefined ? rowView.tagBadges : [strongBadge, ...rowView.tagBadges];
+  const badges = strongBadge === undefined ? rowView.tagBadges : [strongBadge, ...rowView.tagBadges];
+  return badges.slice(0, TAGGED_FEED_BADGE_MAXIMUM_COUNT);
 }

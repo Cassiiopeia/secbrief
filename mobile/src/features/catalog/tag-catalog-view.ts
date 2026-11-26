@@ -41,30 +41,36 @@ export function toTagShortName(index: TagCatalogIndex, kind: CatalogTagKind, cod
 }
 
 /**
- * 소식 > 분류 태그 배지 (최대 3개): 생태계 > 분야 > 주요 이유(주요면) 또는 제품(카탈로그 이름, 없으면 제목 속 이름)
- * 카탈로그에 없는 code 는 빼고 그림
+ * 소식 > 분류 태그 배지 (중요한 순, 최대 3개): 주요 이유(주요면) > 생태계 > 분야 > 제품(주요 이유·생태계가 없을 때, 카탈로그 이름 없으면 제목 속 이름)
+ * isCvssShown: CVSS 게이지가 옆에 있으면 "CVSS 9.0 이상" 을 다시 쓰지 않음, 카탈로그에 없는 code 는 빼고 그림
  */
-export function toTagBadges(item: BriefingItem, index: TagCatalogIndex): SbBadgeContent[] {
+export function toTagBadges(item: BriefingItem, index: TagCatalogIndex, isCvssShown: boolean): SbBadgeContent[] {
   const badges: SbBadgeContent[] = [];
   const ecosystemName = toTagShortName(index, 'ECOSYSTEM', item.ecosystemCode);
   const fieldName = toTagShortName(index, 'FIELD', item.fieldCode);
   const product = index.findTag('PRODUCT', item.productCode);
   const productName = product?.shortName ?? item.subjectName;
+  const notableReason = toNotableReason(item, product, isCvssShown);
+  if (notableReason !== undefined) badges.push({ label: notableReason, tone: 'notice' });
   if (ecosystemName !== undefined) badges.push({ label: ecosystemName, tone: 'neutral' });
   if (fieldName !== undefined) badges.push({ label: fieldName, tone: 'neutral' });
-  const notableReason = toNotableReason(item, product);
-  if (notableReason !== undefined) badges.push({ label: notableReason, tone: 'notice' });
-  else if (productName !== undefined && ecosystemName === undefined) badges.push({ label: productName, tone: 'subject' });
+  if (notableReason === undefined && ecosystemName === undefined && productName !== undefined) {
+    badges.push({ label: productName, tone: 'subject' });
+  }
   return badges.slice(0, TAG_BADGE_MAXIMUM_COUNT);
 }
 
-/** 주요 소식의 이유 (KEV 는 악용 중 배지가 따로 있어 뺌): 널리 쓰는 제품 / CVSS 9.0 이상 · AI 중요 */
-export function toNotableReason(item: BriefingItem, product: CatalogTag | undefined): string | undefined {
+/**
+ * 주요 소식의 이유 (KEV 는 악용 중 배지가 따로 있어 뺌): 널리 쓰는 제품 / CVSS 9.0 이상 · AI 중요
+ * CVSS 게이지가 보이면 점수 이유는 빼고 AI 판단만 (9.0 이상 + AI 가 일반 아님 = AI 중요)
+ */
+export function toNotableReason(item: BriefingItem, product: CatalogTag | undefined, isCvssShown: boolean): string | undefined {
   if (!item.isNotable) return undefined;
   if (product?.isWidelyUsed === true) return WIDELY_USED_REASON;
+  const isCriticalScore = item.cvssScore !== undefined && item.cvssScore >= CRITICAL_MINIMUM_SCORE;
   const reasons = [
-    item.cvssScore !== undefined && item.cvssScore >= CRITICAL_MINIMUM_SCORE ? CRITICAL_SCORE_REASON : undefined,
-    item.importance === 'headline' ? AI_HEADLINE_REASON : undefined,
+    isCriticalScore && !isCvssShown ? CRITICAL_SCORE_REASON : undefined,
+    isCriticalScore || item.importance === 'headline' ? AI_HEADLINE_REASON : undefined,
   ].filter((reason): reason is string => reason !== undefined);
   return reasons.length === 0 ? undefined : reasons.join(REASON_SEPARATOR);
 }

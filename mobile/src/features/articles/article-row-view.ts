@@ -73,7 +73,7 @@ export function toArticleRowView(item: BriefingItem, now: Date, catalogIndex?: T
     compactMetaLabel: toCompactMetaLabel(item, now),
     translatedMarkLabel: toTranslatedMarkLabel(item),
     badges: toArticleBadges(item),
-    tagBadges: catalogIndex === undefined ? [] : toTagBadges(item, catalogIndex),
+    tagBadges: catalogIndex === undefined ? [] : toTagBadges(item, catalogIndex, toCvssGaugeValue(item) !== undefined),
     leadingName: item.packageName ?? (catalogIndex?.findTag('PRODUCT', item.productCode)?.shortName ?? item.subjectName),
     oneLineTrailingLabel: [
       catalogIndex?.findTag('ECOSYSTEM', item.ecosystemCode)?.shortName ?? catalogIndex?.findTag('FIELD', item.fieldCode)?.shortName,
