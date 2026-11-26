@@ -80,10 +80,10 @@ deploy   ← 배포 브랜치 (푸시되면 Play 스토어·TestFlight 업로드
 <!-- pro-brain:begin (managed by /pro-brain; settings live in version.yml) -->
 ## 프로젝트 지식 (pro-brain)
 
-나중에도 유효한 프로젝트 지식(결정, 이유, 주의점)은 `knowledge/` 폴더에 노트로 남긴다. 팀 브레인은 `main` 브랜치에서 이 폴더를 가져간다.
+나중에도 유효한 프로젝트 지식(결정, 이유, 주의점)은 레포가 아니라 팀 브레인 `gbrain-secbrief`에 노트로 남긴다.
 
 - **언제 남기나**: `/pro-report`로 이슈 보고서를 올린 뒤, 이슈를 닫기 전에 `/pro-brain`을 실행한다 (이슈마다 노트 1건).
-- **왜 이렇게 됐는지, 무엇을 정했는지 답하기 전에**: 팀 브레인 MCP(`gbrain-secbrief`)에서 먼저 찾는다. 연결돼 있지 않으면 `knowledge/` 폴더를 읽는다 (주제, 파일, 이슈 번호로 검색).
-- 사소한 변경은 이유 한 줄로 건너뛴다. 비밀값, 개인정보, 대화 내용은 노트에 넣지 않는다.
+- **왜 이렇게 됐는지, 무엇을 정했는지 답하기 전에**: 팀 브레인 MCP(`gbrain-secbrief`)에서 먼저 찾는다 (`/pro-brain doctor`로 연결 확인).
+- `/pro-brain`이 노트를 브레인에 바로 기록한다(`brain_cli.py write`). 노트를 레포에 커밋하지 않는다. 사소한 변경은 이유 한 줄로 건너뛴다. 비밀값, 개인정보, 대화 내용은 노트에 넣지 않는다.
 - 설정: `version.yml` > `metadata.template.options.knowledge`.
 <!-- pro-brain:end -->
