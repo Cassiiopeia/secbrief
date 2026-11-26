@@ -70,9 +70,9 @@
                   <button type="submit" class="btn btn-ghost btn-sm" th:text="${noticeRow.isPinned()} ? '고정 풀기' : '고정'">고정</button>
                 </form>
                 <form method="post" th:action="@{/admin/notices/{noticeId}/delete(noticeId=${noticeRow.id})}"
-                      data-confirm-title="공지사항을 지울까요?" data-confirm-label="지우기" data-confirm-tone="danger"
-                      th:attr="data-confirm-message=|「${noticeRow.title}」 공지를 지우면 앱 알림함에서도 사라지고 되돌릴 수 없어요.|">
-                  <button type="submit" class="btn btn-ghost btn-sm text-error">지우기</button>
+                      data-confirm-title="공지사항을 삭제할까요?" data-confirm-label="삭제" data-confirm-tone="danger"
+                      th:attr="data-confirm-message=|「${noticeRow.title}」 공지를 삭제하면 앱 알림함에서도 사라지고 되돌릴 수 없어요.|">
+                  <button type="submit" class="btn btn-ghost btn-sm text-error">삭제</button>
                 </form>
               </div>
             </td>

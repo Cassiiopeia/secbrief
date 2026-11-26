@@ -24,7 +24,7 @@ public enum AdminAuditAction {
     NOTICE_CREATE("공지사항 올리기", "NOTICE"),
     NOTICE_UPDATE("공지사항 고치기", "NOTICE"),
     NOTICE_PIN("공지사항 고정 바꾸기", "NOTICE"),
-    NOTICE_DELETE("공지사항 지우기", "NOTICE");
+    NOTICE_DELETE("공지사항 삭제", "NOTICE");
 
     private final String label;
     private final String targetType;

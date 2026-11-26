@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * 공지사항 관리: 표 + 새 공지 쓰기(선택: 푸시도 보내기), 고치기, 고정·풀기, 지우기 (바뀐 내용은 감사 기록)
+ * 공지사항 관리: 표 + 새 공지 쓰기(선택: 푸시도 보내기), 고치기, 고정·풀기, 삭제 (바뀐 내용은 감사 기록)
  * 입력이 틀리면 쓴 내용을 그대로 둔 채 같은 화면에 안내 (리다이렉트하지 않음)
  */
 @Slf4j
@@ -120,7 +120,7 @@ public class AdminNoticeController {
             AdminNoticeRow deletedNotice = adminNoticeService.delete(noticeId);
             adminAuditService.record(principal.getName(), AdminAuditAction.NOTICE_DELETE, String.valueOf(noticeId),
                     "title length " + deletedNotice.title().length());
-            AdminFlash.addMessage(redirectAttributes, "공지사항을 지웠어요");
+            AdminFlash.addMessage(redirectAttributes, "공지사항을 삭제했어요");
         } catch (CustomException exception) {
             logRejected("delete", exception, noticeId);
             AdminFlash.addError(redirectAttributes, exception.getErrorCode());
