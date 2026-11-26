@@ -7,6 +7,7 @@ import type { TodayBriefing } from '../models/today-briefing';
 import type { TrendingKeyword } from '../models/trending-keyword';
 import type { TrendTopic, WeeklyTrend } from '../models/trend-topic';
 import { type ArticleBriefApiResponse, toArticleBrief, toNonBlankText } from './article-brief-mapper';
+import { toResponseGuideSections } from './response-guide-mapper';
 
 /** 서버 기사 응답 (enum 은 대문자 이름) */
 export interface ArticleApiResponse {
@@ -87,6 +88,8 @@ export interface ArticleDetailApiResponse {
   brief?: ArticleBriefApiResponse | null;
   facts?: { label: string; value: string }[] | null;
   relatedItems?: ArticleApiResponse[] | null;
+  /** 대응 모아보기 (#71). 이 필드가 생기기 전 서버는 아예 안 줌 (모양은 response-guide-mapper 가 확인) */
+  responseGuideSections?: unknown;
 }
 
 export interface ArticleSearchApiResponse {
@@ -161,6 +164,19 @@ export function toBriefingItem(response: ArticleApiResponse): BriefingItem {
   };
 }
 
+/** 기사 응답으로 읽을 수 있는 최소 모양 (번호·제목·원문 주소·게시일): 모양을 믿지 않는 응답(알림함·대응 모아보기)용 */
+export function isArticleApiResponse(value: unknown): value is ArticleApiResponse {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.id === 'number' &&
+    typeof candidate.title === 'string' &&
+    typeof candidate.originalUrl === 'string' &&
+    typeof candidate.publishedAt === 'string' &&
+    !Number.isNaN(new Date(candidate.publishedAt).getTime())
+  );
+}
+
 export function toTrendTopic(response: TrendTopicApiResponse): TrendTopic {
   return {
     topic: TOPIC_BY_API_NAME[response.topic] ?? 'general',
@@ -201,7 +217,7 @@ export function toTrendingKeywords(response: TrendingKeywordsApiResponse): Trend
   }));
 }
 
-/** 기사 상세 응답 > 상세 (요약이 아직 없으면 summary 없음·keyPoints 빈 배열, 없는 목록은 빈 배열, 브리핑은 읽을 수 있을 때만) */
+/** 기사 상세 응답 > 상세 (요약이 아직 없으면 summary 없음·keyPoints 빈 배열, 없는 목록은 빈 배열, 브리핑·대응 모아보기는 읽을 수 있을 때만) */
 export function toArticleDetail(response: ArticleDetailApiResponse): ArticleDetail {
   const article = toBriefingItem(response.article);
   return {
@@ -213,6 +229,7 @@ export function toArticleDetail(response: ArticleDetailApiResponse): ArticleDeta
     isAiSummarized: response.isAiSummarized === true,
     facts: (response.facts ?? []).map(({ label, value }) => ({ label, value })),
     relatedItems: (response.relatedItems ?? []).map(toBriefingItem),
+    responseGuideSections: toResponseGuideSections(response.responseGuideSections),
   };
 }
 

@@ -1,4 +1,5 @@
 import type { BriefingItem } from './briefing-item';
+import type { ResponseGuideSection } from './response-guide';
 
 /** 원문에서 확인된 값 한 줄 (라벨·값 모두 서버가 준 그대로. 원문에 없으면 서버가 '원문에 없음'을 줌) */
 export interface ArticleFact {
@@ -25,7 +26,7 @@ export interface ArticleBrief {
   actions: string[];
 }
 
-/** 기사 상세 (앱 안 브리프): 기사 + AI 브리핑(없으면 이전 방식 요약) + 원문에서 확인된 값 + 함께 볼 소식 */
+/** 기사 상세 (앱 안 브리프): 기사 + AI 브리핑(없으면 이전 방식 요약) + 원문에서 확인된 값 + 함께 볼 소식 + 대응 모아보기 */
 export interface ArticleDetail {
   article: BriefingItem;
   /** AI 브리핑. 이전 방식 요약만 있는 기사·아직 정리 전인 기사는 없음 */
@@ -39,4 +40,6 @@ export interface ArticleDetail {
   isAiSummarized: boolean;
   facts: ArticleFact[];
   relatedItems: BriefingItem[];
+  /** 같은 취약점을 다룬 공개 자료 (구역 순서대로, 없으면 빈 배열: 그때는 함께 볼 소식을 보여 줌) */
+  responseGuideSections: ResponseGuideSection[];
 }

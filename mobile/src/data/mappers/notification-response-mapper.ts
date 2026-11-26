@@ -1,6 +1,7 @@
 import { ALERT_CATEGORIES, type AlertCategory } from '../models/alert-category';
 import {
   APP_NOTIFICATION_KINDS,
+  type AppNotificationArticleGuide,
   type AppNotificationArticleSection,
   type AppNotificationDetail,
   type AppNotificationKind,
@@ -8,7 +9,8 @@ import {
   type AppNotificationSummary,
   type LatestAppNotificationIds,
 } from '../models/app-notification';
-import { type ArticleApiResponse, toBriefingItem } from './api-response-mapper';
+import { isArticleApiResponse, toBriefingItem } from './api-response-mapper';
+import { toResponseGuideItem } from './response-guide-mapper';
 
 /** 서버 알림함 목록 한 줄 (모든 칸을 믿지 않고 읽음: 이전·이후 서버가 칸을 빼거나 더할 수 있음) */
 export interface AppNotificationSummaryApiResponse {
@@ -30,6 +32,8 @@ export interface AppNotificationSummaryApiResponse {
 export interface AppNotificationDetailApiResponse extends AppNotificationSummaryApiResponse {
   linkUrl?: unknown;
   articleSections?: unknown;
+  /** 기사별 대응 안내 요약 (#71). 이 필드가 생기기 전 서버는 아예 안 줌 */
+  articleGuides?: unknown;
 }
 
 export interface AppNotificationPageApiResponse {
@@ -84,7 +88,7 @@ export function toAppNotificationSummary(response: unknown): AppNotificationSumm
   };
 }
 
-/** 상세 응답 > 알림함 상세 (기사 묶음은 모르는 종류·빈 묶음을 버림, 형식이 틀리면 undefined) */
+/** 상세 응답 > 알림함 상세 (기사 묶음은 모르는 종류·빈 묶음을 버림, 기사별 대응 안내는 읽을 수 있는 것만, 형식이 틀리면 undefined) */
 export function toAppNotificationDetail(response: AppNotificationDetailApiResponse): AppNotificationDetail | undefined {
   const summary = toAppNotificationSummary(response);
   if (summary === undefined) return undefined;
@@ -93,6 +97,7 @@ export function toAppNotificationDetail(response: AppNotificationDetailApiRespon
     ...summary,
     linkUrl: linkUrl !== undefined && WEB_LINK_PATTERN.test(linkUrl) ? linkUrl : undefined,
     articleSections: toArticleSections(response.articleSections),
+    articleGuides: toArticleGuides(response.articleGuides),
   };
 }
 
@@ -109,20 +114,32 @@ function toArticleSections(value: unknown): AppNotificationArticleSection[] {
   return value.flatMap((section): AppNotificationArticleSection[] => {
     if (!isObject(section)) return [];
     const alertCategory = toAlertCategory(section.alertCategory);
-    const articles = Array.isArray(section.articles) ? section.articles.filter(isArticleResponse).map(toBriefingItem) : [];
+    const articles = Array.isArray(section.articles) ? section.articles.filter(isArticleApiResponse).map(toBriefingItem) : [];
     return alertCategory === undefined || articles.length === 0 ? [] : [{ alertCategory, articles }];
   });
 }
 
-// 기사 응답으로 읽을 수 있는 최소 모양 (번호·제목·원문 주소·게시일)
-function isArticleResponse(value: unknown): value is ArticleApiResponse {
-  return (
-    isObject(value) &&
-    typeof value.id === 'number' &&
-    typeof value.title === 'string' &&
-    typeof value.originalUrl === 'string' &&
-    toDate(value.publishedAt) !== undefined
-  );
+// 기사별 대응 안내 요약 (기사 번호가 없으면 버림, 건수는 음수·숫자 아님이면 0, 대응은 빈 글자를 뺌)
+function toArticleGuides(value: unknown): AppNotificationArticleGuide[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((guide): AppNotificationArticleGuide[] => {
+    if (!isObject(guide)) return [];
+    const articleId = toPositiveInteger(guide.articleId);
+    if (articleId === undefined) return [];
+    const actions = Array.isArray(guide.actions)
+      ? guide.actions.filter((action): action is string => typeof action === 'string' && action.trim() !== '')
+      : [];
+    return [
+      {
+        articleId: String(articleId),
+        actions,
+        officialCount: toPositiveInteger(guide.officialCount) ?? 0,
+        factCount: toPositiveInteger(guide.factCount) ?? 0,
+        newsCount: toPositiveInteger(guide.newsCount) ?? 0,
+        leadOfficialItem: toResponseGuideItem(guide.leadOfficialItem),
+      },
+    ];
+  });
 }
 
 function toAppNotificationKind(value: unknown): AppNotificationKind | undefined {
