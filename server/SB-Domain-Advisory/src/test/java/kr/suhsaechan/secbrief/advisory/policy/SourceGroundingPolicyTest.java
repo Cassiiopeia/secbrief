@@ -103,4 +103,18 @@ class SourceGroundingPolicyTest {
         assertThat(SourceGroundingPolicy.findUngroundedNumbers(source, "플러그인 7종, 사용자 20명, 버전 6.4 예요."))
                 .containsExactly("7", "20", "6.4");
     }
+
+    @Test
+    void findsNameWrittenInSourceIgnoringCaseAndWhitespaceOnly() {
+        String sourceText = "An update for example-httpd is now available for Example  Enterprise\nLinux 9.4 and `example-auth-kit`.";
+
+        assertThat(SourceGroundingPolicy.isWrittenInSource(sourceText, "Example Enterprise Linux 9.4")).isTrue();
+        assertThat(SourceGroundingPolicy.isWrittenInSource(sourceText, "example enterprise linux")).isTrue();
+        assertThat(SourceGroundingPolicy.isWrittenInSource(sourceText, "example-auth-kit")).isTrue();
+        // 입력에 없는 이름: 낱말을 더했거나, 버전이 다르거나, 번역한 이름
+        assertThat(SourceGroundingPolicy.isWrittenInSource(sourceText, "Example Enterprise Linux 9.5")).isFalse();
+        assertThat(SourceGroundingPolicy.isWrittenInSource(sourceText, "Example Enterprise Linux 제품군")).isFalse();
+        assertThat(SourceGroundingPolicy.isWrittenInSource(sourceText, "예시 엔터프라이즈 리눅스")).isFalse();
+        assertThat(SourceGroundingPolicy.isWrittenInSource(sourceText, "  ")).isFalse();
+    }
 }

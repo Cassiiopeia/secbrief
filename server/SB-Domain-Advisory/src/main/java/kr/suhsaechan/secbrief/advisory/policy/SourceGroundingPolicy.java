@@ -3,6 +3,7 @@ package kr.suhsaechan.secbrief.advisory.policy;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -12,7 +13,8 @@ import java.util.stream.Stream;
 /**
  * AI 가 쓴 글이 원문에 근거하는지 확인 (순수 함수): 원문에 없는 숫자 표기, 원문 문장 그대로 옮기기
  * 제목 번역·키워드 검증(ArticleTitleAnalysisPolicy)과 요약 검증이 함께 씀 (버전·건수·날짜 지어내기 방지)
- * 요약 검증 전용 2개: 옮긴 숫자 허용(findUngroundedNumbers), 이름·식별자 나열을 뺀 옮겨 싣기(findCopiedProse)
+ * 요약 검증 전용 3개: 옮긴 숫자 허용(findUngroundedNumbers), 이름·식별자 나열을 뺀 옮겨 싣기(findCopiedProse),
+ * 이름이 원문에 그대로 있는지(isWrittenInSource)
  */
 public final class SourceGroundingPolicy {
 
@@ -112,6 +114,14 @@ public final class SourceGroundingPolicy {
         return findNumbersNotInSource(sourceText, toTextWithoutTranslatedMonthNumbers(sourceText, generatedText)).stream()
                 .filter(numberToken -> !isTranslatedNumberWord(sourceText, numberToken))
                 .toList();
+    }
+
+    /**
+     * 이름(제품·패키지·기관)이 원문에 그 글자대로 적혀 있는지 (대소문자·공백 차이는 무시, 빈 이름은 false)
+     */
+    public static boolean isWrittenInSource(String sourceText, String name) {
+        String collapsedName = toCollapsed(name).toLowerCase(Locale.ROOT);
+        return !collapsedName.isEmpty() && toCollapsed(sourceText).toLowerCase(Locale.ROOT).contains(collapsedName);
     }
 
     // 쓴 글의 "N월" 중 원문에 그 달의 영어 이름이 있는 것 > 숫자를 뺀 "월" (그 밖의 글은 그대로, 날짜의 일·연도는 그대로 검사)

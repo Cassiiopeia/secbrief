@@ -37,10 +37,11 @@ class StructuredOutputArticleSummarizerTest {
     private static final ArticleSummaryRequest REQUEST = new ArticleSummaryRequest("Example VPN flaw exploited",
             ArticleRegion.OVERSEAS, ArticleKind.NEWS, SummaryWritingKind.NEWS_ARTICLE,
             "Attackers are exploiting a flaw in Example VPN to steal session tokens.");
-    private static final String RESPONSE_JSON =
-            "{\"summary\":\"Example VPN 결함이 악용되고 있어요.\",\"keyPoints\":[\"세션 토큰을 노려요.\"],\"actionGuide\":null}";
-    private static final ArticleSummary SUMMARY =
-            new ArticleSummary("Example VPN 결함이 악용되고 있어요.", List.of("세션 토큰을 노려요."), null);
+    private static final String RESPONSE_JSON = "{\"whatHappened\":\"공격자가 Example VPN의 결함을 악용하고 있어요.\",\"whyItMatters\":null,"
+            + "\"affected\":[{\"target\":\"Example VPN\",\"detail\":null}],\"actions\":[],"
+            + "\"oneLine\":\"Example VPN 결함으로 세션 토큰이 털리고 있어요.\"}";
+    private static final ArticleBrief BRIEF = new ArticleBrief("Example VPN 결함으로 세션 토큰이 털리고 있어요.",
+            "공격자가 Example VPN의 결함을 악용하고 있어요.", null, List.of(new AffectedTarget("Example VPN", null)), List.of());
 
     @Test
     void passesSummaryPromptSchemaAndTokenLimitToProvider() {
@@ -48,7 +49,7 @@ class StructuredOutputArticleSummarizerTest {
 
         ArticleSummaryOutcome outcome = new StructuredOutputArticleSummarizer(client).summarize(REQUEST);
 
-        assertThat(outcome).isEqualTo(ArticleSummaryOutcome.succeeded(SUMMARY));
+        assertThat(outcome).isEqualTo(ArticleSummaryOutcome.succeeded(BRIEF));
         StructuredCompletionRequest completionRequest = client.receivedRequests.get(0);
         assertThat(completionRequest.callType()).isEqualTo(AiCallType.SUMMARY);
         assertThat(completionRequest.systemInstruction())
@@ -61,13 +62,13 @@ class StructuredOutputArticleSummarizerTest {
     @Test
     void repairSendsRepairInstructionAndDraftWithProblemsInOneCall() {
         StubCompletionClient client = new StubCompletionClient(StructuredCompletion.of(RESPONSE_JSON, false));
-        ArticleSummary rejectedDraft = new ArticleSummary("Example VPN 결함 2개가 악용되고 있어요.", List.of(), null);
+        ArticleBrief rejectedDraft = new ArticleBrief(BRIEF.oneLine(), "Example VPN 결함 2개가 악용되고 있어요.", null, List.of(), List.of());
         List<SummaryProblem> problems =
-                List.of(new SummaryProblem("summary", ArticleSummaryPolicy.REASON_NUMBER_NOT_IN_SOURCE, "2"));
+                List.of(new SummaryProblem("whatHappened", ArticleSummaryPolicy.REASON_NUMBER_NOT_IN_SOURCE, "2"));
 
         ArticleSummaryOutcome outcome = new StructuredOutputArticleSummarizer(client).repair(REQUEST, rejectedDraft, problems);
 
-        assertThat(outcome).isEqualTo(ArticleSummaryOutcome.succeeded(SUMMARY));
+        assertThat(outcome).isEqualTo(ArticleSummaryOutcome.succeeded(BRIEF));
         assertThat(client.receivedRequests).hasSize(1);
         StructuredCompletionRequest completionRequest = client.receivedRequests.get(0);
         assertThat(completionRequest.callType()).isEqualTo(AiCallType.SUMMARY);
@@ -126,7 +127,7 @@ class StructuredOutputArticleSummarizerTest {
 
             ArticleSummaryOutcome outcome = new StructuredOutputArticleSummarizer(ollamaClient).summarize(REQUEST);
 
-            assertThat(outcome).isEqualTo(ArticleSummaryOutcome.succeeded(SUMMARY));
+            assertThat(outcome).isEqualTo(ArticleSummaryOutcome.succeeded(BRIEF));
             JsonNode chatRequest = OBJECT_MAPPER.readTree(receivedBody.get());
             assertThat(chatRequest.get("format")).isEqualTo(OBJECT_MAPPER.valueToTree(ArticleSummaryPrompt.toOutputJsonSchema()));
             assertThat(chatRequest.get("options").get("num_predict").asInt()).isEqualTo(ArticleSummaryPrompt.MAXIMUM_OUTPUT_TOKENS);

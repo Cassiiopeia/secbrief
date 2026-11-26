@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import kr.suhsaechan.secbrief.advisory.constant.FeedFormat;
 import kr.suhsaechan.secbrief.advisory.entity.Source;
-import kr.suhsaechan.secbrief.advisory.summary.ArticleSummary;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleBrief;
 import kr.suhsaechan.secbrief.advisory.summary.SummaryWritingKind;
 import org.junit.jupiter.api.Test;
 
@@ -56,13 +56,13 @@ class BackfillSupportTest {
 
     @Test
     void reportCountsStatusesPerSourceWithTotals() {
-        ArticleSummary summary = new ArticleSummary("요약이에요.", List.of(), null);
+        ArticleBrief brief = new ArticleBrief("한 줄이에요.", "무슨 일이에요.", null, List.of(), List.of());
         String report = BackfillReport.toMarkdown(List.of(
-                new BackfillResult(1L, "NVD", BackfillResult.Status.ACCEPTED, summary, 1, 1, false, null),
-                new BackfillResult(2L, "NVD", BackfillResult.Status.ACCEPTED, summary, 1, 2, true, null),
-                new BackfillResult(3L, "NVD", BackfillResult.Status.REJECTED, null, 3, 6, false, "summary copies source text"),
-                BackfillResult.withoutSummary(BackfillTestData.newsTarget(4L, null), BackfillResult.Status.NOT_RECOVERABLE),
-                BackfillResult.withoutSummary(BackfillTestData.newsTarget(5L, null), BackfillResult.Status.INPUT_TOO_THIN)));
+                new BackfillResult(1L, "NVD", BackfillResult.Status.ACCEPTED, brief, 1, 1, false, null),
+                new BackfillResult(2L, "NVD", BackfillResult.Status.ACCEPTED, brief, 1, 2, true, null),
+                new BackfillResult(3L, "NVD", BackfillResult.Status.REJECTED, null, 3, 6, false, "whatHappened copies source text"),
+                BackfillResult.withoutBrief(BackfillTestData.newsTarget(4L, null), BackfillResult.Status.NOT_RECOVERABLE),
+                BackfillResult.withoutBrief(BackfillTestData.newsTarget(5L, null), BackfillResult.Status.INPUT_TOO_THIN)));
 
         assertThat(report).contains("| NVD | 3 | 3 | 2 | 1 | 0 | 0 |");
         assertThat(report).contains("| THE_HACKER_NEWS | 2 | 1 | 0 | 0 | 1 | 1 |");

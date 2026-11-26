@@ -13,7 +13,7 @@ import kr.suhsaechan.secbrief.advisory.entity.Article;
 
 /**
  * 기사 응답: 원문 제목 + AI 한국어 제목(없으면 null), 원문 링크·게시자·게시일, CVE 정보, 대표 이미지 경로,
- * 중요도·제목 속 회사·제품 이름·키워드(AI 판단), 출처 코드 (AI·이미지 상태는 내보내지 않음)
+ * 중요도·제목 속 회사·제품 이름·키워드(AI 판단), 출처 코드, 브리핑의 한 줄 결론 (AI·이미지 상태는 내보내지 않음)
  */
 public record ArticleResponse(
         Long id,
@@ -40,7 +40,9 @@ public record ArticleResponse(
         // 출처 코드 (SourceCode: KISA, KISA_REPORT, NVD ...)
         String sourceCode,
         // AI 가 제목에서 뽑은 키워드 (# 없음, 대소문자 무시 글자순, 없으면 빈 목록)
-        List<String> keywords
+        List<String> keywords,
+        // 브리핑의 한 줄 결론 (브리핑이 없으면 null)
+        String oneLine
 ) {
 
     // ArticleController 의 이미지 경로와 같아야 함: /api/v1/articles/{id}/image
@@ -67,7 +69,8 @@ public record ArticleResponse(
                 article.getImportance(),
                 article.getSubjectName(),
                 article.getSource().getCode(),
-                article.getKeywords());
+                article.getKeywords(),
+                article.getSummaryState().hasBrief() ? article.getSummaryState().getOneLine() : null);
     }
 
     public static String toImagePath(Long articleId) {
