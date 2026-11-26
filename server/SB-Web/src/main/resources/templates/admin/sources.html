@@ -7,56 +7,71 @@
   <div th:replace="~{admin/fragments/admin-ui :: pageHeader('출처 관리',
        '출처마다 수집을 켜고 끄거나 주기를 바꿔요. 바꾼 값은 다음 수집부터 쓰고, 바꾼 내용은 관리자 기록에 남아요.')}"></div>
 
+  <!--/* 켜진 출처 중 마지막 수집이 실패한 곳 */-->
+  <div role="alert" class="alert alert-error alert-soft" th:if="${sourceHealth.hasFailingSource()}">
+    <i data-lucide="triangle-alert" class="size-5"></i>
+    <span th:text="|출처 ${sourceHealth.failingSourceCount()}곳의 마지막 수집이 실패했어요. 아래 표의 빨간 줄에서 사유를 확인해 주세요.|">실패 안내</span>
+  </div>
+
   <section class="card border border-base-300 bg-base-100">
-    <div class="card-body p-0">
+    <div class="card-body p-0 py-4">
+      <div class="px-4">
+        <div th:replace="~{admin/fragments/admin-ui :: cardHeader('출처 목록',
+             |전체 ${sourceHealth.totalSourceCount}곳 · 켜짐 ${sourceHealth.enabledSourceCount}곳 · 실패 ${sourceHealth.failingSourceCount()}곳 · 주기는 5분에서 1440분(하루) 사이로 정해요|)}"></div>
+      </div>
       <div class="overflow-x-auto">
-        <table class="table">
+        <table class="table admin-stack-table">
           <thead>
           <tr>
             <th>출처</th>
             <th>종류</th>
-            <th>수집 켜기</th>
+            <th>수집</th>
             <th>주기 (분)</th>
             <th>마지막 수집</th>
             <th>최근 실패 사유</th>
-            <th class="text-right">저장</th>
+            <th class="text-right">작업</th>
           </tr>
           </thead>
           <tbody>
-          <tr th:each="sourceRow : ${sourceRows}">
-            <td>
+          <tr th:each="sourceRow : ${sourceRows}"
+              th:classappend="${sourceRow.isEnabled() and sourceRow.isLastCollectFailed()} ? 'bg-error/5'">
+            <td class="admin-stack-primary">
               <div class="font-medium" th:text="${sourceRow.displayName}">출처</div>
               <div class="text-xs text-base-content/50" th:text="${sourceRow.code}">CODE</div>
             </td>
-            <td th:text="${sourceRow.kindLabel}">공지</td>
-            <td>
+            <td class="whitespace-nowrap" data-label="종류" th:text="${sourceRow.kindLabel}">공지</td>
+            <td data-label="수집 켜기">
               <input type="checkbox" name="enabled" value="true" class="toggle toggle-sm toggle-primary"
                      th:attr="form='sourceForm' + ${sourceRow.id},aria-label=${sourceRow.displayName} + ' 수집 켜기'"
                      th:checked="${sourceRow.isEnabled()}"/>
             </td>
-            <td>
+            <td data-label="주기 (분)">
               <input type="number" name="intervalMinutes" class="input input-sm admin-number w-24" min="5" max="1440" step="1" required
                      th:value="${sourceRow.intervalMinutes}"
                      th:attr="form='sourceForm' + ${sourceRow.id},aria-label=${sourceRow.displayName} + ' 수집 주기(분)'"/>
             </td>
-            <td>
-              <div class="admin-number whitespace-nowrap text-sm" th:text="${@adminDateTimeFormatter.format(sourceRow.lastCollectedAt)}">-</div>
-              <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${sourceRow.isLastCollectFailed()} ? 'error' : (${sourceRow.lastStatus == null} ? 'ghost' : 'success'), ${sourceRow.lastStatusLabel})}"></span>
+            <td data-label="마지막 수집">
+              <div class="flex flex-col items-end gap-1 sm:items-start">
+                <span class="admin-number whitespace-nowrap text-sm" th:text="${@adminDateTimeFormatter.format(sourceRow.lastCollectedAt)}">-</span>
+                <span th:replace="~{admin/fragments/admin-ui :: sourceStatusBadge(${sourceRow})}"></span>
+              </div>
             </td>
-            <td class="max-w-xs">
-              <th:block th:if="${sourceRow.lastFailureReason != null}">
-                <div class="break-words text-sm" th:classappend="${sourceRow.isLastCollectFailed()} ? 'text-error' : 'text-base-content/60'"
-                     th:text="${sourceRow.lastFailureReason}">사유</div>
+            <td class="max-w-xs" data-label="최근 실패 사유">
+              <div th:if="${sourceRow.lastFailureReason != null}">
+                <!--/* 사유가 길면 3줄까지, 전체는 마우스를 올리면 보임 */-->
+                <div class="line-clamp-3 break-words text-sm" th:classappend="${sourceRow.isLastCollectFailed()} ? 'text-error' : 'text-base-content/60'"
+                     th:text="${sourceRow.lastFailureReason}" th:title="${sourceRow.lastFailureReason}">사유</div>
                 <div class="admin-number text-xs text-base-content/50" th:text="${@adminDateTimeFormatter.format(sourceRow.lastFailedAt)}">-</div>
-              </th:block>
+              </div>
               <span th:if="${sourceRow.lastFailureReason == null}" class="text-sm text-base-content/40">없어요</span>
             </td>
-            <td class="text-right">
+            <td class="text-right" data-label="작업">
               <!-- 칸이 나뉜 표라 입력은 form 속성으로 이 폼에 묶음. 제출 전 확인 모달 (admin-ui.js) -->
               <form method="post" th:id="'sourceForm' + ${sourceRow.id}" th:action="@{/admin/sources/{sourceId}(sourceId=${sourceRow.id})}"
                     data-confirm-title="수집 설정을 바꿀까요?" data-confirm-label="저장"
                     th:attr="data-confirm-message=|「${sourceRow.displayName}」 수집 설정을 저장해요. 끈 출처는 다음 수집부터 건너뛰어요.|">
-                <button type="submit" class="btn btn-primary btn-sm">저장</button>
+                <button type="submit" class="btn btn-primary btn-sm whitespace-nowrap"
+                        th:attr="aria-label=${sourceRow.displayName} + ' 수집 설정 저장'">저장</button>
               </form>
             </td>
           </tr>
@@ -68,7 +83,6 @@
       </div>
     </div>
   </section>
-  <p class="text-sm text-base-content/60">주기는 5분에서 1440분(하루) 사이로 정할 수 있어요.</p>
 </main>
 
 </body>

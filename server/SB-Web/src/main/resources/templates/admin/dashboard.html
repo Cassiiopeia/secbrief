@@ -3,30 +3,79 @@
       th:replace="~{admin/fragments/admin-layout :: page('대시보드', 'dashboard', ~{::content})}">
 <body>
 
-<main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6">
-  <div th:replace="~{admin/fragments/admin-ui :: pageHeader('오늘 현황',
-       '서울 날짜 기준이에요. 숫자와 그래프는 1분마다 새 값으로 바뀌어요.')}"></div>
+<main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6"
+      th:with="hasAttention=${sourceHealth.hasFailingSource() or summary.failedSummaryCount > 0 or summary.todayAiFailureCount > 0}">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div th:replace="~{admin/fragments/admin-ui :: pageHeader('오늘 현황',
+         '서울 날짜 기준이에요. 숫자와 그래프는 1분마다 새 값으로 바뀌어요.')}"></div>
+    <!--/* 자주 하는 일 바로 가기 */-->
+    <div class="flex flex-wrap gap-2">
+      <a class="btn btn-primary btn-sm" th:href="@{/admin/notices}"><i data-lucide="megaphone" class="size-4"></i>공지 쓰기</a>
+      <a class="btn btn-sm" th:href="@{/admin/ai-keys}"><i data-lucide="key-round" class="size-4"></i>AI 키·우선순위</a>
+      <a class="btn btn-sm" th:href="@{/admin/sources}"><i data-lucide="rss" class="size-4"></i>출처 관리</a>
+    </div>
+  </div>
 
-  <!-- 숫자 카드 -->
-  <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="오늘 숫자">
-    <div th:replace="~{admin/fragments/admin-ui :: statCard('오늘 수집',
-         ${#numbers.formatInteger(summary.todayCollectedCount, 1, 'COMMA')} + '건',
-         '이번 주 ' + ${#numbers.formatInteger(summary.weekCollectedCount, 1, 'COMMA')} + '건', 'download')}"></div>
-    <div th:replace="~{admin/fragments/admin-ui :: statCard('AI 대기',
-         ${#numbers.formatInteger(summary.pendingTitleAnalysisCount + summary.pendingSummaryCount, 1, 'COMMA')} + '건',
-         '제목 분석 ' + ${#numbers.formatInteger(summary.pendingTitleAnalysisCount, 1, 'COMMA')}
-           + '건 · 요약 ' + ${#numbers.formatInteger(summary.pendingSummaryCount, 1, 'COMMA')} + '건', 'hourglass')}"></div>
-    <div th:replace="~{admin/fragments/admin-ui :: statCard('오늘 AI 호출',
-         ${#numbers.formatInteger(summary.todayAiCallCount, 1, 'COMMA')} + '회',
-         '실패 ' + ${#numbers.formatInteger(summary.todayAiFailureCount, 1, 'COMMA')}
-           + '회 · 추정 비용 $' + ${#numbers.formatDecimal(summary.todayAiEstimatedCostUsd, 1, 'COMMA', 4, 'POINT')}, 'sparkles')}"></div>
-    <div th:replace="~{admin/fragments/admin-ui :: statCard('오늘 앱 요청',
-         ${#numbers.formatInteger(summary.todayScreenRequestCount, 1, 'COMMA')} + '건',
-         '이미지 요청 ' + ${#numbers.formatInteger(summary.todayImageRequestCount, 1, 'COMMA')}
-           + '건 별도 · 알림 등록 기기 ' + ${#numbers.formatInteger(summary.pushDeviceCount, 1, 'COMMA')} + '대', 'smartphone')}"></div>
+  <!--/* 확인할 일: 켜진 출처의 수집 실패, 요약 실패, 오늘 AI 호출 실패 */-->
+  <section class="card border bg-base-100" aria-labelledby="attentionTitle"
+           th:classappend="${hasAttention} ? 'border-warning/60' : 'border-base-300'">
+    <div class="card-body gap-1 p-4 lg:p-5">
+      <h2 id="attentionTitle" class="flex items-center gap-2 text-base font-bold">
+        <i data-lucide="list-checks" class="size-5"></i>확인할 일
+      </h2>
+      <ul>
+        <th:block th:if="${sourceHealth.hasFailingSource()}">
+          <li th:replace="~{admin/fragments/admin-ui :: attentionItem('error', 'rss',
+               |출처 ${sourceHealth.failingSourceCount()}곳의 마지막 수집이 실패했어요: ${#strings.listJoin(sourceHealth.failingSourceRows.![displayName], ', ')}|,
+               '/admin/sources', '실패 사유 보기')}"></li>
+        </th:block>
+        <th:block th:if="${summary.failedSummaryCount > 0}">
+          <li th:replace="~{admin/fragments/admin-ui :: attentionItem('warning', 'file-warning',
+               |요약에 실패한 기사가 ${#numbers.formatInteger(summary.failedSummaryCount, 1, 'COMMA')}건 있어요. 앱은 제목과 원문 링크로 보여 줘요.|,
+               '/admin/ai-calls?callType=SUMMARY&result=failure', '실패한 호출 보기')}"></li>
+        </th:block>
+        <th:block th:if="${summary.todayAiFailureCount > 0}">
+          <li th:replace="~{admin/fragments/admin-ui :: attentionItem('warning', 'sparkles',
+               |오늘 AI 호출이 ${#numbers.formatInteger(summary.todayAiFailureCount, 1, 'COMMA')}회 실패했어요.|,
+               '/admin/ai-calls?result=failure', '실패한 호출 보기')}"></li>
+        </th:block>
+        <th:block th:if="${!hasAttention}">
+          <li th:replace="~{admin/fragments/admin-ui :: attentionItem('success', 'circle-check',
+               '지금 확인할 일이 없어요. 수집과 요약이 잘 돌고 있어요.', null, null)}"></li>
+        </th:block>
+      </ul>
+    </div>
   </section>
 
-  <!-- 추이 그래프 4종 -->
+  <!--/* 숫자 카드: 누르면 자세한 화면으로 */-->
+  <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="오늘 숫자">
+    <a th:replace="~{admin/fragments/admin-ui :: linkedStatCard('오늘 수집',
+         ${#numbers.formatInteger(summary.todayCollectedCount, 1, 'COMMA')} + '건',
+         |이번 주 ${#numbers.formatInteger(summary.weekCollectedCount, 1, 'COMMA')}건 · 켜진 출처 ${sourceHealth.enabledSourceCount} / ${sourceHealth.totalSourceCount}곳|,
+         'download', '/admin/sources', ${sourceHealth.hasFailingSource()} ? 'error' : 'default')}"></a>
+    <a th:replace="~{admin/fragments/admin-ui :: linkedStatCard('AI 대기',
+         ${#numbers.formatInteger(summary.pendingAiCount(), 1, 'COMMA')} + '건',
+         |제목 분석 ${#numbers.formatInteger(summary.pendingTitleAnalysisCount, 1, 'COMMA')}건 · 요약 ${#numbers.formatInteger(summary.pendingSummaryCount, 1, 'COMMA')}건|,
+         'hourglass', '/admin/settings#AI_PROCESSING', 'default')}"></a>
+    <a th:replace="~{admin/fragments/admin-ui :: linkedStatCard('요약 실패',
+         ${#numbers.formatInteger(summary.failedSummaryCount, 1, 'COMMA')} + '건',
+         '시도를 다 쓰고 실패로 남은 기사예요',
+         'file-warning', '/admin/ai-calls?callType=SUMMARY&result=failure', ${summary.failedSummaryCount > 0} ? 'warning' : 'default')}"></a>
+    <a th:replace="~{admin/fragments/admin-ui :: linkedStatCard('오늘 AI 호출',
+         ${#numbers.formatInteger(summary.todayAiCallCount, 1, 'COMMA')} + '회',
+         |실패 ${#numbers.formatInteger(summary.todayAiFailureCount, 1, 'COMMA')}회 · 추정 비용 $${#numbers.formatDecimal(summary.todayAiEstimatedCostUsd, 1, 'COMMA', 4, 'POINT')}|,
+         'sparkles', '/admin/ai-calls', ${summary.todayAiFailureCount > 0} ? 'warning' : 'default')}"></a>
+    <a th:replace="~{admin/fragments/admin-ui :: linkedStatCard('오늘 보낸 알림',
+         ${#numbers.formatInteger(summary.todayPushedCount(), 1, 'COMMA')} + '건',
+         |긴급 알림 ${#numbers.formatInteger(summary.todayPushedAlertCount, 1, 'COMMA')}건 · 공지 ${#numbers.formatInteger(summary.todayPushedNoticeCount, 1, 'COMMA')}건 · 보류 ${#numbers.formatInteger(summary.heldPushCount, 1, 'COMMA')}건|,
+         'bell-ring', '/admin/alerts', 'default')}"></a>
+    <a th:replace="~{admin/fragments/admin-ui :: linkedStatCard('알림 켠 기기',
+         ${#numbers.formatInteger(summary.pushDeviceCount, 1, 'COMMA')} + '대',
+         |오늘 앱 요청 ${#numbers.formatInteger(summary.todayScreenRequestCount, 1, 'COMMA')}건 · 이미지 ${#numbers.formatInteger(summary.todayImageRequestCount, 1, 'COMMA')}건 · 공지 ${#numbers.formatInteger(summary.noticeCount, 1, 'COMMA')}개|,
+         'smartphone', '/admin/notices', 'default')}"></a>
+  </section>
+
+  <!--/* 추이 그래프 4종 */-->
   <section class="grid grid-cols-1 gap-4 xl:grid-cols-2" aria-label="추이 그래프">
     <div th:replace="~{admin/fragments/admin-chart :: trendCard('수집 추이',
          '수집한 시각 기준, 종류별 건수예요', '/admin/stats/api/collect', 'stacked', false)}"></div>
@@ -38,15 +87,16 @@
          '지금 알림을 켜 둔 기기의 등록일 기준이에요', '/admin/stats/api/push-devices', 'bar', false)}"></div>
   </section>
 
-  <!-- 출처 상태 요약 -->
+  <!--/* 출처 상태 요약 */-->
   <section class="card border border-base-300 bg-base-100" aria-label="출처 상태">
-    <div class="card-body gap-3 p-4 lg:p-5">
-      <div class="flex items-center justify-between gap-2">
-        <h3 class="card-title text-base">출처 상태</h3>
+    <div class="card-body gap-3 p-0 py-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 px-4 lg:px-5">
+        <div th:replace="~{admin/fragments/admin-ui :: cardHeader('출처 상태',
+             |켜진 출처 ${sourceHealth.enabledSourceCount}곳 중 실패 ${sourceHealth.failingSourceCount()}곳|)}"></div>
         <a th:href="@{/admin/sources}" class="btn btn-ghost btn-sm">출처 관리로 가기</a>
       </div>
       <div class="overflow-x-auto">
-        <table class="table table-sm">
+        <table class="table table-sm admin-stack-table">
           <thead>
           <tr>
             <th>출처</th>
@@ -57,19 +107,14 @@
           </thead>
           <tbody>
           <tr th:each="sourceRow : ${sourceRows}">
-            <td>
+            <td class="admin-stack-primary">
               <span class="font-medium" th:text="${sourceRow.displayName}">출처</span>
               <span class="ml-1 text-xs text-base-content/50" th:text="${sourceRow.code}">CODE</span>
             </td>
-            <td th:text="${sourceRow.kindLabel}">공지</td>
-            <td class="admin-number whitespace-nowrap" th:text="${@adminDateTimeFormatter.format(sourceRow.lastCollectedAt)}">-</td>
-            <td>
-              <th:block th:if="${!sourceRow.isEnabled()}">
-                <span th:replace="~{admin/fragments/admin-ui :: toneBadge('ghost', '꺼짐')}"></span>
-              </th:block>
-              <th:block th:if="${sourceRow.isEnabled()}">
-                <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${sourceRow.isLastCollectFailed()} ? 'error' : (${sourceRow.lastStatus == null} ? 'ghost' : 'success'), ${sourceRow.lastStatusLabel})}"></span>
-              </th:block>
+            <td class="whitespace-nowrap" data-label="종류" th:text="${sourceRow.kindLabel}">공지</td>
+            <td class="admin-number whitespace-nowrap" data-label="마지막 수집" th:text="${@adminDateTimeFormatter.format(sourceRow.lastCollectedAt)}">-</td>
+            <td data-label="상태">
+              <span th:replace="~{admin/fragments/admin-ui :: sourceStatusBadge(${sourceRow})}"></span>
             </td>
           </tr>
           <th:block th:if="${#lists.isEmpty(sourceRows)}">
