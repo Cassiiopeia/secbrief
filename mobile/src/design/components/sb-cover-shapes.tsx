@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import Animated, { type SharedValue, useAnimatedProps } from 'react-native-reanimated';
 import { Circle, Ellipse, G, Line, Path, Rect } from 'react-native-svg';
 
 /** 커버 그림의 세 색 (바탕, 도형, 포인트) */
@@ -14,23 +13,16 @@ export const COVER_VIEW_BOX = '0 0 160 100';
 const VIEW_WIDTH = 160;
 const VIEW_HEIGHT = 100;
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
 const Backdrop = ({ color }: { color: string }) => <Rect width={VIEW_WIDTH} height={VIEW_HEIGHT} fill={color} />;
 
-// 과녁: 점 격자 12 x 5, 맥박 고리의 쉬는 반지름과 커지는 폭·옅어지는 정도
+// 과녁: 점 격자 12 x 5, 바깥 옅은 고리 반지름·불투명도
 const DOT_COLUMN_COUNT = 12;
 const DOT_COUNT = 60;
-const PULSE_RING_RADIUS = 38;
-const PULSE_RING_GROWTH = 7;
-const PULSE_RING_OPACITY = 0.4;
+const OUTER_RING_RADIUS = 38;
+const OUTER_RING_OPACITY = 0.4;
 
-/** 과녁 (취약점·침투): 점 격자를 가르는 사선과 과녁. 바깥 고리가 은은하게 맥박침 */
-export function TargetShape({ palette, pulse }: { palette: SbCoverPalette; pulse: SharedValue<number> }) {
-  const pulseRingProps = useAnimatedProps(() => ({
-    r: PULSE_RING_RADIUS + PULSE_RING_GROWTH * pulse.value,
-    opacity: PULSE_RING_OPACITY * (1 - pulse.value * 0.7),
-  }));
+/** 과녁 (취약점·침투): 점 격자를 가르는 사선과 과녁 */
+export function TargetShape({ palette }: { palette: SbCoverPalette }): ReactNode {
   return (
     <G>
       <Backdrop color={palette.back} />
@@ -43,7 +35,7 @@ export function TargetShape({ palette, pulse }: { palette: SbCoverPalette; pulse
           fill={palette.front}
         />
       ))}
-      <AnimatedCircle cx={112} cy={52} fill="none" stroke={palette.front} strokeWidth={1.5} animatedProps={pulseRingProps} />
+      <Circle cx={112} cy={52} r={OUTER_RING_RADIUS} opacity={OUTER_RING_OPACITY} fill="none" stroke={palette.front} strokeWidth={1.5} />
       <Circle cx={112} cy={52} r={34} fill="none" stroke={palette.front} strokeWidth={3} />
       <Circle cx={112} cy={52} r={18} fill="none" stroke={palette.front} strokeWidth={3} />
       <Circle cx={112} cy={52} r={6} fill={palette.mark} />

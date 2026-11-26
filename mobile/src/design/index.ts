@@ -54,4 +54,5 @@ export * from './tokens';
 export * from './components/sb-reveal';
 export { type SbStateIllustrationKind } from './components/sb-state-illustration-sources';
 export * from './components/sb-toast-host';
+export * from './components/sb-translated-mark';
 export { showSbToast } from './components/sb-toast-store';

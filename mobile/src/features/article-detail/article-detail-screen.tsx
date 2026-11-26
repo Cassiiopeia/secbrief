@@ -17,9 +17,11 @@ import {
   SbScreen,
   SbScreenHeader,
   SbText,
+  SbTranslatedMark,
   sbRadius,
   sbSize,
   sbSpacing,
+  useSbArticleImageState,
   useSbTheme,
 } from '@/design';
 
@@ -40,7 +42,7 @@ const BACK_ACCESSIBILITY_LABEL = '뒤로';
 const FOCUS_SCROLL_TOP_INSET = sbSpacing.medium;
 
 /**
- * 기사 상세 화면 (탭 밖, 앱 안 브리프): 그림 > 배지·CVSS > 제목 > 출처·게시일 > 브리프(AI 브리핑·확인된 정보·대응 모아보기)
+ * 기사 상세 화면 (탭 밖, 앱 안 브리프): (실제 대표 이미지) > 배지·CVSS > 제목 > 출처·게시일 > 브리프(AI 브리핑·확인된 정보·대응 모아보기)
  * 아래 고정 줄: 원문 보기 > 원문 링크 복사 > 공유(시큐브리프 공유 링크). 조회가 실패해도 넘겨받은 기본 정보와 원문 보기는 남음
  * ?focus=responseGuide 로 열면 대응 모아보기가 그려진 뒤 한 번 그 위치로 내려감 (알림 상세에서 들어옴)
  */
@@ -130,20 +132,27 @@ function useFocusScroll(focus: ArticleDetailFocus | undefined) {
   };
 }
 
-/** 상세 머리: 그림(+CVSS 게이지) > 배지(종류는 화면 제목에 있어 생략) > 제목 > (원문 제목) > 출처·게시일 > 해시태그 */
+/**
+ * 상세 머리: (대표 이미지 + CVSS 게이지) > 배지(종류는 화면 제목에 있어 생략) > 제목 > (번역 아이콘 + 원문 제목) > 출처·게시일 > 해시태그
+ * 이미지가 없거나 못 불러오면 그림 자리 없이 배지부터 (CVSS 게이지는 배지 위)
+ */
 function ArticleDetailHeading({ article }: { article: ArticleRowView }) {
   const { colors } = useSbTheme();
+  const { shownImageUrl, onImageFailed } = useSbArticleImageState(article.imageUrl);
   return (
     <View>
-      <View style={styles.cover}>
-        <SbArticleImage imageUrl={article.cover.imageUrl} coverKind={article.cover.coverKind} coverTone={article.cover.coverTone} />
-        {article.cvss !== undefined && (
-          <View style={styles.gauge}>
-            <SbCvssGauge value={article.cvss} isBoxed />
-          </View>
-        )}
-      </View>
+      {shownImageUrl !== undefined && (
+        <View style={styles.cover}>
+          <SbArticleImage imageUrl={shownImageUrl} onImageFailed={onImageFailed} />
+          {article.cvss !== undefined && (
+            <View style={styles.gauge}>
+              <SbCvssGauge value={article.cvss} isBoxed />
+            </View>
+          )}
+        </View>
+      )}
       <View style={styles.heading}>
+        {shownImageUrl === undefined && article.cvss !== undefined && <SbCvssGauge value={article.cvss} />}
         <SbBadgeRow badges={toBadgesWithoutImplied(article.badges, article.kindLabel)} />
         <View accessibilityRole="header">
           <SbText variant="detailTitle" color={colors.label}>
@@ -151,9 +160,14 @@ function ArticleDetailHeading({ article }: { article: ArticleRowView }) {
           </SbText>
         </View>
         {article.originalTitle !== undefined && (
-          <SbText variant="caption" color={colors.tertiaryLabel}>
-            {article.originalTitle}
-          </SbText>
+          <View style={styles.originalTitle}>
+            {article.translatedMarkLabel !== undefined && <SbTranslatedMark accessibilityLabel={article.translatedMarkLabel} />}
+            <View style={styles.originalTitleText}>
+              <SbText variant="caption" color={colors.tertiaryLabel}>
+                {article.originalTitle}
+              </SbText>
+            </View>
+          </View>
         )}
         <SbText variant="timeLabel" color={colors.tertiaryLabel}>
           {article.metaLabel}
@@ -174,5 +188,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   gauge: { position: 'absolute', left: sbSpacing.compact, bottom: sbSpacing.compact },
+  // 번역 아이콘 + 원문 제목 (아이콘은 첫 줄 높이에 맞춤)
+  originalTitle: { flexDirection: 'row', alignItems: 'flex-start', gap: sbSpacing.extraSmall },
+  originalTitleText: { flex: 1 },
   heading: { gap: sbSpacing.small, paddingHorizontal: sbSpacing.pageHorizontal, paddingVertical: sbSpacing.medium },
 });

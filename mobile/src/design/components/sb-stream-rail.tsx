@@ -4,10 +4,11 @@ import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { useSbStyles, useSbTheme } from '../theme/use-sb-theme';
 import { type SbColors, sbMaximumLines, sbRadius, sbSize, sbSpacing, toSbArticleTitleColor } from '../tokens';
-import { SbArticleImage } from './sb-article-image';
-import type { SbCoverKind, SbCoverTone } from './sb-cover-art';
+import { SbArticleImage, useSbArticleImageState } from './sb-article-image';
+import { toSbArticleTitleMaximumLines } from './sb-article-image-layout';
 import { SbPressable } from './sb-pressable';
 import { SbText } from './sb-text';
+import { SbTranslatedMark } from './sb-translated-mark';
 import { useSbPulse } from './use-sb-pulse';
 
 /** 스트림 레일: 왼쪽 세로선 + 시간순 항목들 (위가 최신) */
@@ -20,10 +21,9 @@ interface SbStreamRailItemProps {
   /** 예: 'KISA 보호나라 · 2시간 전' (영문은 대문자로 보여 줌) */
   timeLabel: string;
   title: string;
-  /** 없으면 썸네일 없이 글만 */
-  thumbnailKind?: SbCoverKind;
-  thumbnailTone?: SbCoverTone;
-  /** 소식 대표 이미지 주소 (있으면 커버 그림 위에 겹쳐 보임) */
+  /** 번역 표시 읽기 도우미 문구 (있으면 시간 라벨 끝에 번역 아이콘) */
+  translatedMarkLabel?: string;
+  /** 소식 대표 이미지 주소 (없거나 못 불러오면 썸네일 없이 제목 전체) */
   thumbnailImageUrl?: string;
   /** 가장 새 항목: 레일 점이 맥박처럼 퍼짐 */
   isLatest?: boolean;
@@ -40,12 +40,11 @@ const RAIL_LINE_WIDTH = 1;
 const LATEST_RING_SCALE = 3.6;
 const LATEST_RING_OPACITY = 0.45;
 
-/** 스트림 항목 한 건: 레일 점 + 게시자·날짜 라벨 + 제목(3줄까지) + (선택) 썸네일 */
+/** 스트림 항목 한 건: 레일 점 + 게시자·날짜 라벨 + 제목(이미지 있으면 3줄까지, 없으면 전체) + (실제 이미지 썸네일) */
 export function SbStreamRailItem({
   timeLabel,
   title,
-  thumbnailKind,
-  thumbnailTone = 'neutral',
+  translatedMarkLabel,
   thumbnailImageUrl,
   isLatest = false,
   isRead = false,
@@ -54,26 +53,32 @@ export function SbStreamRailItem({
   const { colors } = useSbTheme();
   const styles = useSbStyles(createStyles);
   const pulse = useSbPulse(isLatest);
+  const { shownImageUrl, onImageFailed } = useSbArticleImageState(thumbnailImageUrl);
   const ringStyle = useAnimatedStyle(() => ({
     opacity: pulse.value === 0 ? 0 : LATEST_RING_OPACITY * (1 - pulse.value),
     transform: [{ scale: 1 + (LATEST_RING_SCALE - 1) * pulse.value }],
   }));
   return (
-    <SbPressable accessibilityLabel={`${title}, ${timeLabel}`} onPress={onPress} feedback="dim">
+    <SbPressable accessibilityLabel={[title, translatedMarkLabel, timeLabel].filter((part) => part !== undefined).join(', ')} onPress={onPress} feedback="dim">
       <View style={styles.item}>
         <Animated.View style={[styles.dot, ringStyle]} />
         <View style={styles.dot} />
         <View style={styles.text}>
-          <SbText variant="timeLabel" color={colors.tertiaryLabel} numberOfLines={sbMaximumLines.singleLine}>
-            {timeLabel.toUpperCase()}
-          </SbText>
-          <SbText variant="streamTitle" color={toSbArticleTitleColor(colors, isRead)} numberOfLines={sbMaximumLines.cardTitle}>
+          <View style={styles.timeLine}>
+            <View style={styles.timeLabel}>
+              <SbText variant="timeLabel" color={colors.tertiaryLabel} numberOfLines={sbMaximumLines.singleLine}>
+                {timeLabel.toUpperCase()}
+              </SbText>
+            </View>
+            {translatedMarkLabel !== undefined && <SbTranslatedMark accessibilityLabel={translatedMarkLabel} />}
+          </View>
+          <SbText variant="streamTitle" color={toSbArticleTitleColor(colors, isRead)} numberOfLines={toSbArticleTitleMaximumLines(shownImageUrl !== undefined, sbMaximumLines.cardTitle)}>
             {title}
           </SbText>
         </View>
-        {thumbnailKind !== undefined && (
+        {shownImageUrl !== undefined && (
           <View style={styles.thumbnail}>
-            <SbArticleImage imageUrl={thumbnailImageUrl} coverKind={thumbnailKind} coverTone={thumbnailTone} />
+            <SbArticleImage imageUrl={shownImageUrl} onImageFailed={onImageFailed} />
           </View>
         )}
       </View>
@@ -101,6 +106,8 @@ const createStyles = (colors: SbColors) =>
       backgroundColor: colors.urgent,
     },
     text: { flex: 1, gap: sbSpacing.hairline },
+    timeLine: { flexDirection: 'row', alignItems: 'center', gap: sbSpacing.extraSmall },
+    timeLabel: { flexShrink: 1 },
     thumbnail: {
       width: sbSize.streamThumbnail,
       height: sbSize.streamThumbnail,

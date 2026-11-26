@@ -10,6 +10,8 @@ export const sbSize = {
   railCardWidth: 264,
   railCoverHeight: 124,
   wideCoverHeight: 172,
+  /** 이미지 없는 큰 카드 위쪽 강조 띠 두께 */
+  headlineAccentBarHeight: 4,
   /** CVSS 게이지 너비 */
   cvssGauge: 60,
   /** 주제 바로가기 그림 */

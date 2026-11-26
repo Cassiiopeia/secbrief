@@ -1,10 +1,10 @@
 /**
- * 소식 목록 규칙: 필터 재확인(중요도·출처·키워드), 표현 크기(중요도·목록 쓰임·게시 후 지난 날), 목록 배지, 커버 그림 섞기,
+ * 소식 목록 규칙: 필터 재확인(중요도·출처·키워드), 표현 크기(중요도·목록 쓰임·게시 후 지난 날), 목록 배지, 주제 대표 그림,
  * 읽은 기사 목록, 모아 보기 묶음, 경보단계 띠, 행사 타임라인
  */
 import { KISA_SOURCE_CODES } from '@/data/models/article-source-code';
 import { toArticleBadges, toFeedBadges } from '@/features/articles/article-badges';
-import { toArticleCover, toTopicCoverKind } from '@/features/articles/article-cover';
+import { toTopicCoverKind } from '@/features/articles/article-cover';
 import { type ArticleFeedPlacement, toArticleFeedPresentation } from '@/features/articles/article-feed-layout';
 import { isArticleMatchingFilter } from '@/features/articles/article-filter-guard';
 import { READ_ARTICLE_MAXIMUM_COUNT, toReadArticleIdsWith } from '@/features/articles/read-article-ids';
@@ -60,7 +60,7 @@ describe('표현 크기', () => {
 describe('목록 배지', () => {
   const urgentKevItem = { ...nvdItem, isKev: true, translatedTitle: '원격 코드 실행', subjectName: 'Example VPN' };
 
-  test('2개까지, 강한 것부터. AI 번역은 메타 줄에 표시하므로 뺀다', () => {
+  test('2개까지, 강한 것부터. 번역 항목도 AI 번역 배지 없음 (번역 아이콘으로)', () => {
     expect(toFeedBadges(toArticleBadges(urgentKevItem), false).map((badge) => badge.label)).toEqual(['긴급', '악용 중']);
     expect(toFeedBadges(toArticleBadges({ ...overseasNewsItem, translatedTitle: '번역 제목' }), false).map((badge) => badge.label)).toEqual(['뉴스']);
   });
@@ -79,15 +79,7 @@ describe('목록 배지', () => {
   });
 });
 
-describe('커버 그림', () => {
-  test('같은 기사는 늘 같은 그림·배색, 같은 주제라도 기사마다 섞인다', () => {
-    const toGeneralCover = (id: string) => toArticleCover({ ...overseasNewsItem, id });
-    expect(toGeneralCover('82')).toEqual(toGeneralCover('82'));
-    const coverLooks = ['80', '81', '82', '83', '84', '85'].map(toGeneralCover).map((cover) => `${cover.coverKind}-${cover.coverTone}`);
-    expect(new Set(coverLooks).size).toBe(coverLooks.length);
-    // 이어진 기사끼리 배색이 겹치지 않음
-    expect(toGeneralCover('80').coverTone).not.toBe(toGeneralCover('81').coverTone);
-  });
+describe('주제 대표 그림', () => {
   test('주제 대표 그림은 주제마다 다르다 (일반 제외 8종)', () => {
     const topics = ['vulnerability', 'ransomware', 'privacy', 'remoteAccess', 'database', 'supplyChain', 'policy', 'event'] as const;
     expect(new Set(topics.map(toTopicCoverKind)).size).toBe(topics.length);
