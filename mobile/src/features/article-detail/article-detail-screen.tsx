@@ -36,7 +36,7 @@ import { useArticleDetail } from './use-article-detail';
 const BACK_ACCESSIBILITY_LABEL = '뒤로';
 
 /**
- * 기사 상세 화면 (탭 밖, 앱 안 브리프): 그림 > 배지·CVSS > 제목 > 출처·게시일 > 브리프(요약·핵심·대응·확인된 정보·함께 볼 소식)
+ * 기사 상세 화면 (탭 밖, 앱 안 브리프): 그림 > 배지·CVSS > 제목 > 출처·게시일 > 브리프(AI 브리핑·확인된 정보·함께 볼 소식)
  * 아래 고정 줄에 원문 보기와 공유. 조회가 실패해도 넘겨받은 기본 정보와 원문 보기는 남음
  */
 export function ArticleDetailScreen() {

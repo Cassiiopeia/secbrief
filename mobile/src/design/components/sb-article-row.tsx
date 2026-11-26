@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { useSbStyles, useSbTheme } from '../theme/use-sb-theme';
 import { type SbColors, sbMaximumLines, sbRadius, sbSize, sbSpacing, toSbArticleTitleColor } from '../tokens';
 import { SbArticleImage } from './sb-article-image';
+import { type SbArticleSecondaryLine, SbArticleSecondaryLineText } from './sb-article-secondary-line';
 import { type SbBadgeContent, SbBadgeRow } from './sb-badge';
 import type { SbCoverKind, SbCoverTone } from './sb-cover-art';
 import { SbCvssGauge, type SbCvssGaugeValue } from './sb-cvss-gauge';
@@ -29,8 +30,8 @@ interface SbArticleRowProps {
   density: 'card' | 'compact';
   /** 크게 보이는 제목 (번역이 있으면 한국어 제목) */
   title: string;
-  /** 번역 항목의 원문 제목 (작게) */
-  originalTitle?: string;
+  /** 제목 아래 작은 줄 (한 줄 결론 또는 번역 항목의 원문 제목) */
+  secondaryLine?: SbArticleSecondaryLine;
   /** 게시자 · 짧은 날짜 (· AI 번역) 줄 */
   metaLabel: string;
   badges: SbBadgeContent[];
@@ -53,7 +54,7 @@ interface SbArticleRowProps {
 export function SbArticleRow({
   density,
   title,
-  originalTitle,
+  secondaryLine,
   metaLabel,
   badges,
   cvss,
@@ -81,11 +82,7 @@ export function SbArticleRow({
                 numberOfLines={isCard ? sbMaximumLines.cardTitle : sbMaximumLines.compactTitle}>
                 {title}
               </SbText>
-              {originalTitle !== undefined && (
-                <SbText variant="caption" color={colors.tertiaryLabel} numberOfLines={sbMaximumLines.singleLine}>
-                  {originalTitle}
-                </SbText>
-              )}
+              {secondaryLine !== undefined && <SbArticleSecondaryLineText secondaryLine={secondaryLine} />}
               <SbText variant="timeLabel" color={colors.tertiaryLabel} numberOfLines={sbMaximumLines.singleLine}>
                 {metaLabel}
               </SbText>

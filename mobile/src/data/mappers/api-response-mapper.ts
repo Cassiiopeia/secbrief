@@ -6,6 +6,7 @@ import type { CollectSourceStatus } from '../models/collect-source-status';
 import type { TodayBriefing } from '../models/today-briefing';
 import type { TrendingKeyword } from '../models/trending-keyword';
 import type { TrendTopic, WeeklyTrend } from '../models/trend-topic';
+import { type ArticleBriefApiResponse, toArticleBrief, toNonBlankText } from './article-brief-mapper';
 
 /** 서버 기사 응답 (enum 은 대문자 이름) */
 export interface ArticleApiResponse {
@@ -20,6 +21,8 @@ export interface ArticleApiResponse {
   sourceCode?: string | null;
   title: string;
   translatedTitle: string | null;
+  /** AI 한 줄 결론. 없으면 null, 이 필드가 생기기 전 서버는 아예 안 줌 */
+  oneLine?: string | null;
   originalUrl: string;
   /** 대표 이미지 경로. 이미지가 없으면 null, 이 필드가 생기기 전 서버는 아예 안 줌 */
   imagePath?: string | null;
@@ -80,6 +83,8 @@ export interface ArticleDetailApiResponse {
   keyPoints?: string[] | null;
   actionGuide?: string | null;
   isAiSummarized?: boolean | null;
+  /** AI 브리핑. 이전 방식 요약만 있으면 null, 이 필드가 생기기 전 서버는 아예 안 줌 */
+  brief?: ArticleBriefApiResponse | null;
   facts?: { label: string; value: string }[] | null;
   relatedItems?: ArticleApiResponse[] | null;
 }
@@ -142,6 +147,7 @@ export function toBriefingItem(response: ArticleApiResponse): BriefingItem {
     keywords: response.keywords ?? [],
     title: response.title,
     translatedTitle: response.translatedTitle ? response.translatedTitle : undefined,
+    oneLine: toNonBlankText(response.oneLine),
     originalUrl: response.originalUrl,
     imagePath: response.imagePath ? response.imagePath : undefined,
     publisherName: response.publisherName,
@@ -195,10 +201,12 @@ export function toTrendingKeywords(response: TrendingKeywordsApiResponse): Trend
   }));
 }
 
-/** 기사 상세 응답 > 상세 (요약이 아직 없으면 summary 없음·keyPoints 빈 배열, 없는 목록은 빈 배열) */
+/** 기사 상세 응답 > 상세 (요약이 아직 없으면 summary 없음·keyPoints 빈 배열, 없는 목록은 빈 배열, 브리핑은 읽을 수 있을 때만) */
 export function toArticleDetail(response: ArticleDetailApiResponse): ArticleDetail {
+  const article = toBriefingItem(response.article);
   return {
-    article: toBriefingItem(response.article),
+    article,
+    brief: toArticleBrief(response.brief, article.oneLine),
     summary: response.summary ? response.summary : undefined,
     keyPoints: response.keyPoints ?? [],
     actionGuide: response.actionGuide ? response.actionGuide : undefined,

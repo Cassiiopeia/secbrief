@@ -1,10 +1,10 @@
 import type { ArticleImportance, BriefingItem } from '@/data/models/briefing-item';
-import type { SbArticleThumbnail, SbBadgeContent, SbCvssGaugeValue, SbHashtag } from '@/design';
+import type { SbArticleSecondaryLine, SbArticleThumbnail, SbBadgeContent, SbCvssGaugeValue, SbHashtag } from '@/design';
 
 import { toCardHashtags } from '../keywords/keyword-view-state';
 import { toArticleBadges, toCvssGaugeValue } from './article-badges';
 import { toArticleCover, toArticleRowThumbnail } from './article-cover';
-import { toCompactMetaLabel, toCvssLabel, toDisplayTitle, toKindLabel, toMetaLabel } from './article-labels';
+import { toCompactMetaLabel, toCvssLabel, toDisplayTitle, toKindLabel, toMetaLabel, toOneLineAccessibilityLabel } from './article-labels';
 
 export * from './article-badges';
 export * from './article-labels';
@@ -13,7 +13,10 @@ export * from './article-labels';
 export interface ArticleRowView {
   id: string;
   title: string;
+  /** 번역 항목의 원문 제목 (상세 머리) */
   originalTitle?: string;
+  /** 목록 카드·행의 제목 아래 작은 줄: 한 줄 결론, 없으면 번역 항목의 원문 제목, 둘 다 없으면 없음 */
+  secondaryLine?: SbArticleSecondaryLine;
   /** 게시자 · 절대 날짜 · 상대 표기 (읽기 도우미용 전체 표기) */
   metaLabel: string;
   /** 게시자 · 짧은 날짜 (· AI 번역) (목록에 보이는 줄) */
@@ -38,14 +41,16 @@ export interface ArticleRowView {
   originalUrl: string;
 }
 
-/** 소식 > 표시 내용: 제목(번역 우선) > 원문 제목 > 메타 > 배지 > CVSS > 해시태그 > 그림 */
+/** 소식 > 표시 내용: 제목(번역 우선) > 원문 제목 > 제목 아래 줄 > 메타 > 배지 > CVSS > 해시태그 > 그림 */
 export function toArticleRowView(item: BriefingItem, now: Date): ArticleRowView {
   const metaLabel = toMetaLabel(item, now);
   const cvssLabel = toCvssLabel(item);
+  const originalTitle = item.translatedTitle !== undefined ? item.title : undefined;
   return {
     id: item.id,
     title: toDisplayTitle(item),
-    originalTitle: item.translatedTitle !== undefined ? item.title : undefined,
+    originalTitle,
+    secondaryLine: toArticleSecondaryLine(item.oneLine, originalTitle),
     metaLabel,
     compactMetaLabel: toCompactMetaLabel(item, now),
     badges: toArticleBadges(item),
@@ -57,7 +62,16 @@ export function toArticleRowView(item: BriefingItem, now: Date): ArticleRowView 
     publisherName: item.publisherName,
     kindLabel: toKindLabel(item.kind),
     publishedAt: item.publishedAt,
-    accessibilityLabel: [toDisplayTitle(item), metaLabel, cvssLabel, '자세히 보기'].filter((part) => part !== undefined).join(', '),
+    accessibilityLabel: [toDisplayTitle(item), toOneLineAccessibilityLabel(item), metaLabel, cvssLabel, '자세히 보기']
+      .filter((part) => part !== undefined)
+      .join(', '),
     originalUrl: item.originalUrl,
   };
+}
+
+/** 제목 아래 줄 고르기: 한 줄 결론(AI) 우선 > 번역 항목의 원문 제목 > 없음 */
+export function toArticleSecondaryLine(oneLine: string | undefined, originalTitle: string | undefined): SbArticleSecondaryLine | undefined {
+  if (oneLine !== undefined) return { text: oneLine, tone: 'summary' };
+  if (originalTitle !== undefined) return { text: originalTitle, tone: 'reference' };
+  return undefined;
 }
