@@ -14,6 +14,8 @@ dependencies {
 
     // RSS·Atom 피드 파싱 (인코딩 자동 감지)
     implementation 'com.rometools:rome:2.1.0'
+    // KISA 보호나라 게시판 목록 쪽 읽기 (지난 공지 1회 채우기, 인코딩 자동 감지)
+    implementation 'org.jsoup:jsoup:1.24.1'
 
     // AI 제목 분류·번역 (공식 Anthropic Java SDK, 구조화 출력)
     implementation 'com.anthropic:anthropic-java:3.12.0'

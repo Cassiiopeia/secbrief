@@ -19,6 +19,7 @@ export async function fetchArticlePage(filter: ArticleFilter, cursor?: string): 
     minimumImportance: filter.minimumImportance && toApiImportance(filter.minimumImportance),
     sourceCode: filter.sourceCode,
     keyword: filter.keyword,
+    isUrgent: filter.isUrgent ? 'true' : undefined,
     cursor,
   });
   return toArticlePage(response);

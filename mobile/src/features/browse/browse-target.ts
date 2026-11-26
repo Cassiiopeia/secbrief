@@ -7,7 +7,7 @@ import { toSourceLabel } from '../articles/source-labels';
 
 /**
  * 모아 보기 화면이 보여 줄 묶음: 제목 + 소식 필터
- * 묶음 키 4종: topic-<주제>, source-<출처 코드>, keyword-<키워드>, kisa-all (KISA 전체)
+ * 묶음 키 5종: topic-<주제>, source-<출처 코드>, keyword-<키워드>, kisa-all (KISA 전체), urgent (긴급 소식)
  */
 export interface BrowseTarget {
   title: string;
@@ -19,6 +19,8 @@ const SOURCE_KEY_PREFIX = 'source-';
 const KEYWORD_KEY_PREFIX = 'keyword-';
 export const KISA_ALL_BROWSE_KEY = 'kisa-all';
 const KISA_ALL_TITLE = 'KISA 소식';
+export const URGENT_BROWSE_KEY = 'urgent';
+const URGENT_TITLE = '긴급 소식';
 const HASH_SIGN = '#';
 
 // 모아 볼 수 있는 주제 8종 (일반 제외), 바로가기 표시 순서
@@ -47,6 +49,7 @@ export function toBrowseTarget(browseKey: string): BrowseTarget | undefined {
   if (browseKey === KISA_ALL_BROWSE_KEY) {
     return { title: KISA_ALL_TITLE, filter: { kind: 'advisory', region: 'domestic' } };
   }
+  if (browseKey === URGENT_BROWSE_KEY) return { title: URGENT_TITLE, filter: { isUrgent: true } };
   if (browseKey.startsWith(TOPIC_KEY_PREFIX)) {
     const topic = BROWSABLE_TOPICS.find((candidate) => candidate === browseKey.slice(TOPIC_KEY_PREFIX.length));
     return topic === undefined ? undefined : { title: toTopicLabel(topic), filter: { topic } };

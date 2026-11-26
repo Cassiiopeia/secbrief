@@ -4,6 +4,8 @@ import static kr.suhsaechan.secbrief.advisory.policy.ArticleUrgencyPolicy.isUrge
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import kr.suhsaechan.secbrief.advisory.constant.SourceCode;
 import org.junit.jupiter.api.Test;
 
@@ -72,5 +74,26 @@ class ArticleUrgencyPolicyTest {
     @Test
     void missingScoreAndTitleAreNotUrgent() {
         assertThat(isUrgent(SourceCode.KISA, null, null, false)).isFalse();
+    }
+
+    @Test
+    void raisedAlertLevelIsUrgentOnlyForSevenDaysAfterPosting() {
+        Instant now = Instant.parse("2026-11-27T00:00:00Z");
+        String raisedTitle = "사이버위기 경보 단계 '관심' → '주의' 상향 조정";
+
+        // 게시 7일 이내: 긴급, 7일 넘음(36일 전 10-22 공지): 긴급 아님
+        assertThat(ArticleUrgencyPolicy.isUrgentAt(SourceCode.KISA_ALERT_LEVEL, raisedTitle, null, false,
+                now.minus(Duration.ofDays(6)), now)).isTrue();
+        assertThat(ArticleUrgencyPolicy.isUrgentAt(SourceCode.KISA_ALERT_LEVEL, raisedTitle, null, false,
+                Instant.parse("2026-10-21T15:00:00Z"), now)).isFalse();
+    }
+
+    @Test
+    void urgencyWindowAppliesOnlyToAlertLevelSource() {
+        Instant now = Instant.parse("2026-11-27T00:00:00Z");
+
+        assertThat(ArticleUrgencyPolicy.isUrgentAt(SourceCode.KISA, "긴급 보안 업데이트 권고", null, false,
+                now.minus(Duration.ofDays(60)), now)).isTrue();
+        assertThat(ArticleUrgencyPolicy.isExpiredAlertLevelArticle(SourceCode.KISA_ALERT_LEVEL, null, now)).isFalse();
     }
 }

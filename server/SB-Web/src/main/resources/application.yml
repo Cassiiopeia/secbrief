@@ -85,6 +85,17 @@ secbrief:
     tick-milliseconds: 60000
     # 기동 후 첫 틱까지 대기 (30초)
     initial-delay-milliseconds: 30000
+    # KISA 지난 글 1회 채우기 틱 (6시간): 채우기 전인 출처만, 끝난 출처는 다시 안 함 (#96)
+    kisa-backfill-tick-milliseconds: 21600000
+    # 기동 후 첫 채우기까지 대기 (3분: 첫 RSS 수집 이후)
+    kisa-backfill-initial-delay-milliseconds: 180000
+  alert-level:
+    # 경보단계 틱 켜기 (해외 지표 읽기, 지난 경보단계 글 긴급 해제)
+    enabled: true
+    # 경보단계 틱 (1시간): 해외 지표는 이 주기로만 다시 읽음 (화면 요청은 보관값)
+    tick-milliseconds: 3600000
+    # 기동 후 첫 틱까지 대기 (20초)
+    initial-delay-milliseconds: 20000
   ai:
     # AI 스케줄러 켜기 (false: AI 처리 안 함, 기사는 원문 제목·general 로 보임)
     enabled: ${AI_ENABLED:true}

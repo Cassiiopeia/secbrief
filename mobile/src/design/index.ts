@@ -22,6 +22,7 @@ export * from './components/sb-headline-card';
 export * from './components/sb-horizontal-rail';
 export * from './components/sb-icon-button';
 export * from './components/sb-inline-notice';
+export * from './components/sb-level-gauge';
 export * from './components/sb-list-row';
 export * from './components/sb-loading-skeleton';
 export * from './components/sb-masthead';

@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 기사 API 2개 (인증 없음): 목록 (필터 enum 대문자 이름, 틀리면 TYPE_MISMATCH + 출처 코드·키워드 + 커서 + 크기), 대표 이미지 (저장된 JPEG)
+ * 기사 API 2개 (인증 없음): 목록 (필터 enum 대문자 이름, 틀리면 TYPE_MISMATCH + 출처 코드·키워드·긴급만 + 커서 + 크기), 대표 이미지 (저장된 JPEG)
  */
 @RestController
 @RequiredArgsConstructor
@@ -41,10 +41,11 @@ public class ArticleController {
             @RequestParam(required = false) ArticleImportance minimumImportance,
             @RequestParam(required = false) String sourceCode,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean isUrgent,
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) Integer size) {
-        return ApiResponse.of(articleQueryService.findArticles(
-                new ArticleSearchCondition(kind, region, topic, minimumImportance, sourceCode, keyword, cursor, size)));
+        return ApiResponse.of(articleQueryService.findArticles(new ArticleSearchCondition(
+                kind, region, topic, minimumImportance, sourceCode, keyword, isUrgent, cursor, size)));
     }
 
     /**
