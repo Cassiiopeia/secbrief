@@ -9,3 +9,8 @@ export const apiConfig = {
   // 요청 제한 시간 (단위: 밀리초)
   requestTimeoutMilliseconds: 10_000,
 } as const;
+
+/** 서버 경로(/api/...) > 절대 주소. 기본 주소를 붙이는 유일한 자리 (요청 주소, 이미지 주소 공통) */
+export function toApiAbsoluteUrl(path: string): string {
+  return `${apiConfig.baseUrl}${path}`;
+}

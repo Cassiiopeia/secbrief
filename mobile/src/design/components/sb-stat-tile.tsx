@@ -28,15 +28,17 @@ const BACKGROUND_ART_SIZE = 96;
 const BACKGROUND_ART_OVERFLOW = 22;
 const BACKGROUND_ART_OPACITY = 0.22;
 
-/** 통계 타일: 위 라벨 + 큰 값 + 한 줄 설명 */
+/** 통계 타일: (흐린 배경 그림) + 위 라벨 + 큰 값 + 한 줄 설명. onPress 를 주면 누를 수 있음 */
 export function SbStatTile({ label, value, detail, tone, backgroundCoverKind, onPress }: SbStatTileProps) {
   const { colors } = useSbTheme();
   const styles = useSbStyles(createStyles);
   const isFeature = tone === 'feature';
   const backgroundColor = isFeature ? colors.feature : colors.surfaceRaised;
   const foregroundColor = isFeature ? colors.onFeature : colors.label;
+  // 읽기 도우미용 값 (세어 올리는 숫자는 목표값으로)
+  const valueText = 'text' in value ? value.text : `${value.countTarget}${value.countUnit}`;
   return (
-    <SbPressable accessibilityLabel={label} onPress={onPress} isFilling>
+    <SbPressable accessibilityLabel={`${label}, ${valueText}, ${detail}`} onPress={onPress} isFilling>
       <View style={[styles.tile, isFeature ? styles.featureTile : styles.neutralTile]}>
         {backgroundCoverKind !== undefined && (
           <View style={styles.backgroundArt}>

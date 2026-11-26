@@ -1,15 +1,90 @@
 {
   "metadata": {
-    "lastUpdated": "2026-11-23T11:33:15Z",
-    "currentVersion": "0.4.0",
+    "lastUpdated": "2026-11-26T03:28:20Z",
+    "currentVersion": "0.5.0",
     "projectType": "spring",
     "projectTypes": [
       "spring",
       "react-native-expo"
     ],
-    "totalReleases": 2
+    "totalReleases": 5
   },
   "releases": [
+    {
+      "version": "0.5.0",
+      "project_type": "spring",
+      "project_types": [
+        "spring",
+        "react-native-expo"
+      ],
+      "date": "2026-11-26",
+      "pr_number": 35,
+      "raw_summary": "## Summary by CodeRabbit\n\n## 릴리스 노트\n\n* **새 기능**\n  * 소식을 앱 안에서 읽고 AI 요약과 핵심을 볼 수 있어요\n  * 긴급 보안 소식을 알림으로 받을 수 있어요\n  * 소식을 검색하고 이번 주 키워드 순위를 볼 수 있어요\n  * 보안 행사 소식을 날짜순으로 모아 볼 수 있어요\n  * KISA 취약점 정보·보고서·경보단계 소식을 추가했어요\n  * 리눅스 배포판과 오픈소스 보안 권고를 추가했어요\n\n* **개선**\n  * 화면을 홈·소식·취약점·탐색·더보기로 다시 나눴어요\n  * 큰 소식을 먼저 크게 보여 줘요\n  * 화면 전환과 누름 효과를 다듬었어요",
+      "parsed_changes": {
+        "새_기능": {
+          "title": "새 기능",
+          "items": [
+            "소식을 앱 안에서 읽고 AI 요약과 핵심을 볼 수 있어요",
+            "긴급 보안 소식을 알림으로 받을 수 있어요",
+            "소식을 검색하고 이번 주 키워드 순위를 볼 수 있어요",
+            "보안 행사 소식을 날짜순으로 모아 볼 수 있어요",
+            "KISA 취약점 정보·보고서·경보단계 소식을 추가했어요",
+            "리눅스 배포판과 오픈소스 보안 권고를 추가했어요"
+          ]
+        },
+        "개선": {
+          "title": "개선",
+          "items": [
+            "화면을 홈·소식·취약점·탐색·더보기로 다시 나눴어요",
+            "큰 소식을 먼저 크게 보여 줘요",
+            "화면 전환과 누름 효과를 다듬었어요"
+          ]
+        }
+      },
+      "parse_method": "markdown"
+    },
+    {
+      "version": "0.4.2",
+      "project_type": "spring",
+      "project_types": [
+        "spring",
+        "react-native-expo"
+      ],
+      "date": "2026-11-23",
+      "pr_number": 30,
+      "raw_summary": "## Summary by CodeRabbit\n\n## 릴리스 노트\n\n* **문서**\n  * 개인정보처리방침의 서버 로그 설명을 실제 서버 설정에 맞게 바로잡았어요",
+      "parsed_changes": {
+        "문서": {
+          "title": "문서",
+          "items": [
+            "개인정보처리방침의 서버 로그 설명을 실제 서버 설정에 맞게 바로잡았어요"
+          ]
+        }
+      },
+      "parse_method": "markdown"
+    },
+    {
+      "version": "0.4.1",
+      "project_type": "spring",
+      "project_types": [
+        "spring",
+        "react-native-expo"
+      ],
+      "date": "2026-11-23",
+      "pr_number": 24,
+      "raw_summary": "## Summary by CodeRabbit\n\n* **문서**\n  * 개인정보처리방침을 실제 앱 기준으로 정리하고 푸시 토큰, 익명 식별값 문구를 제거했어요.\n  * 소개, 이용약관, 문의 페이지에서 앱에 없는 푸시 알림, 관심 제품 구독, 광고, 영향 조치 버전 문구를 제거했어요.\n  * 공개 사이트(site/**)만 GitHub Pages로 반영돼요. 스토어, 서버 배포는 없어요.",
+      "parsed_changes": {
+        "문서": {
+          "title": "문서",
+          "items": [
+            "개인정보처리방침을 실제 앱 기준으로 정리하고 푸시 토큰, 익명 식별값 문구를 제거했어요.",
+            "소개, 이용약관, 문의 페이지에서 앱에 없는 푸시 알림, 관심 제품 구독, 광고, 영향 조치 버전 문구를 제거했어요.",
+            "공개 사이트(site/**)만 GitHub Pages로 반영돼요. 스토어, 서버 배포는 없어요."
+          ]
+        }
+      },
+      "parse_method": "markdown"
+    },
     {
       "version": "0.4.0",
       "project_type": "spring",

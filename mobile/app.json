@@ -2,7 +2,7 @@
   "expo": {
     "name": "시큐브리프",
     "slug": "secbrief",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "secbrief",
@@ -24,7 +24,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "kr.suhsaechan.secbrief",
-      "versionCode": 9
+      "versionCode": 12
     },
     "web": {
       "output": "single",
@@ -41,6 +41,14 @@
           "dark": {
             "backgroundColor": "#131313"
           }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#5200FF",
+          "defaultChannel": "urgent-alerts"
         }
       ]
     ],

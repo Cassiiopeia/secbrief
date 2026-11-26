@@ -1,7 +1,19 @@
-# 테스트 공통: 수집 스케줄러·AI 처리 끄기, 실제 외부 호출 방지
+# 테스트 공통: 수집 스케줄러·AI 처리·푸시·이미지·임베딩 끄기, 실제 외부 호출 방지
 secbrief:
   collect:
     enabled: false
   ai:
     enabled: false
     anthropic-api-key: ""
+    ollama:
+      base-url: ""
+  summary:
+    enabled: false
+  push:
+    enabled: false
+  image:
+    enabled: false
+  embedding:
+    enabled: false
+  image-storage:
+    endpoint: ""

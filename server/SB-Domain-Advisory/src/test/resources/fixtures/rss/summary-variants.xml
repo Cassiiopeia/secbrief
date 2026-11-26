@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 요약 입력 추출용: 요약문(description) 우선, 요약문이 없으면 본문 칸(content:encoded), 둘 다 없으면 없음 -->
+<rss xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
+<channel>
+	<title>Summary variants</title>
+	<link>https://feed.example.test/</link>
+	<description>Summary variants</description>
+	<item>
+		<title>Description wins over content</title>
+		<link>https://feed.example.test/news/description</link>
+		<pubDate>Sun, 22 Nov 2026 10:36:55 +0530</pubDate>
+		<description><![CDATA[<p>Attackers are exploiting a flaw in <b>Example VPN</b> &amp; Example Gateway to steal session tokens.</p>]]></description>
+		<content:encoded><![CDATA[<p>Full body that must not be used when a description exists.</p>]]></content:encoded>
+	</item>
+	<item>
+		<title>Content only</title>
+		<link>https://feed.example.test/news/content</link>
+		<pubDate>Sun, 22 Nov 2026 09:00:00 +0530</pubDate>
+		<content:encoded><![CDATA[<p>Example Corp confirmed that an intruder accessed its support portal and copied customer contact records.</p>]]></content:encoded>
+	</item>
+	<item>
+		<title>No summary at all</title>
+		<link>https://feed.example.test/news/none</link>
+		<pubDate>Sun, 22 Nov 2026 08:00:00 +0530</pubDate>
+	</item>
+</channel>
+</rss>

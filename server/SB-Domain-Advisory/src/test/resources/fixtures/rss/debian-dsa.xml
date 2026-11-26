@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 직접 작성한 최소 예시: Debian 보안 권고 피드와 같은 RSS 1.0(RDF) 모양, 날짜는 dc:date -->
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns="http://purl.org/rss/1.0/"
+         xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel rdf:about="https://www.debian.org/security/dsa.rdf">
+    <title>Debian Security</title>
+    <link>https://www.debian.org/security/</link>
+    <description>Debian Security Advisories</description>
+    <dc:date>2026-11-22T21:10:04+00:00</dc:date>
+    <items>
+      <rdf:Seq>
+        <rdf:li resource="https://security-tracker.debian.org/tracker/DSA-9001-1"/>
+        <rdf:li resource="https://security-tracker.debian.org/tracker/DSA-9000-1"/>
+        <rdf:li resource="https://security-tracker.debian.org/tracker/DSA-8999-1"/>
+      </rdf:Seq>
+    </items>
+  </channel>
+  <item rdf:about="https://security-tracker.debian.org/tracker/DSA-9001-1">
+    <title>DSA-9001-1 example-server - security update</title>
+    <link>https://security-tracker.debian.org/tracker/DSA-9001-1</link>
+    <description>Example description of the first advisory.</description>
+    <dc:date>2026-11-22</dc:date>
+  </item>
+  <item rdf:about="https://security-tracker.debian.org/tracker/DSA-9000-1">
+    <title>DSA-9000-1 example-library - security update</title>
+    <link>https://security-tracker.debian.org/tracker/DSA-9000-1</link>
+    <description>Example description of the second advisory.</description>
+    <dc:date>2026-11-20T18:45:30+01:00</dc:date>
+  </item>
+  <item rdf:about="https://security-tracker.debian.org/tracker/DSA-8999-1">
+    <title>DSA-8999-1 example-tool - security update</title>
+    <link>https://security-tracker.debian.org/tracker/DSA-8999-1</link>
+    <description>Example description without a date.</description>
+  </item>
+</rdf:RDF>

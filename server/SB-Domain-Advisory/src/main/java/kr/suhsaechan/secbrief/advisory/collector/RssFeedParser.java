@@ -1,6 +1,7 @@
 package kr.suhsaechan.secbrief.advisory.collector;
 
 import com.rometools.rome.feed.WireFeed;
+import com.rometools.rome.feed.synd.SyndContent;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.feed.synd.SyndFeedImpl;
@@ -28,8 +29,8 @@ import org.jdom2.Element;
 import org.jdom2.filter.Filters;
 
 /**
- * RSS·Atom 피드 파싱: 항목 > 수집 원본 (제목, 링크, 게시자, 게시일)
- * 인코딩은 XmlReader 가 자동 감지, 본문(description)은 읽지 않음
+ * RSS·Atom 피드 파싱: 항목 > 수집 원본 (제목, 링크, 게시자, 게시일, 대표 이미지 주소, 요약 입력)
+ * 인코딩은 XmlReader 가 자동 감지, 요약 입력은 피드가 준 글만 (기사 페이지는 읽지 않음, 사실 값 없음)
  */
 public final class RssFeedParser {
 
@@ -72,7 +73,23 @@ public final class RssFeedParser {
                 null,
                 null,
                 null,
-                false);
+                false,
+                RssEntryImageExtractor.extractImageSourceUrl(entry),
+                toSourceText(entry),
+                List.of());
+    }
+
+    // 요약 입력: 요약문(description·summary) 우선, 없으면 본문 칸(content) — HTML 은 정규화 단계가 벗김
+    private static String toSourceText(SyndEntry entry) {
+        SyndContent description = entry.getDescription();
+        if (description != null && description.getValue() != null && !description.getValue().isBlank()) {
+            return description.getValue();
+        }
+        return entry.getContents().stream()
+                .map(SyndContent::getValue)
+                .filter(contentValue -> contentValue != null && !contentValue.isBlank())
+                .findFirst()
+                .orElse(null);
     }
 
     // 게시일 우선, 없으면 수정일, 둘 다 없으면 null

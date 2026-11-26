@@ -1,4 +1,4 @@
-import { apiConfig } from '@/core/config/api-config';
+import { apiConfig, toApiAbsoluteUrl } from '@/core/config/api-config';
 import {
   AppFailure,
   INVALID_RESPONSE_ERROR_CODE,
@@ -18,19 +18,30 @@ interface ApiErrorBody {
 // 오류 본문이 없는 HTTP 실패 코드 접두사 (예: HTTP_502)
 const HTTP_ERROR_CODE_PREFIX = 'HTTP_';
 
+/** 서버 조회 (GET): 주소 조립 > 공통 요청 */
+export async function fetchApiData<T>(path: string, queryParameters?: ApiQueryParameters): Promise<T> {
+  return requestApiData<T>(toRequestUrl(path, queryParameters), { headers: { Accept: 'application/json' } });
+}
+
+/** 서버 저장 (PUT): JSON 본문 > 공통 요청 */
+export async function putApiData<T>(path: string, requestBody: unknown): Promise<T> {
+  return requestApiData<T>(toRequestUrl(path), {
+    method: 'PUT',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody),
+  });
+}
+
 /**
- * 서버 조회 공통 (앱의 유일한 외부 통신): 주소 조립 > 시간 제한 요청 > {data} 꺼내기
+ * 서버 요청 공통 (앱의 유일한 외부 통신): 시간 제한 요청 > {data} 꺼내기
  * 실패 변환 5종: 시간 초과, 네트워크, 응답 읽기 실패, 서버 오류 본문, 본문 없는 HTTP 오류 > AppFailure
  */
-export async function fetchApiData<T>(path: string, queryParameters?: ApiQueryParameters): Promise<T> {
+async function requestApiData<T>(requestUrl: string, requestInit: RequestInit): Promise<T> {
   const abortController = new AbortController();
   const timeoutHandle = setTimeout(() => abortController.abort(), apiConfig.requestTimeoutMilliseconds);
   let response: Response;
   try {
-    response = await fetch(toRequestUrl(path, queryParameters), {
-      headers: { Accept: 'application/json' },
-      signal: abortController.signal,
-    });
+    response = await fetch(requestUrl, { ...requestInit, signal: abortController.signal });
   } catch {
     throw abortController.signal.aborted
       ? new AppFailure(TIMEOUT_ERROR_CODE, '응답이 늦어요. 잠시 후 다시 시도해 주세요.')
@@ -53,7 +64,7 @@ function toRequestUrl(path: string, queryParameters?: ApiQueryParameters): strin
     (entry): entry is [string, string] => entry[1] !== undefined,
   );
   const queryString = new URLSearchParams(definedEntries).toString();
-  return `${apiConfig.baseUrl}${path}${queryString ? `?${queryString}` : ''}`;
+  return `${toApiAbsoluteUrl(path)}${queryString ? `?${queryString}` : ''}`;
 }
 
 // 본문 JSON 읽기 (빈 본문·JSON 아님 > undefined)

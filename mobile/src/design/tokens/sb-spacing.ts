@@ -1,5 +1,7 @@
 /** 간격 토큰 (단위: 논리 픽셀). 시안 값 그대로 */
 export const sbSpacing = {
+  /** 배지 안쪽 위아래 */
+  hairline: 2,
   extraSmall: 4,
   small: 8,
   compact: 12,
@@ -15,6 +17,8 @@ export const sbSpacing = {
   /** 타일 안쪽 여백 (긴급 타일 18, 통계 타일 14) */
   tilePadding: 18,
   statTilePadding: 14,
+  /** 목록 행 위아래 여백 */
+  rowVertical: 14,
   /** 구역(스트림 등) 위 여백 */
   sectionTop: 22,
   /** 스트림 레일: 선에서 글까지 들여쓰기 / 항목 사이 */

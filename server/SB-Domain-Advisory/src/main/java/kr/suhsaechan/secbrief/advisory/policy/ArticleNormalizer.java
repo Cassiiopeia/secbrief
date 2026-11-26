@@ -6,10 +6,12 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 import kr.suhsaechan.secbrief.advisory.collector.CollectedArticle;
 import kr.suhsaechan.secbrief.advisory.entity.Source;
+import kr.suhsaechan.secbrief.advisory.fact.SourceFactPolicy;
+import org.springframework.web.util.HtmlUtils;
 
 /**
- * 수집 항목 정규화: 제목·링크 정리, 게시일 보정, 출처 값·긴급 여부 적용 > 저장용 초안
- * 제목이 비거나 링크가 http(s) 가 아니면 버림 (빈 값)
+ * 수집 항목 정규화: 제목·링크 정리, 게시일 보정, 출처 값·긴급 여부 적용, 요약 입력·사실 값 정리 > 저장용 초안
+ * 제목이 비거나 링크가 http(s) 가 아니면 버림 (빈 값), 이미지 주소만 불량이면 이미지 없이 저장
  */
 public final class ArticleNormalizer {
 
@@ -21,6 +23,8 @@ public final class ArticleNormalizer {
     public static final int MAXIMUM_ERROR_MESSAGE_LENGTH = 500;
     // article.original_url 열 길이 (넘으면 잘라 쓰면 링크가 깨지므로 버림)
     private static final int MAXIMUM_ORIGINAL_URL_LENGTH = 1000;
+    // article.image_source_url 열 길이 (넘으면 이미지 없음으로 처리)
+    private static final int MAXIMUM_IMAGE_SOURCE_URL_LENGTH = 1000;
     // article.publisher_name 열 길이
     private static final int MAXIMUM_PUBLISHER_NAME_LENGTH = 100;
     private static final String UNKNOWN_ERROR_MESSAGE = "unknown";
@@ -38,13 +42,14 @@ public final class ArticleNormalizer {
     }
 
     /**
-     * 수집 항목 > 저장용 초안: 제목·링크 정리 > 게시일 보정 > 출처 값(종류·지역·게시자) > 긴급 판정
+     * 수집 항목 > 저장용 초안: 제목·링크 정리 > 게시일 보정 > 출처 값(종류·지역·게시자) > 긴급 판정 > 이미지 주소 정리
+     * > 요약 입력 정리(SourceTextPolicy) > 사실 값 정리(SourceFactPolicy)
      */
     public static Optional<ArticleDraft> normalize(CollectedArticle collected, Source source, Instant collectedAt) {
         // 제목·링크 정리 (불량이면 버림)
         String title = toCleanedTitle(collected.title());
         String originalUrl = toCleanedUrl(collected.originalUrl());
-        if (title.isEmpty() || !isCollectableUrl(originalUrl)) {
+        if (title.isEmpty() || !isHttpUrlWithin(originalUrl, MAXIMUM_ORIGINAL_URL_LENGTH)) {
             return Optional.empty();
         }
 
@@ -67,7 +72,10 @@ public final class ArticleNormalizer {
                 collected.cvssScore(),
                 collected.cvssVersion(),
                 collected.isKev(),
-                isUrgent));
+                isUrgent,
+                toImageSourceUrl(collected.imageSourceUrl()),
+                SourceTextPolicy.toSourceText(collected.sourceText(), title),
+                SourceFactPolicy.toStorableFacts(collected.sourceFacts())));
     }
 
     /**
@@ -81,13 +89,14 @@ public final class ArticleNormalizer {
         return truncate(withoutControlCharacters, MAXIMUM_ERROR_MESSAGE_LENGTH);
     }
 
-    // HTML 태그 제거 > 연속 공백 하나로 > trim > 500자 제한
+    // HTML 태그 제거 > 문자 참조 풀기(&#39; &amp; 등, KISA 피드가 제목을 이렇게 줌) > 연속 공백 하나로 > trim > 500자 제한
     private static String toCleanedTitle(String rawTitle) {
         if (rawTitle == null) {
             return "";
         }
         String withoutTags = HTML_TAG.matcher(rawTitle).replaceAll("");
-        String collapsed = WHITESPACE_RUN.matcher(withoutTags).replaceAll(" ").trim();
+        String unescaped = HtmlUtils.htmlUnescape(withoutTags);
+        String collapsed = WHITESPACE_RUN.matcher(unescaped).replaceAll(" ").trim();
         return truncate(collapsed, MAXIMUM_TITLE_LENGTH).trim();
     }
 
@@ -101,9 +110,21 @@ public final class ArticleNormalizer {
         return fragmentIndex >= 0 ? trimmed.substring(0, fragmentIndex) : trimmed;
     }
 
+    // trim > http(s) 가 아니거나 열 길이를 넘거나 공백·제어문자가 섞였으면 null (이미지 없음)
+    private static String toImageSourceUrl(String rawImageUrl) {
+        if (rawImageUrl == null) {
+            return null;
+        }
+        String trimmed = rawImageUrl.trim();
+        boolean isUsable = isHttpUrlWithin(trimmed, MAXIMUM_IMAGE_SOURCE_URL_LENGTH)
+                && !WHITESPACE_RUN.matcher(trimmed).find()
+                && !CONTROL_CHARACTER.matcher(trimmed).find();
+        return isUsable ? trimmed : null;
+    }
+
     // http(s) 스킴 + 호스트 있음 + 열 길이 이내
-    private static boolean isCollectableUrl(String url) {
-        return url.length() <= MAXIMUM_ORIGINAL_URL_LENGTH
+    private static boolean isHttpUrlWithin(String url, int maximumLength) {
+        return url.length() <= maximumLength
                 && (hasHostAfterPrefix(url, HTTPS_URL_PREFIX) || hasHostAfterPrefix(url, HTTP_URL_PREFIX));
     }
 

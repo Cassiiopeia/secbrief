@@ -3,7 +3,10 @@ package kr.suhsaechan.secbrief.advisory.collector;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static kr.suhsaechan.secbrief.advisory.support.SourceFixtures.createSource;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
@@ -16,7 +19,7 @@ import kr.suhsaechan.secbrief.advisory.entity.Source;
 import org.junit.jupiter.api.Test;
 
 /**
- * RSS 수집기: 출처 경로로 내려받아 파싱, 게시자는 출처 표시 이름, since 무시
+ * RSS 수집기: 출처 경로로 조건부로 내려받아 파싱, 게시자는 출처 표시 이름, since 무시, 304 면 변경 없음
  */
 class RssArticleCollectorTest {
 
@@ -36,12 +39,43 @@ class RssArticleCollectorTest {
 
     @Test
     void collectsWithSourceDisplayNameAsPublisherAndIgnoresSince() {
-        when(feedHttpClient.fetch(source.getFeedUrl())).thenReturn(FEED_XML.getBytes(UTF_8));
+        when(feedHttpClient.fetchIfChanged(eq(source.getFeedUrl()), any()))
+                .thenReturn(FeedFetchResult.modified(FEED_XML.getBytes(UTF_8), FeedValidators.NONE));
 
-        List<CollectedArticle> articles = collector.collect(source, Instant.parse("2030-01-01T00:00:00Z"));
+        List<CollectedArticle> articles = collector.collect(source, Instant.parse("2030-01-01T00:00:00Z")).articles();
 
         assertThat(articles).hasSize(1);
         assertThat(articles.get(0).publisherName()).isEqualTo(source.getDisplayName());
         assertThat(articles.get(0).title()).isEqualTo("제목 하나");
+    }
+
+    @Test
+    void sendsStoredValidatorsAndReturnsNewValidatorsWithArticles() {
+        source.replaceFeedValidators("\"old\"", "Tue, 24 Nov 2026 00:00:00 GMT");
+        FeedValidators newValidators = new FeedValidators("\"new\"", "Wed, 25 Nov 2026 00:00:00 GMT");
+        when(feedHttpClient.fetchIfChanged(eq(source.getFeedUrl()), any()))
+                .thenReturn(FeedFetchResult.modified(FEED_XML.getBytes(UTF_8), newValidators));
+
+        CollectOutcome outcome = collector.collect(source, null);
+
+        verify(feedHttpClient).fetchIfChanged(source.getFeedUrl(),
+                new FeedValidators("\"old\"", "Tue, 24 Nov 2026 00:00:00 GMT"));
+        assertThat(outcome.isNotModified()).isFalse();
+        assertThat(outcome.feedValidators()).isEqualTo(newValidators);
+        assertThat(outcome.articles()).hasSize(1);
+    }
+
+    @Test
+    void returnsNotModifiedWithoutParsingWhenFeedIsUnchanged() {
+        FeedValidators storedValidators = new FeedValidators("\"old\"", null);
+        source.replaceFeedValidators(storedValidators.etag(), storedValidators.lastModified());
+        when(feedHttpClient.fetchIfChanged(source.getFeedUrl(), storedValidators))
+                .thenReturn(FeedFetchResult.notModified(storedValidators));
+
+        CollectOutcome outcome = collector.collect(source, null);
+
+        assertThat(outcome.isNotModified()).isTrue();
+        assertThat(outcome.feedValidators()).isEqualTo(storedValidators);
+        assertThat(outcome.articles()).isEmpty();
     }
 }

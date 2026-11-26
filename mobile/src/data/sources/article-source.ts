@@ -1,4 +1,11 @@
-import { type ArticlePageApiResponse, toApiKind, toApiRegion, toApiTopic, toArticlePage } from '../mappers/api-response-mapper';
+import {
+  type ArticlePageApiResponse,
+  toApiImportance,
+  toApiKind,
+  toApiRegion,
+  toApiTopic,
+  toArticlePage,
+} from '../mappers/api-response-mapper';
 import type { ArticlePage } from '../models/article-page';
 import type { ArticleFilter } from '../models/briefing-item';
 import { fetchApiData } from './secbrief-api-client';
@@ -9,6 +16,9 @@ export async function fetchArticlePage(filter: ArticleFilter, cursor?: string): 
     kind: filter.kind && toApiKind(filter.kind),
     region: filter.region && toApiRegion(filter.region),
     topic: filter.topic && toApiTopic(filter.topic),
+    minimumImportance: filter.minimumImportance && toApiImportance(filter.minimumImportance),
+    sourceCode: filter.sourceCode,
+    keyword: filter.keyword,
     cursor,
   });
   return toArticlePage(response);

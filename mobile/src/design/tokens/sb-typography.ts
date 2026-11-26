@@ -29,6 +29,18 @@ export const sbTypography = {
   streamTitle: { fontFamily: sbFontFamily.sansBold, fontSize: 16, lineHeight: 21, letterSpacing: -0.4 },
   /** 빈 상태·오류 화면 제목 */
   headline: { fontFamily: sbFontFamily.sansBold, fontSize: 18, lineHeight: 24, letterSpacing: -0.45 },
+  /** 구역 제목 (국내 공지, 알림): 15 / 700 */
+  sectionTitle: { fontFamily: sbFontFamily.sansBold, fontSize: 15, lineHeight: 20, letterSpacing: -0.3 },
+  /** 설정·목록 행 제목: 15 / 600 */
+  rowTitle: { fontFamily: sbFontFamily.sansSemiBold, fontSize: 15, lineHeight: 21, letterSpacing: -0.2 },
+  /** CVSS 게이지 점수 (고정폭 굵게) */
+  gaugeValue: { fontFamily: sbFontFamily.monoBold, fontSize: 20, lineHeight: 24 },
+  /** 기사 상세의 긴 글 (요약·핵심): 15 / 400, 줄 간격 넉넉히 */
+  reading: { fontFamily: sbFontFamily.sansRegular, fontSize: 15, lineHeight: 24 },
+  /** 확인된 정보 값 (버전·날짜 등 원문 값): 고정폭 13 */
+  factValue: { fontFamily: sbFontFamily.monoRegular, fontSize: 13, lineHeight: 19 },
+  /** 기사 상세 제목: 22 / 800 */
+  detailTitle: { fontFamily: sbFontFamily.sansExtraBold, fontSize: 22, lineHeight: 29, letterSpacing: -0.6 },
   body: { fontFamily: sbFontFamily.sansRegular, fontSize: 14, lineHeight: 21 },
   /** 타일 안 보조 설명: 12 / 500 */
   caption: { fontFamily: sbFontFamily.sansMedium, fontSize: 12, lineHeight: 17 },
@@ -43,3 +55,16 @@ export const sbTypography = {
 } as const satisfies Record<string, TextStyle>;
 
 export type SbTextVariant = keyof typeof sbTypography;
+
+/**
+ * 기기 글자 크기 확대 한도 (배율): 본문은 넉넉히, 자리가 고정된 글자(머리·탭·고정폭 라벨)는 조금만
+ */
+export const sbMaximumFontScale = { text: 1.6, compact: 1.25 } as const;
+
+// 자리가 고정돼 크게 키우면 깨지는 글자 토큰
+const COMPACT_SCALE_VARIANTS: SbTextVariant[] = ['masthead', 'capsLabel', 'timeLabel', 'tabLabel', 'tabLabelSelected', 'statValue', 'gaugeValue'];
+
+/** 글자 토큰 > 확대 한도 */
+export function toSbMaximumFontScale(variant: SbTextVariant): number {
+  return COMPACT_SCALE_VARIANTS.includes(variant) ? sbMaximumFontScale.compact : sbMaximumFontScale.text;
+}

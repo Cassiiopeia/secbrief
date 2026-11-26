@@ -20,11 +20,26 @@ export function toClockTime(dateTime: Date): string {
 const MILLISECONDS_PER_MINUTE = 60_000;
 const MINUTES_PER_HOUR = 60;
 const HOURS_PER_DAY = 24;
+const MILLISECONDS_PER_DAY = MILLISECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY;
 
-/** 시각 > 절대 날짜 (예: 2026.11.23 09:12) */
+// 날짜만 있는 게시일로 보는 UTC 시(분·초·밀리초는 0): 0 UTC 자정, 15 서울 자정
+const DATE_ONLY_UTC_HOURS = [0, 15];
+
+/** 시각 없이 날짜만 있는 값인지 (KISA·Debian 처럼 날짜만 주는 출처: 서버가 자정으로 채워 보냄) */
+export function isDateOnly(dateTime: Date): boolean {
+  const hasNoMinuteOrSmaller =
+    dateTime.getUTCMinutes() === 0 && dateTime.getUTCSeconds() === 0 && dateTime.getUTCMilliseconds() === 0;
+  return hasNoMinuteOrSmaller && DATE_ONLY_UTC_HOURS.includes(dateTime.getUTCHours());
+}
+
+/** 시각 > 날짜 (예: 2026.11.23) */
+function toAbsoluteDate(dateTime: Date): string {
+  return `${dateTime.getFullYear()}.${toTwoDigits(dateTime.getMonth() + 1)}.${toTwoDigits(dateTime.getDate())}`;
+}
+
+/** 시각 > 절대 날짜·시각 (예: 2026.11.23 09:12) */
 export function toAbsoluteDateTime(dateTime: Date): string {
-  const datePart = `${dateTime.getFullYear()}.${toTwoDigits(dateTime.getMonth() + 1)}.${toTwoDigits(dateTime.getDate())}`;
-  return `${datePart} ${toClockTime(dateTime)}`;
+  return `${toAbsoluteDate(dateTime)} ${toClockTime(dateTime)}`;
 }
 
 /** 지난 시간 > 상대 표기 (1분 미만·미래 방금, 60분 미만 N분 전, 24시간 미만 N시간 전, 그 외 N일 전) */
@@ -37,7 +52,38 @@ export function toRelativeTime(dateTime: Date, now: Date): string {
   return `${Math.floor(elapsedHours / HOURS_PER_DAY)}일 전`;
 }
 
-/** 게시일 > 목록 표기: 절대 날짜 · 상대 표기 (예: 2026.11.23 09:12 · 2시간 전) */
+/** 지난 날 수 > 상대 표기 (날짜만 있는 값용, 기기 달력 날짜 기준): 같은 날·미래 오늘, 그 외 N일 전 */
+export function toRelativeDay(date: Date, now: Date): string {
+  const toDayStart = (dateTime: Date): number => new Date(dateTime.getFullYear(), dateTime.getMonth(), dateTime.getDate()).getTime();
+  const elapsedDays = Math.round((toDayStart(now) - toDayStart(date)) / MILLISECONDS_PER_DAY);
+  return elapsedDays < 1 ? '오늘' : `${elapsedDays}일 전`;
+}
+
+/** 시각 > 전체 표기 (수집 시각처럼 시각이 늘 있는 값): 절대 날짜·시각 · 상대 표기 (예: 2026.11.23 09:12 · 2시간 전) */
+export function toDateTimeLabel(dateTime: Date, now: Date): string {
+  return `${toAbsoluteDateTime(dateTime)} · ${toRelativeTime(dateTime, now)}`;
+}
+
+// 게시일 > 상대 표기: 날짜만 있는 값은 날 단위, 그 밖은 분·시간 단위
+function toPublishedRelativeLabel(publishedAt: Date, now: Date): string {
+  return isDateOnly(publishedAt) ? toRelativeDay(publishedAt, now) : toRelativeTime(publishedAt, now);
+}
+
+/**
+ * 게시일 > 전체 표기 (상세 머리·긴급 타일·읽기 도우미): 절대 날짜·시각 · 상대 표기 (예: 2026.11.23 09:12 · 2시간 전)
+ * 날짜만 있는 게시일은 시각 없이 (예: 2026.11.23 · 1일 전)
+ */
 export function toArticleDateLabel(publishedAt: Date, now: Date): string {
-  return `${toAbsoluteDateTime(publishedAt)} · ${toRelativeTime(publishedAt, now)}`;
+  if (isDateOnly(publishedAt)) return `${toAbsoluteDate(publishedAt)} · ${toRelativeDay(publishedAt, now)}`;
+  return toDateTimeLabel(publishedAt, now);
+}
+
+// 상대 표기를 쓰는 한도 (그보다 오래되면 날짜로)
+const RELATIVE_LABEL_MAXIMUM_DAYS = 7;
+
+/** 게시일 > 짧은 표기 (카드·조밀한 행): 7일 안은 상대 표기(3시간 전), 그보다 오래되면 날짜(2026.11.01) */
+export function toCompactDateLabel(publishedAt: Date, now: Date): string {
+  const elapsedDays = (now.getTime() - publishedAt.getTime()) / MILLISECONDS_PER_DAY;
+  if (elapsedDays < RELATIVE_LABEL_MAXIMUM_DAYS) return toPublishedRelativeLabel(publishedAt, now);
+  return toAbsoluteDate(publishedAt);
 }

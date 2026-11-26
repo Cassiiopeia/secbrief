@@ -105,6 +105,14 @@ describe('외부 통신은 API 클라이언트 한 곳', () => {
   });
 });
 
+describe('기기 알림 연동은 한 곳', () => {
+  test('expo-notifications 는 data/sources/device-notification-client.ts 에서만 import 한다', () => {
+    expect(listSourceFiles('').filter((file) => /from 'expo-notifications'/.test(readSource(file)))).toEqual([
+      path.join('data', 'sources', 'device-notification-client.ts'),
+    ]);
+  });
+});
+
 describe('브랜드 색 단일 원본', () => {
   test('색 토큰이 brand/brand-colors.json 과 같다', () => {
     const brandColors: Record<string, { light: string; dark: string } | string> = JSON.parse(
@@ -116,7 +124,7 @@ describe('브랜드 색 단일 원본', () => {
     }
   });
 
-  test('앱 아이콘·시작 화면 바탕(app.json)이 brand/brand-colors.json 과 같다', () => {
+  test('앱 아이콘·시작 화면 바탕·알림 아이콘 색(app.json)이 brand/brand-colors.json 과 같다', () => {
     const brandColors = JSON.parse(fs.readFileSync(BRAND_COLORS_PATH, 'utf-8'));
     const expoConfig = JSON.parse(fs.readFileSync(path.join(__dirname, '../../app.json'), 'utf-8')).expo;
     const splashOptions = expoConfig.plugins.find(
@@ -125,5 +133,10 @@ describe('브랜드 색 단일 원본', () => {
     expect(expoConfig.android.adaptiveIcon.backgroundColor).toBe(brandColors.appIconBackground);
     expect(splashOptions.backgroundColor).toBe(brandColors.splashBackground.light);
     expect(splashOptions.dark.backgroundColor).toBe(brandColors.splashBackground.dark);
+    // 알림 아이콘 색: 보라 (밝은 알림창에서도 보이는 쪽)
+    const notificationOptions = expoConfig.plugins.find(
+      (plugin: unknown) => Array.isArray(plugin) && plugin[0] === 'expo-notifications',
+    )[1];
+    expect(notificationOptions.color).toBe(brandColors.feature.light);
   });
 });

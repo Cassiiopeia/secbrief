@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 대표 이미지 주소 추출용: 실제 피드가 쓰는 네 가지 모양 (첨부, Media RSS thumbnail, Media RSS content, 요약 HTML 의 img) + 이미지 없음 -->
+<rss xmlns:media="http://search.yahoo.com/mrss/" version="2.0">
+<channel>
+	<title>Image variants</title>
+	<link>https://feed.example.test/</link>
+	<description>Image variants</description>
+	<item>
+		<title>Enclosure wins over media and summary image</title>
+		<link>https://feed.example.test/news/enclosure</link>
+		<pubDate>Sun, 22 Nov 2026 10:36:55 +0530</pubDate>
+		<description><![CDATA[<p><img src="https://images.example.test/summary-ignored.png"/> Summary text</p>]]></description>
+		<enclosure length="12216320" type="image/jpeg" url="https://images.example.test/enclosure.jpg"/>
+		<media:thumbnail url="https://images.example.test/thumbnail-ignored.jpg"/>
+	</item>
+	<item>
+		<title>Media thumbnail inside media content</title>
+		<link>https://feed.example.test/news/media-thumbnail</link>
+		<pubDate>Sun, 22 Nov 2026 09:00:00 +0530</pubDate>
+		<enclosure length="1024" type="audio/mpeg" url="https://media.example.test/podcast.mp3"/>
+		<media:content url="https://images.example.test/full-size.jpg" medium="image">
+			<media:thumbnail url="https://images.example.test/thumbnail.jpg" width="300" height="200"/>
+		</media:content>
+	</item>
+	<item>
+		<title>Media content image only</title>
+		<link>https://feed.example.test/news/media-content</link>
+		<pubDate>Sun, 22 Nov 2026 08:00:00 +0530</pubDate>
+		<media:content url="https://media.example.test/clip.mp4" medium="video" type="video/mp4"/>
+		<media:content url="https://images.example.test/content.png" type="image/png"/>
+	</item>
+	<item>
+		<title>First image tag in summary</title>
+		<link>https://feed.example.test/news/summary-image</link>
+		<pubDate>Sun, 22 Nov 2026 07:00:00 +0530</pubDate>
+		<description><![CDATA[<p>Lead text</p><IMG alt="cover" class="lead" SRC='https://images.example.test/summary.jpg?w=600&amp;h=400' /><img src="https://images.example.test/second.jpg">]]></description>
+	</item>
+	<item>
+		<title>No image at all</title>
+		<link>https://feed.example.test/news/no-image</link>
+		<pubDate>Sun, 22 Nov 2026 06:00:00 +0530</pubDate>
+		<description><![CDATA[<p>Text only summary</p>]]></description>
+	</item>
+</channel>
+</rss>

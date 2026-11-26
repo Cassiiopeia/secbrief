@@ -1,7 +1,8 @@
 package kr.suhsaechan.secbrief.advisory.collector;
 
+import static kr.suhsaechan.secbrief.common.json.JsonSupport.OBJECT_MAPPER;
+
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -9,15 +10,18 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import kr.suhsaechan.secbrief.advisory.fact.SourceFact;
+import kr.suhsaechan.secbrief.advisory.fact.SourceFactLabel;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * GitHub 보안 권고 목록(JSON 배열) 파싱: 권고 > 수집 원본 (요약 제목, 링크, CVE ID, 점수·버전, 게시일)
+ * GitHub 보안 권고 목록(JSON 배열) 파싱: 권고 > 수집 원본 (요약 제목, 링크, CVE ID, 점수·버전, 게시일, 요약 입력, 사실 값)
  * 점수: cvss_v3 우선, 없거나 0 이면 cvss_v4, 둘 다 없으면 null. since 이전 게시분은 버림
  */
 @Slf4j
@@ -27,7 +31,8 @@ public final class GhsaAdvisoryParser {
 
     // 벡터 접두사에서 버전 추출 (예: CVSS:3.1/... > 3.1)
     private static final Pattern CVSS_VECTOR_VERSION = Pattern.compile("^CVSS:(\\d+\\.\\d+)/");
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    // 사실 값으로 싣는 패키지 수 상한 (권고 하나가 패키지 수십 개를 묶는 경우)
+    private static final int MAXIMUM_FACT_PACKAGE_COUNT = 5;
 
     private GhsaAdvisoryParser() {
     }
@@ -77,7 +82,7 @@ public final class GhsaAdvisoryParser {
         }
         String cveId = advisory.path("cve_id").isTextual() ? advisory.path("cve_id").asText().strip() : null;
         Optional<CvssScore> score = toPreferredScore(advisory.path("cvss_severities"));
-        return Optional.of(new CollectedArticle(
+        return Optional.of(CollectedArticle.ofVulnerability(
                 summary,
                 htmlUrl,
                 PUBLISHER_NAME,
@@ -85,7 +90,51 @@ public final class GhsaAdvisoryParser {
                 cveId == null || cveId.isEmpty() ? null : cveId,
                 score.map(CvssScore::baseScore).orElse(null),
                 score.map(CvssScore::version).orElse(null),
-                false));
+                false,
+                toSourceText(summary, advisory.path("description")),
+                toSourceFacts(advisory)));
+    }
+
+    // 요약 입력: 요약 + 설명 (설명이 없으면 제목과 같아 null)
+    private static String toSourceText(String summary, JsonNode description) {
+        String descriptionText = description.isTextual() ? description.asText().strip() : "";
+        return descriptionText.isEmpty() ? null : summary + "\n" + descriptionText;
+    }
+
+    // 권고 값 그대로: 패키지마다 3줄 (조치 버전·영향 버전이 없으면 "원문에 없음"), 마지막에 심각도
+    private static List<SourceFact> toSourceFacts(JsonNode advisory) {
+        List<SourceFact> sourceFacts = new ArrayList<>();
+        int packageCount = 0;
+        for (JsonNode vulnerability : advisory.path("vulnerabilities")) {
+            String packageName = toTextOrEmpty(vulnerability.path("package").path("name"));
+            if (packageName.isEmpty() || packageCount >= MAXIMUM_FACT_PACKAGE_COUNT) {
+                continue;
+            }
+            packageCount++;
+            String ecosystem = toTextOrEmpty(vulnerability.path("package").path("ecosystem"));
+            sourceFacts.add(new SourceFact(SourceFactLabel.AFFECTED_PACKAGE,
+                    ecosystem.isEmpty() ? packageName : packageName + " (" + ecosystem + ")"));
+            sourceFacts.add(new SourceFact(SourceFactLabel.AFFECTED_VERSION,
+                    toTextOrAbsent(vulnerability.path("vulnerable_version_range"))));
+            sourceFacts.add(new SourceFact(SourceFactLabel.PATCHED_VERSION,
+                    toTextOrAbsent(vulnerability.path("first_patched_version"))));
+        }
+        String severity = toTextOrEmpty(advisory.path("severity"));
+        if (!severity.isEmpty()) {
+            // NVD 표기(CRITICAL, HIGH)와 맞춰 대문자로
+            sourceFacts.add(new SourceFact(SourceFactLabel.SEVERITY, severity.toUpperCase(Locale.ROOT)));
+        }
+        return sourceFacts;
+    }
+
+    private static String toTextOrEmpty(JsonNode textNode) {
+        return textNode.isTextual() ? textNode.asText().strip() : "";
+    }
+
+    // 값이 없거나 문자열이 아니면 "원문에 없음" (버전을 지어내지 않음)
+    private static String toTextOrAbsent(JsonNode textNode) {
+        String text = toTextOrEmpty(textNode);
+        return text.isEmpty() ? SourceFactLabel.ABSENT_VALUE : text;
     }
 
     // cvss_v3 > cvss_v4 (점수 0 은 없음으로 봄)
