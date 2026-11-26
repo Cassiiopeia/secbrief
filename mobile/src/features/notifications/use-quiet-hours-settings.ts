@@ -4,9 +4,16 @@ import { useState } from 'react';
 import { type AppFailure, toAppFailure } from '@/core/error/app-failure';
 import { DEFAULT_QUIET_HOURS, type QuietHours } from '@/data/models/quiet-hours';
 import { readStoredQuietHours } from '@/data/sources/quiet-hours-storage';
+import { showSbToast } from '@/design';
 
 import { saveQuietHours } from './push-registration-service';
-import { type QuietHoursEdge, isQuietHoursSameTime, toQuietHoursWithTime, toToggledQuietHours } from './quiet-hours-view-state';
+import {
+  type QuietHoursEdge,
+  isQuietHoursSameTime,
+  toQuietHoursSavedMessage,
+  toQuietHoursWithTime,
+  toToggledQuietHours,
+} from './quiet-hours-view-state';
 
 // React Query 캐시 키: 기기에 저장된 방해 금지 시간
 export const QUIET_HOURS_QUERY_KEY = ['quiet-hours'] as const;
@@ -21,7 +28,12 @@ export function useQuietHoursSettings() {
   const [isSameTimeRejected, setIsSameTimeRejected] = useState(false);
   const saveMutation = useMutation({
     mutationFn: saveQuietHours,
-    onSuccess: (savedQuietHours) => queryClient.setQueryData(QUIET_HOURS_QUERY_KEY, savedQuietHours),
+    onSuccess: (savedQuietHours) => {
+      // 저장 전 값과 비교해 무엇이 바뀌었는지 알림 막대로
+      const previousQuietHours = queryClient.getQueryData<QuietHours>(QUIET_HOURS_QUERY_KEY) ?? DEFAULT_QUIET_HOURS;
+      queryClient.setQueryData(QUIET_HOURS_QUERY_KEY, savedQuietHours);
+      showSbToast(toQuietHoursSavedMessage(previousQuietHours, savedQuietHours));
+    },
   });
 
   const storedQuietHours = storedQuery.data ?? DEFAULT_QUIET_HOURS;

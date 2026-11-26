@@ -1,4 +1,4 @@
-import { SbInlineErrorState, SbInlineNotice, SbSwitchRow, SbTimePickerRow } from '@/design';
+import { SbInlineErrorState, SbInlineNotice, SbReveal, SbSwitchRow, SbTimePickerRow } from '@/design';
 
 import { QUIET_HOURS_EXPLANATION, QUIET_HOURS_SAME_TIME_MESSAGE, toQuietHoursSectionView } from './quiet-hours-view-state';
 import { useAlertCategorySettings } from './use-alert-category-settings';
@@ -29,7 +29,7 @@ export function QuietHoursSettingsSection() {
         onToggled={settings.onQuietHoursToggled}
       />
       {sectionView.isOn && (
-        <>
+        <SbReveal>
           <SbTimePickerRow
             title={sectionView.startLabel}
             timeOfDay={settings.quietHours.startTime}
@@ -47,7 +47,7 @@ export function QuietHoursSettingsSection() {
             onTimeSelected={(timeOfDay) => settings.onTimeSelected('end', timeOfDay)}
           />
           <SbInlineNotice message={QUIET_HOURS_EXPLANATION} />
-        </>
+        </SbReveal>
       )}
       {renderStatusNotice()}
     </>

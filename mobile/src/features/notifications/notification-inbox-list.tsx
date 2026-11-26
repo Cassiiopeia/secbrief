@@ -11,6 +11,7 @@ import {
   SbListEntrance,
   SbLoadingSkeleton,
   SbSectionHeader,
+  type SbStateIllustrationKind,
   SbText,
   createSbRefreshControl,
   sbSpacing,
@@ -18,26 +19,27 @@ import {
 } from '@/design';
 
 import { usePullRefresh } from '../articles/use-pull-refresh';
-import { toNoticeDetailRoute, toNotificationDetailRoute } from '../navigation/app-routes';
+import { APP_ROUTES, toNoticeDetailRoute, toNotificationDetailRoute } from '../navigation/app-routes';
 import { NotificationInboxRow } from './notification-inbox-row';
-import { toNotificationInboxRowView, toNotificationInboxSections } from './notification-inbox-view';
+import { toNotificationInboxEnableAlertPrompt, toNotificationInboxRowView, toNotificationInboxSections } from './notification-inbox-view';
 import type { AppNotificationNewnessBaseline } from './notification-read-state';
+import { useAlertCategorySettings } from './use-alert-category-settings';
 import { useNotificationPages } from './use-notification-pages';
 import { useNotificationReadState, useNotificationReadStateUpdaters } from './use-notification-read-state';
 import { LATEST_NOTIFICATION_IDS_QUERY_KEY } from './use-unseen-notification-dots';
 
-// 종류별 빈 상태 문구·아이콘, 목록 끝 안내 (긴급 알림 기록은 서버가 30일 보관)
-const INBOX_TEXTS: Record<AppNotificationKind, { emptyTitle: string; emptyDescription: string; emptyIconName: 'notifications-none' | 'campaign'; endNote?: string }> = {
+// 종류별 빈 상태 문구·그림, 목록 끝 안내 (긴급 알림 기록은 서버가 30일 보관)
+const INBOX_TEXTS: Record<AppNotificationKind, { emptyTitle: string; emptyDescription: string; emptyIllustration: SbStateIllustrationKind; endNote?: string }> = {
   ALERT: {
     emptyTitle: '아직 받은 알림이 없어요',
     emptyDescription: '긴급 보안 소식이 들어오면 여기에 모아 둘게요.',
-    emptyIconName: 'notifications-none',
+    emptyIllustration: 'inboxEmpty',
     endNote: '최근 30일 동안 보낸 알림을 모아 둬요.',
   },
   NOTICE: {
     emptyTitle: '아직 올라온 공지사항이 없어요',
     emptyDescription: '서비스 소식이 생기면 여기에서 알려 드릴게요.',
-    emptyIconName: 'campaign',
+    emptyIllustration: 'noticeEmpty',
   },
 };
 // 다음 페이지를 불러오는 동안 목록 끝에 보이는 뼈대 행 수
@@ -51,6 +53,7 @@ export function NotificationInboxList({ kind }: { kind: AppNotificationKind }) {
   const { colors } = useSbTheme();
   const queryClient = useQueryClient();
   const notificationPagesQuery = useNotificationPages(kind);
+  const alertCategorySettings = useAlertCategorySettings();
   const { readState, isLoaded: isReadStateLoaded } = useNotificationReadState();
   const { markNotificationsSeen } = useNotificationReadStateUpdaters();
   // 화면을 연 순간의 본 번호 (저장값을 다 읽은 뒤 한 번만 잡음, 처음 방문이면 seenUpToId 없음)
@@ -110,14 +113,28 @@ export function NotificationInboxList({ kind }: { kind: AppNotificationKind }) {
     />
   );
 
-  /** 글이 없을 때: 로딩 뼈대 / 오류 / 빈 상태 */
+  /** 글이 없을 때: 로딩 뼈대 / 오류 / 빈 상태 (+ 알림이 꺼져 있으면 켜러 가기) */
   function renderListState() {
     if (notificationPagesQuery.isPending || openedBaseline === undefined) return <SbLoadingSkeleton variant="listRows" />;
     if (notificationPagesQuery.isError) {
       const failure = toAppFailure(notificationPagesQuery.error);
       return <SbErrorState message={failure.userMessage} errorCode={failure.errorCode} onRetry={() => notificationPagesQuery.refetch()} />;
     }
-    return <SbEmptyState title={texts.emptyTitle} description={texts.emptyDescription} iconName={texts.emptyIconName} />;
+    // 알림이 모두 꺼진 기기면 켜러 가는 버튼 (설정 탭)
+    const enableAlertPrompt = toNotificationInboxEnableAlertPrompt(
+      kind,
+      alertCategorySettings.enabledAlertCategories.length > 0,
+      alertCategorySettings.unavailableReason === undefined,
+    );
+    return (
+      <SbEmptyState
+        title={texts.emptyTitle}
+        description={enableAlertPrompt?.description ?? texts.emptyDescription}
+        illustration={texts.emptyIllustration}
+        actionLabel={enableAlertPrompt?.actionLabel}
+        onActionPress={() => router.navigate(APP_ROUTES.settings)}
+      />
+    );
   }
 
   /** 목록 끝: 다음 페이지 뼈대 / 마지막이면 보관 기간 안내 */

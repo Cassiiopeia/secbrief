@@ -6,7 +6,7 @@ import { supportLinks, toContactMailUrl } from '@/core/config/support-links';
 import { toAppFailure } from '@/core/error/app-failure';
 import {
   SbEntrance,
-  SbErrorState,
+  SbInlineErrorState,
   SbListRow,
   SbLoadingSkeleton,
   SbMasthead,
@@ -123,7 +123,7 @@ function SettingsSourceStatusList({ sourceStatusesQuery }: { sourceStatusesQuery
   if (sourceStatusesQuery.isPending) return <SbLoadingSkeleton variant="listRows" rowCount={SOURCE_SKELETON_ROW_COUNT} />;
   if (sourceStatusesQuery.isError) {
     const failure = toAppFailure(sourceStatusesQuery.error);
-    return <SbErrorState message={failure.userMessage} errorCode={failure.errorCode} onRetry={() => sourceStatusesQuery.refetch()} />;
+    return <SbInlineErrorState message={failure.userMessage} errorCode={failure.errorCode} onRetry={() => sourceStatusesQuery.refetch()} />;
   }
   const now = new Date();
   const rowViews = sourceStatusesQuery.data.map((status) => toSourceStatusRowView(status, now));

@@ -65,3 +65,11 @@ export function toQuietHoursSectionView(quietHours: QuietHours, hasEnabledAlertC
     unavailableHint: hasEnabledAlertCategory ? undefined : QUIET_HOURS_WITHOUT_ALERT_HINT,
   };
 }
+
+/** 방해 금지 시간 저장 확인 문구 (알림 막대): 켬·끔이 바뀌면 켰어요·껐어요, 시각만 바뀌면 바꿨어요 */
+export function toQuietHoursSavedMessage(previousQuietHours: QuietHours, savedQuietHours: QuietHours): string {
+  if (previousQuietHours.isEnabled !== savedQuietHours.isEnabled) {
+    return savedQuietHours.isEnabled ? '방해 금지 시간을 켰어요' : '방해 금지 시간을 껐어요';
+  }
+  return '방해 금지 시간을 바꿨어요';
+}

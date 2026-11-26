@@ -5,7 +5,9 @@ import type { AlertCategory } from '@/data/models/alert-category';
 import { readEnabledAlertCategories } from '@/data/sources/alert-category-storage';
 import { getPushUnavailableReason } from '@/data/sources/device-notification-client';
 
-import { toToggledAlertCategories } from './alert-category-view-state';
+import { showSbToast } from '@/design';
+
+import { ALERT_CATEGORY_SAVED_MESSAGE, toToggledAlertCategories } from './alert-category-view-state';
 import { saveAlertCategories } from './push-registration-service';
 
 // React Query 캐시 키: 기기에 저장된 켠 알림 종류
@@ -14,14 +16,17 @@ export const ENABLED_ALERT_CATEGORIES_QUERY_KEY = ['enabled-alert-categories'] a
 const NO_ALERT_CATEGORIES: AlertCategory[] = [];
 
 /**
- * 알림 종류 스위치 상태: 기기 저장값 조회 + 스위치 바꾸기 (저장하는 동안 바꾼 값을 먼저 보여 주고, 실패하면 이전 값)
+ * 알림 종류 스위치 상태: 기기 저장값 조회 + 스위치 바꾸기 (저장하는 동안 바꾼 값을 먼저 보여 주고, 성공하면 알림 막대, 실패하면 이전 값)
  */
 export function useAlertCategorySettings() {
   const queryClient = useQueryClient();
   const storedQuery = useQuery({ queryKey: ENABLED_ALERT_CATEGORIES_QUERY_KEY, queryFn: readEnabledAlertCategories });
   const saveMutation = useMutation({
     mutationFn: saveAlertCategories,
-    onSuccess: (savedAlertCategories) => queryClient.setQueryData(ENABLED_ALERT_CATEGORIES_QUERY_KEY, savedAlertCategories),
+    onSuccess: (savedAlertCategories) => {
+      queryClient.setQueryData(ENABLED_ALERT_CATEGORIES_QUERY_KEY, savedAlertCategories);
+      showSbToast(ALERT_CATEGORY_SAVED_MESSAGE);
+    },
   });
 
   const storedAlertCategories = storedQuery.data ?? NO_ALERT_CATEGORIES;

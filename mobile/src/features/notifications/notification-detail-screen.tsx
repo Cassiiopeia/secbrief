@@ -61,7 +61,7 @@ function AppNotificationDetailFrame({ notificationId, expectedKind }: { notifica
           <SbEmptyState
             title={DETAIL_TEXTS[kind].notFoundTitle}
             description={DETAIL_TEXTS[kind].notFoundDescription}
-            iconName="notifications-none"
+            illustration="notFound"
             actionLabel="알림함 보기"
             onActionPress={() => router.replace(APP_ROUTES.notifications)}
           />
