@@ -27,6 +27,7 @@ import kr.suhsaechan.secbrief.advisory.dto.SourceStatusResponse;
 import kr.suhsaechan.secbrief.advisory.dto.TodayResponse;
 import kr.suhsaechan.secbrief.advisory.dto.TrendTopicResponse;
 import kr.suhsaechan.secbrief.advisory.dto.WeeklyTrendResponse;
+import kr.suhsaechan.secbrief.advisory.service.NewArticleCountsQueryService;
 import kr.suhsaechan.secbrief.advisory.service.ArticleImageQueryService;
 import kr.suhsaechan.secbrief.advisory.service.ArticleQueryService;
 import kr.suhsaechan.secbrief.advisory.service.SourceQueryService;
@@ -53,6 +54,8 @@ class AdvisoryApiControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+    @MockitoBean
+    private NewArticleCountsQueryService newArticleCountsQueryService;
     @MockitoBean
     private TodayQueryService todayQueryService;
     @MockitoBean
@@ -96,7 +99,7 @@ class AdvisoryApiControllerTest {
         ArticleResponse pending = new ArticleResponse(2L, ArticleKind.NEWS, ArticleRegion.OVERSEAS, ArticleTopic.GENERAL,
                 "Example breach report", null, "https://example.test/news/2", "The Hacker News",
                 Instant.parse("2026-11-23T00:00:00Z"), false, null, null, null, false, false, null,
-                ArticleImportance.ROUTINE, null, "THE_HACKER_NEWS", List.of(), null);
+                ArticleImportance.ROUTINE, null, "THE_HACKER_NEWS", List.of(), null, null, null, null, null, false);
         given(articleQueryService.findArticles(any())).willReturn(new ArticlePageResponse(List.of(pending), null));
 
         mockMvc.perform(get("/api/v1/articles"))
@@ -235,6 +238,6 @@ class AdvisoryApiControllerTest {
                 "https://nvd.nist.gov/vuln/detail/CVE-2026-1111", "NVD", Instant.parse("2026-11-23T00:00:00Z"), false,
                 "CVE-2026-1111", new BigDecimal("9.8"), "3.1", true, true, ArticleResponse.toImagePath(1L),
                 ArticleImportance.HEADLINE, "Example", "NVD", List.of("Example", "원격 코드 실행"),
-                "Example에서 원격 코드 실행이 가능해요.");
+                "Example에서 원격 코드 실행이 가능해요.", "network", null, null, "fortinet", true);
     }
 }

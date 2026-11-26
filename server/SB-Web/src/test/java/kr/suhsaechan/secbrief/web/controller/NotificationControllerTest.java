@@ -82,7 +82,7 @@ class NotificationControllerTest {
         given(notificationQueryService.findNotification(999L)).willThrow(new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
         given(notificationQueryService.findNotification(3L)).willReturn(new NotificationDetailResponse(3L,
                 NotificationKind.NOTICE, null, List.of(), "서비스 점검 안내", "11월 30일 새벽에 점검해요.\n잠시 쉬어 가요.",
-                "https://secbrief.suhsaechan.kr", null, null, 0, true, CREATED_AT, CREATED_AT, null, List.of(), List.of()));
+                "https://secbrief.suhsaechan.kr", null, null, 0, true, CREATED_AT, CREATED_AT, null, List.of(), List.of(), null));
 
         mockMvc.perform(get("/api/v1/notifications/3"))
                 .andExpect(status().isOk())

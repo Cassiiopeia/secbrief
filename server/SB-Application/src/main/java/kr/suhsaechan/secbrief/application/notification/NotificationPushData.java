@@ -11,7 +11,7 @@ import kr.suhsaechan.secbrief.member.constant.NotificationKind;
 public final class NotificationPushData {
 
     public static final String NOTIFICATION_ID_KEY = "notificationId";
-    // ALERT, NOTICE, QUIET_HOURS_DIGEST
+    // ALERT, NOTICE, DIGEST(아침 요약), QUIET_HOURS_DIGEST
     public static final String NOTIFICATION_KIND_KEY = "notificationKind";
     public static final String ARTICLE_ID_KEY = "articleId";
     public static final String TARGET_TAB_KEY = "targetTab";
@@ -47,7 +47,8 @@ public final class NotificationPushData {
                 TARGET_TAB_KEY, hasAlert ? TARGET_TAB_VULNERABILITY : TARGET_TAB_TODAY);
     }
 
+    // 공지만 오늘 탭 (알림·아침 요약은 취약점 탭)
     private static String toTargetTab(NotificationKind notificationKind) {
-        return notificationKind == NotificationKind.ALERT ? TARGET_TAB_VULNERABILITY : TARGET_TAB_TODAY;
+        return notificationKind == NotificationKind.NOTICE ? TARGET_TAB_TODAY : TARGET_TAB_VULNERABILITY;
     }
 }

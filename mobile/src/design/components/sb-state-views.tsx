@@ -7,7 +7,7 @@ import { useSbStyles, useSbTheme } from '../theme/use-sb-theme';
 import { type SbColors, sbMotion, sbRadius, sbSize, sbSpacing } from '../tokens';
 import { SbEntrance } from './sb-entrance';
 import { SbFilledButton } from './sb-filled-button';
-import { sbRevealEntering } from './sb-layout-motion';
+import { sbRevealEnteringOnNative } from './sb-layout-motion';
 import { SbPressable } from './sb-pressable';
 import { SbStateIllustration } from './sb-state-illustration';
 import { type SbStateIllustrationKind, toSbErrorIllustrationKind } from './sb-state-illustration-sources';
@@ -47,7 +47,7 @@ export function SbInlineErrorState({ message, errorCode, onRetry }: SbErrorState
   const { colors } = useSbTheme();
   const styles = useSbStyles(createStyles);
   return (
-    <Animated.View style={styles.inlineWrap} entering={sbRevealEntering}>
+    <Animated.View style={styles.inlineWrap} entering={sbRevealEnteringOnNative}>
       <View style={styles.inlineError}>
         <MaterialIcons name="error-outline" size={INLINE_ERROR_ICON_SIZE} color={colors.secondaryLabel} />
         <View style={styles.inlineText} accessibilityRole="alert">

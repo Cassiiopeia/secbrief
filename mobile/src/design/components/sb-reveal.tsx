@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import Animated from 'react-native-reanimated';
 
-import { sbConcealExiting, sbRevealEntering } from './sb-layout-motion';
+import { sbConcealExitingOnNative, sbRevealEnteringOnNative } from './sb-layout-motion';
 
 /**
  * 조건부 구역 감싸기: 붙을 때 살짝 내려오며 나타나고, 떨어질 때 흐려지며 사라짐
@@ -9,7 +9,7 @@ import { sbConcealExiting, sbRevealEntering } from './sb-layout-motion';
  */
 export function SbReveal({ children }: { children: ReactNode }) {
   return (
-    <Animated.View entering={sbRevealEntering} exiting={sbConcealExiting}>
+    <Animated.View entering={sbRevealEnteringOnNative} exiting={sbConcealExitingOnNative}>
       {children}
     </Animated.View>
   );

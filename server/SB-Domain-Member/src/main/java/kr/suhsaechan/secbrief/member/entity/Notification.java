@@ -67,6 +67,9 @@ public class Notification {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    // 기기 1대 전용 기록 (아침 요약, 관심만 맞은 여러 건 알림): 알림함 목록에 보이지 않음, 공통 기록은 null
+    private Long pushDeviceId;
+
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "notification_article", joinColumns = @JoinColumn(name = "notification_id"))
     @OrderBy("position asc")
@@ -85,6 +88,18 @@ public class Notification {
         notification.articles.addAll(articles);
         notification.createdAt = createdAt.truncatedTo(ChronoUnit.MILLIS);
         notification.updatedAt = notification.createdAt;
+        return notification;
+    }
+
+    /**
+     * 기기 1대 전용 기록: 아침 요약(DIGEST) 또는 관심만 맞은 여러 건 바로 알림(ALERT, 종류 INTEREST)
+     */
+    public static Notification createForDevice(NotificationKind kind, long pushDeviceId, AlertCategory leadAlertCategory,
+                                               String title, String body, List<NotificationArticle> articles,
+                                               Instant createdAt) {
+        Notification notification = createAlert(leadAlertCategory, title, body, articles, createdAt);
+        notification.kind = kind;
+        notification.pushDeviceId = pushDeviceId;
         return notification;
     }
 

@@ -13,7 +13,7 @@ public interface PushDeviceRepository extends JpaRepository<PushDevice, Long> {
 
     List<PushDevice> findAllByPushTokenIn(Collection<String> pushTokens);
 
-    // 발송 대상 전체: 켠 종류까지 한 번에 (기기마다 따로 조회하지 않게)
-    @Query("select distinct d from PushDevice d join fetch d.enabledAlertCategories")
-    List<PushDevice> findAllWithEnabledAlertCategories();
+    // 발송 대상 전체: 켠 종류·관심 기술까지 한 번에 (기기마다 따로 조회하지 않게, 둘 중 하나만 있는 기기도)
+    @Query("select distinct d from PushDevice d left join fetch d.enabledAlertCategories left join fetch d.interests")
+    List<PushDevice> findAllWithAlertSettings();
 }

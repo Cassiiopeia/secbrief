@@ -34,11 +34,41 @@ export async function putApiData<T>(path: string, requestBody: unknown): Promise
   });
 }
 
+/** 서버 계산 요청 (POST): JSON 본문 > 공통 요청 */
+export async function postApiData<T>(path: string, requestBody: unknown): Promise<T> {
+  return requestApiData<T>(toRequestUrl(path), {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody),
+  });
+}
+
+/** 바뀐 경우만 받는 조회 결과: 바뀌지 않음(304) 또는 새 값 + 새 ETag */
+export type ApiDataIfChanged<T> = { isNotModified: true } | { isNotModified: false; responseData: T; entityTag?: string };
+
+// HTTP 304 Not Modified (If-None-Match 와 같은 ETag)
+const NOT_MODIFIED_STATUS = 304;
+
+/** 서버 조회 (GET, ETag): 가진 버전을 If-None-Match 로 보내 304 면 그대로, 아니면 새 값과 ETag */
+export async function fetchApiDataIfChanged<T>(path: string, entityTag?: string): Promise<ApiDataIfChanged<T>> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (entityTag !== undefined && entityTag.length > 0) headers['If-None-Match'] = entityTag;
+  const response = await sendRequest(toRequestUrl(path), { headers });
+  if (response.status === NOT_MODIFIED_STATUS) return { isNotModified: true };
+  const responseData = await toApiData<T>(response);
+  return { isNotModified: false, responseData, entityTag: response.headers.get('ETag') ?? undefined };
+}
+
 /**
  * 서버 요청 공통 (앱의 유일한 외부 통신): 시간 제한 요청 > {data} 꺼내기
  * 실패 변환 5종: 시간 초과, 네트워크, 응답 읽기 실패, 서버 오류 본문, 본문 없는 HTTP 오류 > AppFailure
  */
 async function requestApiData<T>(requestUrl: string, requestInit: RequestInit): Promise<T> {
+  return toApiData<T>(await sendRequest(requestUrl, requestInit));
+}
+
+// 시간 제한 요청 (시간 초과·네트워크 실패 > AppFailure)
+async function sendRequest(requestUrl: string, requestInit: RequestInit): Promise<Response> {
   const abortController = new AbortController();
   const timeoutHandle = setTimeout(() => abortController.abort(), apiConfig.requestTimeoutMilliseconds);
   let response: Response;
@@ -51,7 +81,11 @@ async function requestApiData<T>(requestUrl: string, requestInit: RequestInit): 
   } finally {
     clearTimeout(timeoutHandle); // (성공·실패 공통)
   }
+  return response;
+}
 
+// 응답 > {data} (서버 오류 본문·HTTP 오류·data 없음 > AppFailure)
+async function toApiData<T>(response: Response): Promise<T> {
   const body = await readJsonBody(response);
   if (!response.ok) throw toServerFailure(response.status, body);
   if (!isObject(body) || !('data' in body) || body.data === undefined || body.data === null) {

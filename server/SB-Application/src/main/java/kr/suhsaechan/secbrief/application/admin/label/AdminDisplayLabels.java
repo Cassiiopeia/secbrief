@@ -1,6 +1,7 @@
 package kr.suhsaechan.secbrief.application.admin.label;
 
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
+import kr.suhsaechan.secbrief.advisory.constant.CatalogTagKind;
 import kr.suhsaechan.secbrief.advisory.constant.CollectStatus;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
 
@@ -39,7 +40,7 @@ public final class AdminDisplayLabels {
     }
 
     /**
-     * 알림 종류(KISA_URGENT, KEV, CRITICAL_CVE, null) > 표시 이름(KISA 긴급 공지, 악용 중인 취약점, 고위험 취약점, -)
+     * 알림 종류(KISA_URGENT, KEV, CRITICAL_CVE, INTEREST, null) > 표시 이름(KISA 긴급 공지, 악용 중인 취약점, 고위험 취약점, 관심 기술 소식, -)
      */
     public static String ofAlertCategory(AlertCategory alertCategory) {
         if (alertCategory == null) {
@@ -49,6 +50,19 @@ public final class AdminDisplayLabels {
             case KISA_URGENT -> "KISA 긴급 공지";
             case KEV -> "악용 중인 취약점";
             case CRITICAL_CVE -> "고위험 취약점";
+            case INTEREST -> "관심 기술 소식";
+        };
+    }
+
+    /**
+     * 분류 태그 종류 > 표시 이름 (기술 분야, 생태계, 인기 묶음, 제품)
+     */
+    public static String ofCatalogTagKind(CatalogTagKind kind) {
+        return switch (kind) {
+            case FIELD -> "기술 분야";
+            case ECOSYSTEM -> "생태계";
+            case PRODUCT_GROUP -> "인기 묶음";
+            case PRODUCT -> "제품";
         };
     }
 }

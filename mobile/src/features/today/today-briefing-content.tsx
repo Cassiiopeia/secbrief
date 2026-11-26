@@ -25,6 +25,7 @@ import { toNewsHref } from '../news/news-feed-filter';
 import { useTabMastheadActions } from '../notifications/use-tab-masthead-actions';
 import type { AlertLevelView } from './alert-level-view';
 import { TodayHeadlineSection } from './today-headline-section';
+import { TodayNewArticlesStrip } from './today-new-articles-strip';
 import type { TodayStreamItemView, TodayUrgentView, TodayViewState } from './today-view-state';
 
 interface TodayBriefingContentProps {
@@ -67,6 +68,7 @@ export function TodayBriefingContent({ mastheadTitleLines, state, alertLevel }: 
       )}
       {state.urgent !== undefined && <TodayUrgentSection urgent={state.urgent} />}
       <TodayStatSection state={state} />
+      <TodayNewArticlesStrip entranceOrder={STAT_ORDER} />
       <SbEntrance order={TOPIC_ORDER}>
         <SbSectionHeader title="주제별로 보기" />
         <SbShortcutGrid shortcuts={state.topicShortcuts} onShortcutPress={onShortcutPressed} />

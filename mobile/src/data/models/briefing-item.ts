@@ -58,6 +58,14 @@ export interface BriefingItem {
   /** CISA KEV 등재 */
   isKev: boolean;
   isUrgent: boolean;
+  /** 분류 태그 (#93, 카탈로그 code). 분류 전·이전 서버면 없음 */
+  fieldCode?: string;
+  ecosystemCode?: string;
+  /** GitHub 권고 패키지 이름 (원문 표기) */
+  packageName?: string;
+  productCode?: string;
+  /** 주요 (KEV·널리 쓰는 제품·CVSS 9.0 이상이면서 AI 일반 아님·AI 헤드라인). 이전 서버면 false */
+  isNotable: boolean;
 }
 
 /** 목록 필터 (값이 없으면 전체) */
@@ -71,6 +79,17 @@ export interface ArticleFilter {
   sourceCode?: string;
   /** 이 키워드가 붙은 소식만 (# 없이) */
   keyword?: string;
+  /** 출처 여러 곳 중 하나 (#93) */
+  sourceCodes?: string[];
+  /** 분류 태그 1개씩 (#93, 카탈로그 code) */
+  fieldCode?: string;
+  ecosystemCode?: string;
+  /** true 주요만, false 주요 아닌 것만 */
+  isNotable?: boolean;
+  /** 내 기술: 셋 중 하나라도 맞는 소식 (비면 조건 없음) */
+  interestCodes?: { productCodes: string[]; fieldCodes: string[]; ecosystemCodes: string[] };
+  /** 이 시각 이후 수집분 (오늘) */
+  collectedSince?: Date;
   /** true 면 긴급 소식만 (경보단계 화면의 이번 주 긴급 건수에서 들어옴) */
   isUrgent?: boolean;
 }

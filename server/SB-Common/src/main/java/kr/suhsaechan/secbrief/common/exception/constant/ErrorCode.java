@@ -67,7 +67,14 @@ public enum ErrorCode {
     AI_KEY_DUPLICATED_NICKNAME(HttpStatus.BAD_REQUEST, "같은 별명의 키가 이미 있어요."),
     AI_KEY_INVALID_VALUE(HttpStatus.BAD_REQUEST, "키 값을 공백 없이 통째로 붙여 넣어 주세요."),
     AI_KEY_DUPLICATED(HttpStatus.BAD_REQUEST, "이미 등록한 키예요."),
-    AI_PROVIDER_UNKNOWN(HttpStatus.BAD_REQUEST, "모르는 AI 제공자예요.");
+    AI_PROVIDER_UNKNOWN(HttpStatus.BAD_REQUEST, "모르는 AI 제공자예요."),
+
+    // 분류 태그 (관리자 화면, #93)
+    CATALOG_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "없는 분류 항목이에요. 화면을 새로 고쳐 주세요."),
+    CATALOG_TAG_CODE_INVALID(HttpStatus.BAD_REQUEST, "코드는 영어 소문자·숫자·- 로 64자 안에서 정해 주세요."),
+    CATALOG_TAG_CODE_DUPLICATED(HttpStatus.BAD_REQUEST, "같은 종류에 같은 코드가 이미 있어요."),
+    CATALOG_TAG_NAME_INVALID(HttpStatus.BAD_REQUEST, "이름은 1자에서 80자, 짧은 이름은 1자에서 40자 사이로 써 주세요."),
+    CATALOG_TAG_REFERENCE_INVALID(HttpStatus.BAD_REQUEST, "묶음·분야는 있는 코드로 골라 주세요.");
 
     private final HttpStatus status;
     private final String message;

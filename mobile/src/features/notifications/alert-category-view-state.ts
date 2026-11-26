@@ -1,11 +1,11 @@
-import { ALERT_CATEGORIES, type AlertCategory } from '@/data/models/alert-category';
+import { SWITCHABLE_ALERT_CATEGORIES, type SwitchableAlertCategory } from '@/data/models/alert-category';
 import type { PushUnavailableReason } from '@/data/sources/device-notification-client';
 
 import { ALERT_CATEGORY_TEXTS } from './alert-category-texts';
 
 /** 알림 종류 스위치 행 표시 내용 */
 export interface AlertCategoryRowView {
-  category: AlertCategory;
+  category: SwitchableAlertCategory;
   title: string;
   detail: string;
   isOn: boolean;
@@ -18,9 +18,9 @@ const PUSH_UNAVAILABLE_MESSAGES: Record<PushUnavailableReason, string> = {
   NO_PROJECT_ID: '이 빌드는 알림을 준비하고 있어요.',
 };
 
-/** 켠 알림 종류 > 스위치 행 3개 (표시 순서 고정) */
-export function toAlertCategoryRowViews(enabledAlertCategories: AlertCategory[]): AlertCategoryRowView[] {
-  return ALERT_CATEGORIES.map((category) => ({
+/** 켠 알림 종류 > 스위치 행 3개 (표시 순서 고정: 악용 중 > KISA 긴급 > 그 밖의 고위험) */
+export function toAlertCategoryRowViews(enabledAlertCategories: SwitchableAlertCategory[]): AlertCategoryRowView[] {
+  return SWITCHABLE_ALERT_CATEGORIES.map((category) => ({
     category,
     title: ALERT_CATEGORY_TEXTS[category].title,
     detail: ALERT_CATEGORY_TEXTS[category].detail,
@@ -30,11 +30,11 @@ export function toAlertCategoryRowViews(enabledAlertCategories: AlertCategory[])
 
 /** 스위치 하나를 바꾼 뒤의 켠 종류 전체 (표시 순서, 중복 없음) */
 export function toToggledAlertCategories(
-  enabledAlertCategories: AlertCategory[],
-  toggledCategory: AlertCategory,
+  enabledAlertCategories: SwitchableAlertCategory[],
+  toggledCategory: SwitchableAlertCategory,
   isOn: boolean,
-): AlertCategory[] {
-  return ALERT_CATEGORIES.filter((category) =>
+): SwitchableAlertCategory[] {
+  return SWITCHABLE_ALERT_CATEGORIES.filter((category) =>
     category === toggledCategory ? isOn : enabledAlertCategories.includes(category),
   );
 }

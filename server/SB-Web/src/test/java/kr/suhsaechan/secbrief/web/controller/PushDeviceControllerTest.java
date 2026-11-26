@@ -15,7 +15,12 @@ import kr.suhsaechan.secbrief.member.constant.AlertCategory;
 import kr.suhsaechan.secbrief.member.dto.PushDeviceRegisterRequest;
 import kr.suhsaechan.secbrief.member.dto.PushDeviceResponse;
 import kr.suhsaechan.secbrief.member.dto.QuietHoursResponse;
-import kr.suhsaechan.secbrief.member.service.PushDeviceService;
+import kr.suhsaechan.secbrief.application.notification.settings.AlertEstimateService;
+import kr.suhsaechan.secbrief.application.notification.settings.AlertSettingsService;
+import kr.suhsaechan.secbrief.member.dto.DigestSettingsResponse;
+import kr.suhsaechan.secbrief.member.dto.InterestsResponse;
+import kr.suhsaechan.secbrief.member.entity.AlertInterests;
+import kr.suhsaechan.secbrief.member.entity.QuietHours;
 import kr.suhsaechan.secbrief.web.support.WebSecurityTestConfig;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -37,11 +42,13 @@ class PushDeviceControllerTest {
     @Autowired
     private MockMvc mockMvc;
     @MockitoBean
-    private PushDeviceService pushDeviceService;
+    private AlertSettingsService alertSettingsService;
+    @MockitoBean
+    private AlertEstimateService alertEstimateService;
 
     @Test
     void registersDeviceAndReturnsEnabledCategories() throws Exception {
-        given(pushDeviceService.register(any())).willReturn(new PushDeviceResponse(List.of(AlertCategory.KEV)));
+        given(alertSettingsService.register(any())).willReturn(toResponse(List.of(AlertCategory.KEV), QuietHours.disabledByDefault()));
 
         putPushDevice("""
                 {"pushToken":"ExponentPushToken[abc-123_x]","platform":"ANDROID","enabledAlertCategories":["KEV"]}""")
@@ -51,7 +58,7 @@ class PushDeviceControllerTest {
 
     @Test
     void acceptsEmptyCategoriesAsTurnOff() throws Exception {
-        given(pushDeviceService.register(any())).willReturn(new PushDeviceResponse(List.of()));
+        given(alertSettingsService.register(any())).willReturn(PushDeviceResponse.unregistered());
 
         putPushDevice("""
                 {"pushToken":"ExpoPushToken[abc]","platform":"IOS","enabledAlertCategories":[]}""")
@@ -61,8 +68,8 @@ class PushDeviceControllerTest {
 
     @Test
     void acceptsQuietHoursAndReturnsSavedValue() throws Exception {
-        given(pushDeviceService.register(any())).willReturn(new PushDeviceResponse(List.of(AlertCategory.KEV),
-                new QuietHoursResponse(true, LocalTime.of(23, 30), LocalTime.of(7, 0), "Asia/Seoul")));
+        given(alertSettingsService.register(any())).willReturn(toResponse(List.of(AlertCategory.KEV),
+                new QuietHours(true, LocalTime.of(23, 30), LocalTime.of(7, 0), "Asia/Seoul")));
 
         putPushDevice("""
                 {"pushToken":"ExponentPushToken[abc]","platform":"IOS","enabledAlertCategories":["KEV"],
@@ -72,13 +79,13 @@ class PushDeviceControllerTest {
                 .andExpect(jsonPath("$.data.quietHours.startTime").value("23:30"))
                 .andExpect(jsonPath("$.data.quietHours.endTime").value("07:00"));
         ArgumentCaptor<PushDeviceRegisterRequest> request = ArgumentCaptor.forClass(PushDeviceRegisterRequest.class);
-        verify(pushDeviceService).register(request.capture());
+        verify(alertSettingsService).register(request.capture());
         assertThat(request.getValue().quietHours().startTime()).isEqualTo(LocalTime.of(23, 30));
     }
 
     @Test
     void passesNullQuietHoursForOlderAppAndReturnsDefault() throws Exception {
-        given(pushDeviceService.register(any())).willReturn(new PushDeviceResponse(List.of(AlertCategory.KEV)));
+        given(alertSettingsService.register(any())).willReturn(toResponse(List.of(AlertCategory.KEV), QuietHours.disabledByDefault()));
 
         putPushDevice("""
                 {"pushToken":"ExponentPushToken[abc]","platform":"ANDROID","enabledAlertCategories":["KEV"]}""")
@@ -86,7 +93,7 @@ class PushDeviceControllerTest {
                 .andExpect(jsonPath("$.data.quietHours.isEnabled").value(false))
                 .andExpect(jsonPath("$.data.quietHours.startTime").value("22:00"));
         ArgumentCaptor<PushDeviceRegisterRequest> request = ArgumentCaptor.forClass(PushDeviceRegisterRequest.class);
-        verify(pushDeviceService).register(request.capture());
+        verify(alertSettingsService).register(request.capture());
         assertThat(request.getValue().quietHours()).isNull();
     }
 
@@ -103,7 +110,7 @@ class PushDeviceControllerTest {
                  "quietHours":{"isEnabled":true,"startTime":"22:00","endTime":"07:00"}}""")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
-        verify(pushDeviceService, never()).register(any());
+        verify(alertSettingsService, never()).register(any());
     }
 
     @Test
@@ -112,7 +119,7 @@ class PushDeviceControllerTest {
                 {"pushToken":"not-a-token","platform":"ANDROID","enabledAlertCategories":["KEV"]}""")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
-        verify(pushDeviceService, never()).register(any());
+        verify(alertSettingsService, never()).register(any());
     }
 
     @Test
@@ -133,5 +140,11 @@ class PushDeviceControllerTest {
 
     private org.springframework.test.web.servlet.ResultActions putPushDevice(String requestJson) throws Exception {
         return mockMvc.perform(put("/api/v1/push-devices").contentType(MediaType.APPLICATION_JSON).content(requestJson));
+    }
+
+    // 저장된 값 응답 (관심 기술 없음, 아침 요약 기본값)
+    private static PushDeviceResponse toResponse(List<AlertCategory> enabledAlertCategories, QuietHours quietHours) {
+        return new PushDeviceResponse(enabledAlertCategories, QuietHoursResponse.from(quietHours),
+                InterestsResponse.from(AlertInterests.none()), DigestSettingsResponse.defaultSettings());
     }
 }

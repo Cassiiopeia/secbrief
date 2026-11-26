@@ -4,7 +4,7 @@ import Animated from 'react-native-reanimated';
 
 import { useSbStyles, useSbTheme } from '../theme/use-sb-theme';
 import { type SbColors, sbRadius, sbSpacing } from '../tokens';
-import { sbRevealEntering } from './sb-layout-motion';
+import { sbRevealEnteringOnNative } from './sb-layout-motion';
 import { SbText } from './sb-text';
 
 const NOTICE_ICON_SIZE = 16;
@@ -14,7 +14,7 @@ export function SbInlineNotice({ message }: { message: string }) {
   const { colors } = useSbTheme();
   const styles = useSbStyles(createStyles);
   return (
-    <Animated.View style={styles.wrap} entering={sbRevealEntering}>
+    <Animated.View style={styles.wrap} entering={sbRevealEnteringOnNative}>
       <View style={styles.notice} accessible accessibilityLabel={message}>
         <MaterialIcons name="info-outline" size={NOTICE_ICON_SIZE} color={colors.tertiaryLabel} />
         <View style={styles.text}>

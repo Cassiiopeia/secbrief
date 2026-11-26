@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import kr.suhsaechan.secbrief.advisory.classification.ArticleClassificationService;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
@@ -91,6 +92,8 @@ class NotificationRecordDispatchTest extends PostgresContainerTestSupport {
     private SourceRepository sourceRepository;
     @Autowired
     private TransactionTemplate transactionTemplate;
+    @Autowired
+    private ArticleClassificationService articleClassificationService;
     @MockitoBean
     private PushSender pushSender;
 
@@ -285,6 +288,7 @@ class NotificationRecordDispatchTest extends PostgresContainerTestSupport {
                 cveId + ": Example flaw", "https://example.test/cve/" + cveId, source.getDisplayName(), collectedAt,
                 false, cveId, isKev ? null : new BigDecimal("9.8"), isKev ? null : "3.1", isKev, true), collectedAt);
         article.applyAiAnalysis(ArticleTopic.VULNERABILITY, null, ArticleImportance.NOTABLE, null);
+        articleClassificationService.classify(article);
         return articleRepository.save(article);
     }
 }

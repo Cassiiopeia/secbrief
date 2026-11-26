@@ -16,6 +16,7 @@ import {
   useSbTheme,
 } from '@/design';
 
+import type { TagCatalogIndex } from '../catalog/tag-catalog-view';
 import { ArticleFeedItem } from './article-feed-item';
 import { type ArticleListPurpose, toArticleFeedPresentation } from './article-feed-layout';
 import { toArticleRowView } from './article-row-view';
@@ -38,6 +39,14 @@ interface ArticleInfiniteListProps {
   emptyAction?: { label: string; onPress: () => void };
   isPullRefreshing: boolean;
   onPullRefresh: () => void;
+  /** 분류 태그를 보일 카탈로그 (#93, 없으면 기존 배지) */
+  catalogIndex?: TagCatalogIndex;
+  /** 모든 소식을 한 줄 행으로 (#93 오픈소스의 주요 아닌 소식) */
+  isOneLineOnly?: boolean;
+  /** 앞 N건만 보이고 다음 페이지를 부르지 않음 (펼치기 전) */
+  maximumVisibleCount?: number;
+  /** 목록 끝 (예: N건 더 보기 버튼) */
+  listFooter?: ReactElement;
 }
 
 // 다음 페이지를 불러오는 동안 목록 끝에 보이는 뼈대 행 수
@@ -59,16 +68,21 @@ export function ArticleInfiniteList({
   emptyAction,
   isPullRefreshing,
   onPullRefresh,
+  catalogIndex,
+  isOneLineOnly = false,
+  maximumVisibleCount,
+  listFooter,
 }: ArticleInfiniteListProps) {
   const { colors } = useSbTheme();
   const now = new Date();
-  const rowViews = (articlePagesQuery.data?.pages ?? [])
+  const allRowViews = (articlePagesQuery.data?.pages ?? [])
     .flatMap((page) => page.items)
-    .map((item) => toArticleRowView(item, now));
+    .map((item) => toArticleRowView(item, now, catalogIndex));
+  const rowViews = maximumVisibleCount === undefined ? allRowViews : allRowViews.slice(0, maximumVisibleCount);
 
   const onEndReached = () => {
-    // 이미 불러오는 중이면 다시 부르지 않음
-    if (articlePagesQuery.hasNextPage && !articlePagesQuery.isFetchingNextPage) {
+    // 이미 불러오는 중이거나 앞 N건만 보이는 동안은 다시 부르지 않음
+    if (maximumVisibleCount === undefined && articlePagesQuery.hasNextPage && !articlePagesQuery.isFetchingNextPage) {
       void articlePagesQuery.fetchNextPage();
     }
   };
@@ -81,10 +95,14 @@ export function ArticleInfiniteList({
         <SbListEntrance itemIndex={rowIndex}>
           <ArticleFeedItem
             rowView={rowView}
-            presentation={toArticleFeedPresentation(
-              { importance: rowView.importance, publishedAt: rowView.publishedAt, listPurpose, isLead: hasLeadCard && rowIndex === 0 },
-              now,
-            )}
+            presentation={
+              isOneLineOnly
+                ? 'oneLine'
+                : toArticleFeedPresentation(
+                    { importance: rowView.importance, publishedAt: rowView.publishedAt, listPurpose, isLead: hasLeadCard && rowIndex === 0 },
+                    now,
+                  )
+            }
             impliedKind={impliedKind}
           />
         </SbListEntrance>
@@ -94,7 +112,9 @@ export function ArticleInfiniteList({
       ListFooterComponent={
         articlePagesQuery.isFetchingNextPage ? (
           <SbLoadingSkeleton variant={skeletonVariant} rowCount={NEXT_PAGE_SKELETON_ROW_COUNT} />
-        ) : undefined
+        ) : (
+          listFooter
+        )
       }
       onEndReached={onEndReached}
       keyboardShouldPersistTaps="handled"

@@ -27,7 +27,7 @@ mobile/
 |---|---|---|
 | `(tabs)/index` | 홈 | 오늘의 브리핑: 사이버위기 경보 띠(지금 단계 · 시작일, 누르면 경보단계 화면), 주요 소식, 긴급, 숫자, 주제·키워드 바로가기, 최신 |
 | `(tabs)/news` | 소식 | 뉴스·공지 피드, 카테고리·주제 칩 |
-| `(tabs)/vulnerability` | 취약점 | 주요만 / 악용 중 / 전체, 출처 묶음 칩 |
+| `(tabs)/vulnerability` | 취약점 | 주요만 / 악용 중 / 전체, 출처 묶음 칩(내 기술·+N), 생태계·분야 칩, 오픈소스는 주요 카드 + 그 밖 한 줄 행 (#93). `?group=&segment=&fieldCode=&ecosystemCode=&today=1` 로 열 수 있음 |
 | `(tabs)/explore` | 탐색 | 검색 들머리, 키워드 순위, 주제 동향, 행사 소식 |
 | `(tabs)/settings` | 더보기 | 알림 설정, 출처, 문의, 약관, 앱 정보 |
 | `articles/[articleId]` | 기사 상세 | AI 브리핑(한 줄 결론, 무슨 일, 왜 중요, 영향 대상, 대응 — 없으면 이전 요약 카드), 확인된 정보, 대응 모아보기(공식 대응 > 확인된 취약점 정보 > 관련 기사, 비면 함께 보면 좋은 소식), 아래 줄 원문 보기·원문 링크 복사·공유. `?focus=responseGuide` 면 대응 모아보기로 내려감 |
@@ -35,7 +35,8 @@ mobile/
 | `search` | 검색 | 글자·의미 검색, 요즘 키워드 |
 | `browse/[browseKey]` | 모아 보기 | 주제·출처·키워드별 목록 |
 | `notifications` | 알림함 | 알림 \| 공지사항 (`?segment=NOTICE`), 알림은 날짜별 묶음, 새 글 점. 탭 머리 종 아이콘·더보기에서 들어옴 |
-| `notifications/[notificationId]` | 알림 상세 | 왜 알렸는지(종류별 설명) > 담긴 소식 (종류별 구역) > 소식마다 대응 안내 카드 (이렇게 대응해요, 공식 대응 첫 건, 대응 모아보기 N건 보기) |
+| `notifications/[notificationId]` | 알림 상세 | 왜 알렸는지(종류별 설명) > 담긴 소식 (종류별 구역) > 소식마다 대응 안내 카드 (이렇게 대응해요, 공식 대응 첫 건, 대응 모아보기 N건 보기). 아침 요약(`DIGEST`)은 타일 > 꼭 볼 것 > 분야별 펼치기 |
+| `interests` | 관심 기술 | 제품(검색 + 인기 묶음)·분야·생태계 고르기, 어제 기준 알림 추정, 저장하기 (#93) |
 | `notices/[noticeId]` | 공지사항 상세 | 제목, 날짜, 본문, 링크 버튼 |
 
 - 버전·수치는 서버가 준 값만 보여 준다 (앱에서 만들지 않음). AI 가 쓴 부분에는 AI 표시를 붙인다.
@@ -46,6 +47,8 @@ mobile/
 - 알림을 누르면 `notification-target-route.ts` 가 열 곳을 정한다: `articleId` 기사 상세 > `notificationKind=NOTICE` 공지 상세 > `notificationId` 알림 상세 > `QUIET_HOURS_DIGEST` 알림함 > 이전 서버의 `targetTab`. 이동은 화면 스택이 준비된 뒤 (`use-is-root-navigator-ready`).
 - 알림함 읽음 기록(본 번호·연 글)과 방해 금지 시간은 기기에만 둔다 (`secbrief.notificationReadState`, `secbrief.quietHours`). 방해 금지 시간은 알림 기기 등록(`PUT /api/v1/push-devices` 의 `quietHours`)으로 서버에도 보낸다.
 - 알림 종류 문구(이름·배지·알린 이유)는 `features/notifications/alert-category-texts.ts` 가 단일 원본이다.
+- **분류 태그(기술 분야·생태계·제품·제품 묶음)는 서버 카탈로그가 단일 원본이다 (#93).** `GET /api/v1/catalog/tags` 를 ETag 로 받아 기기에 저장(`secbrief.tagCatalog`)하고 앱 시작·앞으로 올 때 다시 묻는다 (`TagCatalogSyncEffect`). 앱에 목록·이름·묶음을 쓰지 않는다 (`tests/architecture` 가 서버 시드 이름·code 를 글자로 쓰면 막음). 모르는 code 는 그리지 않는다.
+- 관심 기술·받는 방식은 기기에 저장(`secbrief.alertInterests`, `secbrief.alertDigest`)하고 기기 등록 때 서버에도 보낸다. 서버가 돌려준 code(지워진 것은 빠짐)로 기기 값을 맞춘다. 알림을 못 쓰는 기기(웹)는 기기에만 저장해 내 기술 칩에만 쓴다.
 - 경보단계 문구(국내 5단계 이름·색조·뜻, 해외 지표 이름·단계별 뜻)는 `features/alert-level/alert-level-texts.ts` 가 단일 원본이다. 뜻은 KISA·CIS·SANS 공개 안내를 짧게 옮긴 것만 쓴다. 단계 색은 `alertLevel*` 토큰 5개(`SbLevelGauge`).
 - 기사 상세는 AI 글(요약·핵심)이 하나도 없으면 요약 카드를 숨기고 확인된 정보·원문 보기로 바로 이어진다.
 - 대응 모아보기 문구(구역 이름·설명·묶인 이유)는 `features/response-guide/response-guide-texts.ts` 가 단일 원본이다. 행은 `ResponseGuideRow` 하나를 기사 상세와 알림 상세가 함께 쓴다.

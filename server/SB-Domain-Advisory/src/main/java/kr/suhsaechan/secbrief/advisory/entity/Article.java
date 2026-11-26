@@ -28,7 +28,9 @@ import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
+import kr.suhsaechan.secbrief.advisory.constant.ClassificationSource;
 import kr.suhsaechan.secbrief.advisory.constant.SummaryStatus;
+import kr.suhsaechan.secbrief.advisory.classification.ArticleClassification;
 import kr.suhsaechan.secbrief.advisory.fact.SourceFact;
 import kr.suhsaechan.secbrief.advisory.fact.SourceFactJson;
 import kr.suhsaechan.secbrief.advisory.fact.SourceFactPolicy;
@@ -54,8 +56,10 @@ public class Article extends BaseEntity {
 
     // AI 최대 시도 횟수 (넘으면 FAILED, 다시 부르지 않음)
     public static final int MAXIMUM_AI_ATTEMPT_COUNT = 3;
-    // 새로 수집한 긴급 소식을 알리는 게시일 범위 (3일보다 오래된 소식은 알리지 않음, 뒤늦은 KEV 등재는 따로 알림)
+    // 새로 수집한 소식을 알리는 게시일 범위 (3일보다 오래된 소식은 알리지 않음, 뒤늦은 KEV 등재는 따로 알림)
     public static final Duration URGENT_ALERT_FRESH_DURATION = Duration.ofDays(3);
+    // AI 판단(중요도·분야)을 기다리는 시간: 넘으면 규칙만으로 분류·알림 판정 (#97, AI 틱 5분 x 여러 번 + 밀린 분량 여유)
+    public static final Duration AI_JUDGEMENT_HOLD_DURATION = Duration.ofMinutes(60);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -145,8 +149,37 @@ public class Article extends BaseEntity {
     @Column(nullable = false)
     private Instant collectedAt;
 
-    // 긴급 알림 발송 처리 시각 (null: 알림 대기, 받을 기기가 없어도 처리하면 채움)
+    // 알림 처리 시각 (null: 알림 판정 대기, 긴급 아님도 관심 기술 판정을 거침, 받을 기기가 없어도 처리하면 채움)
     private Instant urgentNotifiedAt;
+
+    // 분류 (catalog_tag code, 없으면 null): 기술 분야, 오픈소스 생태계, 제품
+    @Column(length = 64)
+    private String fieldCode;
+
+    @Column(length = 64)
+    private String ecosystemCode;
+
+    @Column(length = 64)
+    private String productCode;
+
+    // GitHub 권고 첫 패키지 이름 (원문 그대로)
+    @Column(length = 200)
+    private String packageName;
+
+    // AI 가 제목 분석에서 고른 분야 (규칙으로 못 정할 때만 씀)
+    @Column(length = 64)
+    private String aiFieldCode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private ClassificationSource fieldSource;
+
+    // 주요 (ArticleNotablePolicy)
+    @Column(nullable = false)
+    private boolean isNotable;
+
+    // 분류한 시각 (null: 분류 대기)
+    private Instant classifiedAt;
 
     // 대표 이미지 주소·저장 상태
     @Embedded
@@ -174,8 +207,8 @@ public class Article extends BaseEntity {
         article.applyLinkFields(draft);
         article.resetAiState();
         article.imageState = ArticleImageState.ofSourceUrl(draft.imageSourceUrl());
-        // 게시된 지 오래된 긴급 소식은 처음 수집해도 알리지 않음 (첫 수집 분량·예전 경보단계 공지)
-        if (article.isUrgent && article.publishedAt.isBefore(collectedAt.minus(URGENT_ALERT_FRESH_DURATION))) {
+        // 게시된 지 오래된 소식은 처음 수집해도 알리지 않음 (첫 수집 분량·예전 경보단계 공지)
+        if (article.publishedAt.isBefore(collectedAt.minus(URGENT_ALERT_FRESH_DURATION))) {
             article.urgentNotifiedAt = collectedAt;
         }
         article.sourceFactsJson = SourceFactJson.toJson(draft.sourceFacts());
@@ -192,6 +225,7 @@ public class Article extends BaseEntity {
         this.isUrgent = true;
         this.urgentNotifiedAt = null;
         this.importance = ArticleImportance.higherOf(this.importance, toImportanceFloor());
+        this.isNotable = true;
     }
 
     /** 긴급 표시 (병합 시 기존 || 새 값) */
@@ -248,6 +282,27 @@ public class Article extends BaseEntity {
         this.aiStatus = AiStatus.DONE;
     }
 
+    /** AI 가 고른 분야 기록 (모르는 code 는 분류 단계가 버림) */
+    public void changeAiFieldCode(String aiFieldCode) {
+        this.aiFieldCode = aiFieldCode;
+    }
+
+    /** 분류 결과 반영: 분야·생태계·제품·패키지·근거 + 주요 + 분류 시각 */
+    public void applyClassification(ArticleClassification classification, boolean isNotable, Instant classifiedAt) {
+        this.fieldCode = classification.fieldCode();
+        this.ecosystemCode = classification.ecosystemCode();
+        this.productCode = classification.productCode();
+        this.packageName = classification.packageName();
+        this.fieldSource = classification.fieldSource();
+        this.isNotable = isNotable;
+        this.classifiedAt = classifiedAt;
+    }
+
+    /** 다시 분류 대기로 (관리자 다시 분류, 제목이 바뀜) */
+    public void requestReclassification() {
+        this.classifiedAt = null;
+    }
+
     /** 키워드 교체: 검증 통과한 목록으로 통째로 바꿈 (AI 결과 반영 때) */
     public void replaceKeywords(Collection<String> acceptedKeywords) {
         this.keywords.clear();
@@ -295,5 +350,14 @@ public class Article extends BaseEntity {
         this.keywords.clear();
         this.aiStatus = AiStatus.PENDING;
         this.aiAttemptCount = 0;
+        this.aiFieldCode = null;
+        this.classifiedAt = null;
+    }
+
+    /** 분야를 AI 로 다시 고르게 AI 대기로 되돌림 (백필: 분야 열이 생기기 전에 AI 를 마친 행) */
+    public void requestAiFieldAnalysis() {
+        this.aiStatus = AiStatus.PENDING;
+        this.aiAttemptCount = 0;
+        this.classifiedAt = null;
     }
 }

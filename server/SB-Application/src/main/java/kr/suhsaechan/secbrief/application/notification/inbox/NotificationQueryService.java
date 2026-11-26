@@ -8,13 +8,17 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import kr.suhsaechan.secbrief.advisory.constant.ResponseGuideSection;
+import kr.suhsaechan.secbrief.advisory.catalog.TagCatalog;
+import kr.suhsaechan.secbrief.advisory.catalog.TagCatalogProvider;
 import kr.suhsaechan.secbrief.advisory.dto.ArticleResponse;
 import kr.suhsaechan.secbrief.advisory.dto.ResponseGuideItemResponse;
 import kr.suhsaechan.secbrief.advisory.dto.ResponseGuideSectionResponse;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
 import kr.suhsaechan.secbrief.advisory.service.ResponseGuideQueryService;
+import kr.suhsaechan.secbrief.application.notification.MorningDigestPolicy;
 import kr.suhsaechan.secbrief.application.notification.UrgentAlertPolicy;
+import kr.suhsaechan.secbrief.application.notification.inbox.NotificationDigestResponse.DigestFieldSectionResponse;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
@@ -28,7 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 알림함 조회: 종류별 목록(커서 페이지, 한 건 더 읽어 다음 판정), 종류별 최근 번호, 상세(종류별 기사 묶음 + 기사별 대응 안내 요약)
+ * 알림함 조회: 종류별 목록(커서 페이지, 공통 기록만), 종류별 최근 번호, 상세(종류별 기사 묶음 + 기사별 대응 안내 요약 + 아침 요약 묶음)
  */
 @Service
 @RequiredArgsConstructor
@@ -45,6 +49,7 @@ public class NotificationQueryService {
     private final NotificationRepository notificationRepository;
     private final ArticleRepository articleRepository;
     private final ResponseGuideQueryService responseGuideQueryService;
+    private final TagCatalogProvider tagCatalogProvider;
 
     /**
      * 목록 1페이지: 커서 해석 > 한 건 더 조회 > 대표 기사 제목 붙이기 > 다음 커서
@@ -89,7 +94,26 @@ public class NotificationQueryService {
                 summary.leadArticleId(), summary.leadArticleTitle(), summary.articleCount(), summary.isPinned(),
                 summary.createdAt(), summary.updatedAt(), summary.pushedAt(),
                 toArticleSections(notification.getArticles(), articleById),
-                toArticleGuides(notification.getArticles(), articleById));
+                toArticleGuides(notification.getArticles(), articleById),
+                notification.getKind() == NotificationKind.DIGEST ? toDigest(notification, articleById) : null);
+    }
+
+    // 아침 요약: 남은 기사 (요약 순서) > 꼭 볼 것(주요) + 분야별 묶음
+    private NotificationDigestResponse toDigest(Notification notification, Map<Long, Article> articleById) {
+        List<Article> articles = notification.getArticles().stream()
+                .map(notificationArticle -> articleById.get(notificationArticle.getArticleId()))
+                .filter(Objects::nonNull)
+                .toList();
+        TagCatalog catalog = tagCatalogProvider.getCatalog();
+        List<DigestFieldSectionResponse> fieldSections = MorningDigestPolicy.toFieldCountByCode(articles, catalog).keySet()
+                .stream()
+                .map(fieldCode -> new DigestFieldSectionResponse(fieldCode, articles.stream()
+                        .filter(article -> MorningDigestPolicy.toFieldCode(article, catalog).equals(fieldCode))
+                        .map(ArticleResponse::from)
+                        .toList()))
+                .toList();
+        return new NotificationDigestResponse(articles.size(),
+                articles.stream().filter(Article::isNotable).map(ArticleResponse::from).toList(), fieldSections);
     }
 
     private List<Notification> findPageAfter(NotificationKind kind, NotificationCursor cursor, int limit) {
@@ -98,7 +122,7 @@ public class NotificationQueryService {
     }
 
     private Long findLatestId(NotificationKind kind) {
-        return notificationRepository.findTopByKindOrderByIdDesc(kind).map(Notification::getId).orElse(null);
+        return notificationRepository.findTopByKindAndPushDeviceIdIsNullOrderByIdDesc(kind).map(Notification::getId).orElse(null);
     }
 
     private Map<Long, Article> findArticlesById(Collection<Long> articleIds) {

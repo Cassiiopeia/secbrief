@@ -97,3 +97,10 @@ export function toCompactDateLabel(publishedAt: Date, now: Date): string {
   if (elapsedDays < RELATIVE_LABEL_MAXIMUM_DAYS) return toPublishedRelativeLabel(publishedAt, now);
   return toAbsoluteDate(publishedAt);
 }
+
+/** 기기 시간대 그날 0시 (오늘 새 소식 기준, 서버 건수 응답이 없을 때) */
+export function toStartOfLocalDay(dateTime: Date): Date {
+  const startOfDay = new Date(dateTime.getTime());
+  startOfDay.setHours(0, 0, 0, 0);
+  return startOfDay;
+}

@@ -1,11 +1,13 @@
 package kr.suhsaechan.secbrief.advisory.collector;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static kr.suhsaechan.secbrief.common.json.JsonSupport.OBJECT_MAPPER;
 import static kr.suhsaechan.secbrief.advisory.collector.NvdResponseParser.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -30,6 +32,21 @@ class NvdResponseParserTest {
                 .extracting(CollectedArticle::cveId, CollectedArticle::cvssScore, CollectedArticle::cvssVersion)
                 .containsExactly(tuple("CVE-2026-0001", new BigDecimal("9.8"), "3.1"),
                         tuple("CVE-2026-0002", new BigDecimal("9.3"), "4.0"));
+    }
+
+    @Test
+    void takesVulnerableCpeVendorProductsAsAffectedProductFact() throws Exception {
+        // NVD configurations 실제 모양 (분석이 끝난 CVE): vulnerable=false 인 실행 환경 CPE 는 뺌, 중복 제거
+        JsonNode configurations = OBJECT_MAPPER.readTree("""
+                [{"nodes":[{"operator":"OR","cpeMatch":[
+                  {"vulnerable":true,"criteria":"cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*","versionEndExcluding":"7.4.5"},
+                  {"vulnerable":true,"criteria":"cpe:2.3:o:fortinet:fortios:7.6.0:*:*:*:*:*:*:*"},
+                  {"vulnerable":true,"criteria":"cpe:2.3:a:fortinet:forti_proxy:*:*:*:*:*:*:*:*"}]},
+                 {"nodes":[{"cpeMatch":[{"vulnerable":false,"criteria":"cpe:2.3:h:example:appliance:-:*:*:*:*:*:*:*"}]}]}]}]""");
+
+        assertThat(NvdResponseParser.toCpeVendorProducts(configurations))
+                .containsExactly("fortinet fortios", "fortinet forti proxy");
+        assertThat(NvdResponseParser.toCpeVendorProducts(OBJECT_MAPPER.readTree("[]"))).isEmpty();
     }
 
     @Test

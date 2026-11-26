@@ -9,6 +9,7 @@ import { SbEmptyState, SbErrorState, SbLoadingSkeleton, SbScreen, SbScreenHeader
 import { toNotificationInboxRoute } from '../navigation/app-routes';
 import { goBackOrHome } from '../navigation/go-back-or-home';
 import { AlertDetailContent } from './alert-detail-content';
+import { DigestDetailContent } from './digest-detail-content';
 import { NoticeDetailContent } from './notice-detail-content';
 import { NOTIFICATION_NOT_FOUND_ERROR_CODE, useAppNotificationDetail } from './use-app-notification-detail';
 import { useNotificationReadStateUpdaters } from './use-notification-read-state';
@@ -18,6 +19,7 @@ const BACK_ACCESSIBILITY_LABEL = '뒤로';
 const DETAIL_TEXTS: Record<AppNotificationKind, { headerTitle: string; notFoundTitle: string; notFoundDescription: string }> = {
   ALERT: { headerTitle: '알림', notFoundTitle: '보관 기간이 지난 알림이에요', notFoundDescription: '알림은 30일 동안 보관해요.' },
   NOTICE: { headerTitle: '공지사항', notFoundTitle: '내려간 공지사항이에요', notFoundDescription: '알림함에서 다른 공지사항을 볼 수 있어요.' },
+  DIGEST: { headerTitle: '아침 요약', notFoundTitle: '보관 기간이 지난 요약이에요', notFoundDescription: '요약은 30일 동안 보관해요.' },
 };
 
 /** 긴급 알림 상세 라우트 화면 (app/notifications/[notificationId]) */
@@ -63,13 +65,15 @@ function AppNotificationDetailFrame({ notificationId, expectedKind }: { notifica
             description={DETAIL_TEXTS[kind].notFoundDescription}
             illustration="notFound"
             actionLabel="알림함 보기"
-            onActionPress={() => router.replace(toNotificationInboxRoute(kind))}
+            onActionPress={() => router.replace(toNotificationInboxRoute(kind === 'NOTICE' ? 'NOTICE' : 'ALERT'))}
           />
         );
       }
       return <SbErrorState message={failure.userMessage} errorCode={failure.errorCode} onRetry={() => detailQuery.refetch()} />;
     }
-    return kind === 'NOTICE' ? <NoticeDetailContent detail={detailQuery.data} /> : <AlertDetailContent detail={detailQuery.data} />;
+    if (kind === 'NOTICE') return <NoticeDetailContent detail={detailQuery.data} />;
+    if (kind === 'DIGEST') return <DigestDetailContent detail={detailQuery.data} />;
+    return <AlertDetailContent detail={detailQuery.data} />;
   }
 }
 

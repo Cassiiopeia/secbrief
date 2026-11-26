@@ -28,6 +28,8 @@ public record NotificationDetailResponse(
         // 종류 순서 (악용 중 > KISA 긴급 > 고위험), NOTICE 는 빈 목록
         List<NotificationArticleSectionResponse> articleSections,
         // 알림 순서대로 앞 20건까지 (NOTICE 는 빈 목록, 이전 앱 빌드는 읽지 않음)
-        List<NotificationArticleGuideResponse> articleGuides
+        List<NotificationArticleGuideResponse> articleGuides,
+        // 아침 요약 (DIGEST 만, 그 밖은 null, #93)
+        NotificationDigestResponse digest
 ) {
 }

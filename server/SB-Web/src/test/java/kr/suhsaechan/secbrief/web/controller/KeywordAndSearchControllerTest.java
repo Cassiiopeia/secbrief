@@ -130,6 +130,7 @@ class KeywordAndSearchControllerTest {
         return new ArticleResponse(7L, ArticleKind.NEWS, ArticleRegion.OVERSEAS, ArticleTopic.RANSOMWARE,
                 "Ransomware gang hits hospital", "랜섬웨어 조직, 병원 공격", "https://example.test/news/7", "The Hacker News",
                 Instant.parse("2026-11-23T00:00:00Z"), false, null, null, null, false, false, null,
-                ArticleImportance.NOTABLE, null, "THE_HACKER_NEWS", List.of("랜섬웨어", "병원"), null);
+                ArticleImportance.NOTABLE, null, "THE_HACKER_NEWS", List.of("랜섬웨어", "병원"), null, null, null, null, null,
+                false);
     }
 }

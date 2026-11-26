@@ -24,10 +24,17 @@ export const ALERT_CATEGORY_TEXTS: Record<
     reason: '실제 공격에 쓰인 것이 확인된 취약점이에요 (CISA KEV 등재)',
   },
   CRITICAL_CVE: {
-    title: '고위험 취약점',
-    detail: 'CVSS 9.0 이상',
+    title: '그 밖의 고위험 취약점',
+    detail: '관심 기술이 아니어도 CVSS 9.0 이상이면 받아요',
     badgeLabel: '고위험',
     badgeTone: 'critical',
     reason: 'CVSS 9.0 이상으로 평가된 고위험 취약점이에요',
+  },
+  INTEREST: {
+    title: '관심 기술',
+    detail: '고른 제품·분야·생태계 소식',
+    badgeLabel: '관심 기술',
+    badgeTone: 'notice',
+    reason: '고른 관심 기술(제품·분야·생태계)에 맞는 소식이에요',
   },
 };

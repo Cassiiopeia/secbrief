@@ -2,9 +2,14 @@ import type { AlertCategory } from './alert-category';
 import type { BriefingItem } from './briefing-item';
 import type { ResponseGuideItem } from './response-guide';
 
-/** 알림함 글 종류 2개: ALERT 긴급 알림 기록(서버가 발송 때 남김), NOTICE 공지사항(관리자가 씀) */
-export const APP_NOTIFICATION_KINDS = ['ALERT', 'NOTICE'] as const;
+/**
+ * 알림 기록 종류 3개 (서버 NotificationKind 이름): ALERT 긴급 알림 기록, NOTICE 공지사항, DIGEST 아침 요약(기기 1대 전용, #93)
+ * 알림함 목록 칸은 ALERT·NOTICE 2개 (아침 요약은 푸시로만 엶)
+ */
+export const APP_NOTIFICATION_KINDS = ['ALERT', 'NOTICE', 'DIGEST'] as const;
 export type AppNotificationKind = (typeof APP_NOTIFICATION_KINDS)[number];
+export const INBOX_NOTIFICATION_KINDS = ['ALERT', 'NOTICE'] as const satisfies readonly AppNotificationKind[];
+export type InboxNotificationKind = (typeof INBOX_NOTIFICATION_KINDS)[number];
 
 /** 알림함 목록 한 줄 */
 export interface AppNotificationSummary {
@@ -47,12 +52,27 @@ export interface AppNotificationArticleGuide {
   leadOfficialItem?: ResponseGuideItem;
 }
 
-/** 알림함 상세: 목록 한 줄 + 전체 본문 + 링크(공지사항) + 종류별 기사 묶음·기사별 대응 안내(긴급 알림) */
+/** 아침 요약의 분야 묶음 1개 (분야 code 는 카탈로그로 이름을 찾음, 분야 없는 소식은 other) */
+export interface AppNotificationDigestFieldSection {
+  fieldCode: string;
+  articles: BriefingItem[];
+}
+
+/** 아침 요약 본문 (#93): 담긴 소식 수, 꼭 볼 것(주요), 분야별 묶음(건수 많은 순) */
+export interface AppNotificationDigest {
+  articleCount: number;
+  notableArticles: BriefingItem[];
+  fieldSections: AppNotificationDigestFieldSection[];
+}
+
+/** 알림함 상세: 목록 한 줄 + 전체 본문 + 링크(공지사항) + 종류별 기사 묶음·기사별 대응 안내(긴급 알림) + 아침 요약(DIGEST) */
 export interface AppNotificationDetail extends AppNotificationSummary {
   linkUrl?: string;
   articleSections: AppNotificationArticleSection[];
   /** 알린 순서대로 앞 20건까지 (공지사항·이전 서버는 빈 배열) */
   articleGuides: AppNotificationArticleGuide[];
+  /** DIGEST 만 있음 */
+  digest?: AppNotificationDigest;
 }
 
 /** 알림함 목록 한 페이지 */

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { type AppFailure, PUSH_PERMISSION_DENIED_ERROR_CODE, toAppFailure } from '@/core/error/app-failure';
-import type { AlertCategory } from '@/data/models/alert-category';
+import type { SwitchableAlertCategory } from '@/data/models/alert-category';
 import { readEnabledAlertCategories } from '@/data/sources/alert-category-storage';
 import { getPushUnavailableReason } from '@/data/sources/device-notification-client';
 
@@ -13,7 +13,7 @@ import { saveAlertCategories } from './push-registration-service';
 // React Query 캐시 키: 기기에 저장된 켠 알림 종류
 export const ENABLED_ALERT_CATEGORIES_QUERY_KEY = ['enabled-alert-categories'] as const;
 
-const NO_ALERT_CATEGORIES: AlertCategory[] = [];
+const NO_ALERT_CATEGORIES: SwitchableAlertCategory[] = [];
 
 /**
  * 알림 종류 스위치 상태: 기기 저장값 조회 + 스위치 바꾸기 (저장하는 동안 바꾼 값을 먼저 보여 주고, 성공하면 알림 막대, 실패하면 이전 값)
@@ -42,7 +42,7 @@ export function useAlertCategorySettings() {
     isPermissionDenied,
     /** 권한 거부를 뺀 저장 실패 (다시 시도 가능) */
     saveFailure: isPermissionDenied ? undefined : failure,
-    onAlertCategoryToggled: (category: AlertCategory, isOn: boolean) =>
+    onAlertCategoryToggled: (category: SwitchableAlertCategory, isOn: boolean) =>
       saveMutation.mutate(toToggledAlertCategories(storedAlertCategories, category, isOn)),
     onSaveRetried: () => {
       if (saveMutation.variables !== undefined) saveMutation.mutate(saveMutation.variables);

@@ -19,6 +19,7 @@ import {
 
 import { openOriginalArticle } from '../articles/open-original-article';
 import { usePullRefresh } from '../articles/use-pull-refresh';
+import { DigestSettingsSection, InterestEntrySection } from '../interests/interest-settings-section';
 import { APP_ROUTES } from '../navigation/app-routes';
 import { AlertCategorySettingsSection } from '../notifications/alert-category-settings-section';
 import { QuietHoursSettingsSection } from '../notifications/quiet-hours-settings-section';
@@ -42,7 +43,7 @@ async function openContactMail() {
   await openOriginalArticle(supportLinks.supportPageUrl);
 }
 
-/** 더보기 탭: 알림(알림함, 종류, 방해 금지 시간) > 문의 > 약관 > 출처(마지막 갱신) > 앱 정보. 출처 조회 실패는 그 구역에만. 당겨서 출처 새로고침 */
+/** 더보기 탭: 알림(알림함, 관심 기술, 종류, 아침 요약, 방해 금지 시간) > 문의 > 약관 > 출처(마지막 갱신) > 앱 정보. 출처 조회 실패는 그 구역에만. 당겨서 출처 새로고침 */
 export function SettingsScreen() {
   const mastheadActions = useTabMastheadActions();
   const { colors } = useSbTheme();
@@ -63,7 +64,11 @@ export function SettingsScreen() {
           accessibilityLabel="알림함 열기, 받은 알림과 공지사항을 모아 봐요"
           onPress={() => router.push(APP_ROUTES.notifications)}
         />
+        <InterestEntrySection />
+        <SbSectionHeader title="관심 기술과 상관없이 받기" />
         <AlertCategorySettingsSection />
+        <DigestSettingsSection />
+        <SbSectionHeader title="방해 금지" />
         <QuietHoursSettingsSection />
         <SettingsContactSection />
         <SettingsTermsSection />
