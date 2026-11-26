@@ -11,9 +11,12 @@ import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
 import kr.suhsaechan.secbrief.member.dto.PushDeviceRegisterRequest;
+import kr.suhsaechan.secbrief.member.dto.DigestSettingsResponse;
+import kr.suhsaechan.secbrief.member.dto.InterestsResponse;
 import kr.suhsaechan.secbrief.member.dto.PushDeviceResponse;
 import kr.suhsaechan.secbrief.member.dto.QuietHoursRequest;
 import kr.suhsaechan.secbrief.member.dto.QuietHoursResponse;
+import kr.suhsaechan.secbrief.member.entity.AlertInterests;
 import kr.suhsaechan.secbrief.member.entity.PushDevice;
 import kr.suhsaechan.secbrief.member.entity.QuietHours;
 import kr.suhsaechan.secbrief.member.repository.PushDeviceRepository;
@@ -24,7 +27,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * 알림 기기 관리: 등록·설정 교체(켠 종류, 방해 금지 시간)·삭제 (푸시 토큰 기준, 토큰은 로그에 남기지 않음)
+ * 알림 기기 관리: 등록·설정 교체(켠 종류, 관심 기술, 받는 방식, 방해 금지 시간)·삭제 (푸시 토큰 기준, 토큰은 로그에 남기지 않음)
  */
 @Slf4j
 @Service
@@ -39,7 +42,7 @@ public class PushDeviceService {
     }
 
     /**
-     * 기기 등록: 방해 금지 시간 검증 > 켠 종류가 없으면 삭제, 있으면 저장 또는 설정 교체
+     * 기기 등록: 방해 금지 시간 검증 > 켠 종류·관심 기술이 모두 없으면 삭제, 있으면 저장 또는 설정 교체
      * 같은 토큰이 동시에 들어오면 유일 제약 위반 > 한 번 다시 (두 번째는 기존 행을 고침)
      */
     public PushDeviceResponse register(PushDeviceRegisterRequest request) {
@@ -83,28 +86,37 @@ public class PushDeviceService {
     }
 
     // requestedQuietHours 가 비면(이전 앱) 저장된 방해 금지 시간 유지
+    // 선택 값이 비면(이전 앱) 저장값 유지, INTEREST 는 켜고 끄는 종류가 아니라 버림
     private PushDeviceResponse saveOrDelete(PushDeviceRegisterRequest request, Optional<QuietHours> requestedQuietHours) {
-        Set<AlertCategory> enabledAlertCategories = request.enabledAlertCategories().isEmpty()
-                ? EnumSet.noneOf(AlertCategory.class)
-                : EnumSet.copyOf(request.enabledAlertCategories());
+        Set<AlertCategory> enabledAlertCategories = EnumSet.noneOf(AlertCategory.class);
+        request.enabledAlertCategories().stream().filter(AlertCategory::isDeviceToggle).forEach(enabledAlertCategories::add);
         Optional<PushDevice> existingDevice = pushDeviceRepository.findByPushToken(request.pushToken());
+        AlertInterests alertInterests = request.interests() != null
+                ? request.interests().toAlertInterests()
+                : existingDevice.map(PushDevice::getAlertInterests).orElse(AlertInterests.none());
 
-        if (enabledAlertCategories.isEmpty()) {
+        if (enabledAlertCategories.isEmpty() && alertInterests.isEmpty()) {
             existingDevice.ifPresent(pushDeviceRepository::delete);
             log.info("[push device] unregistered : platform={}", request.platform());
-            return new PushDeviceResponse(List.of());
+            return PushDeviceResponse.unregistered();
         }
         PushDevice pushDevice = existingDevice.orElseGet(
                 () -> PushDevice.create(request.pushToken(), request.platform(), enabledAlertCategories));
         pushDevice.updateAlertSettings(request.platform(), enabledAlertCategories);
+        pushDevice.updateInterests(alertInterests);
         requestedQuietHours.ifPresent(pushDevice::updateQuietHours);
+        if (request.digest() != null) {
+            pushDevice.updateDigestSettings(request.digest().deliveryMode(), request.digest().digestTime());
+        }
         if (existingDevice.isEmpty()) {
             // 유일 제약 위반을 이 트랜잭션 안에서 드러내려고 바로 반영
             pushDeviceRepository.saveAndFlush(pushDevice);
         }
-        log.info("[push device] registered : platform={}, categories={}, quietHours={}", request.platform(),
-                enabledAlertCategories, pushDevice.getQuietHours().isEnabled());
+        log.info("[push device] registered : platform={}, categories={}, interests={}, deliveryMode={}, quietHours={}",
+                request.platform(), enabledAlertCategories, alertInterests.size(), pushDevice.getAlertDeliveryMode(),
+                pushDevice.getQuietHours().isEnabled());
         return new PushDeviceResponse(List.copyOf(enabledAlertCategories),
-                QuietHoursResponse.from(pushDevice.getQuietHours()));
+                QuietHoursResponse.from(pushDevice.getQuietHours()), InterestsResponse.from(alertInterests),
+                DigestSettingsResponse.from(pushDevice));
     }
 }

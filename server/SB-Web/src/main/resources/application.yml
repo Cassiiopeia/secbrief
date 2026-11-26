@@ -48,6 +48,27 @@ secbrief:
     # 설정 저장소 비밀값(관리자 화면에서 넣는 AI 키 목록) 암호화 마스터 키: 임의의 긴 문자열 (운영 설정 파일에서만 채움, 레포·로그에 넣지 않음)
     # 비어 있으면 서버는 뜨고 비밀 설정 저장만 거부함. 값을 바꾸면 이미 저장한 비밀값은 못 읽으니 다시 등록해야 함
     master-key: ${SECBRIEF_SECRET_MASTER_KEY:}
+  share-link:
+    # 공유 링크·미리보기 공개 주소 (앱 app.json 의 앱 링크 도메인, 앱 EXPO_PUBLIC_API_BASE_URL 과 같아야 함)
+    public-base-url: https://api.secbrief.suhsaechan.kr
+    # 앱 스킴 (app.json scheme): secbrief://articles/{id}
+    app-scheme: secbrief
+    ios:
+      # Apple 팀 ID (App ID 접두사, app.json ios.appleTeamId 와 같음)
+      team-id: CUK22HY6YC
+      bundle-id: kr.suhsaechan.secbrief
+      # App Store 앱 ID (스토어 버튼·Smart App Banner)
+      app-store-id: "6837211510"
+    android:
+      package-name: kr.suhsaechan.secbrief
+      # 앱 서명 인증서 SHA-256 지문 (Play Console > 앱 무결성 > 앱 서명, 2026-11-27 확인)
+      sha256-cert-fingerprints:
+        # Play 앱 서명 키 (Play 가 낸 디지털 애셋 링크 JSON 값)
+        - "71:35:25:5D:03:5E:E4:70:0B:58:A8:77:8E:C9:02:0F:BC:29:7D:5A:74:D9:46:EA:D7:D5:F5:1C:91:B0:0A:55"
+        # Play 앱 서명 키 (양자 대비 키의 기존 방식 인증서)
+        - "65:97:4A:35:8B:68:3B:86:34:9B:53:60:11:A2:4E:B8:C7:76:64:E6:C2:23:97:28:1B:AF:83:D0:AE:5F:D8:FC"
+        # 업로드 키 (Play 를 거치지 않은 시험 APK)
+        - "38:F0:C1:4F:6A:B2:CD:1F:36:21:7C:92:7D:94:C8:0C:26:6F:35:8D:45:22:21:42:C1:45:BB:17:B3:EC:38:AC"
   admin:
     # 초기 관리자 계정 (- username: ..., password: ...): 운영 설정 파일에서만 채움 (레포에 넣지 않음)
     # 기동 시 없는 아이디만 BCrypt 로 저장하고 이미 있는 계정은 건드리지 않음. 비어 있으면 계정을 만들지 않아 로그인 불가
@@ -64,6 +85,17 @@ secbrief:
     tick-milliseconds: 60000
     # 기동 후 첫 틱까지 대기 (30초)
     initial-delay-milliseconds: 30000
+    # KISA 지난 글 1회 채우기 틱 (6시간): 채우기 전인 출처만, 끝난 출처는 다시 안 함 (#96)
+    kisa-backfill-tick-milliseconds: 21600000
+    # 기동 후 첫 채우기까지 대기 (3분: 첫 RSS 수집 이후)
+    kisa-backfill-initial-delay-milliseconds: 180000
+  alert-level:
+    # 경보단계 틱 켜기 (해외 지표 읽기, 지난 경보단계 글 긴급 해제)
+    enabled: true
+    # 경보단계 틱 (1시간): 해외 지표는 이 주기로만 다시 읽음 (화면 요청은 보관값)
+    tick-milliseconds: 3600000
+    # 기동 후 첫 틱까지 대기 (20초)
+    initial-delay-milliseconds: 20000
   ai:
     # AI 스케줄러 켜기 (false: AI 처리 안 함, 기사는 원문 제목·general 로 보임)
     enabled: ${AI_ENABLED:true}
@@ -158,6 +190,14 @@ secbrief:
       access-token: ${EXPO_ACCESS_TOKEN:}
       # 우리 앱의 Expo 프로젝트 이름 (@계정/slug): 다른 프로젝트 토큰이 섞여 들어오면 가려내는 기준
       experience-id: ${EXPO_EXPERIENCE_ID:}
+  classification:
+    # 기사 분류 틱 켜기 (분류 대기 행: AI 판단 끝·대기 기한 초과·백필·다시 분류, false 면 AI 결과 기록 때만 분류)
+    enabled: ${CLASSIFICATION_ENABLED:true}
+    # 분류 틱 (1분): 한 틱에 200건씩 최대 batches-per-tick 번 (기존 행 백필은 첫 몇 틱에 끝남)
+    tick-milliseconds: 60000
+    batches-per-tick: 10
+    # 기동 후 첫 틱까지 대기 (45초)
+    initial-delay-milliseconds: 45000
   notification:
     # 알림함 보관 정리 켜기 (30일 지난 긴급 알림 기록 삭제, 공지사항은 지우지 않음)
     retention-enabled: true

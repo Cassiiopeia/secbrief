@@ -24,7 +24,11 @@ public enum AdminAuditAction {
     NOTICE_CREATE("공지사항 올리기", "NOTICE"),
     NOTICE_UPDATE("공지사항 고치기", "NOTICE"),
     NOTICE_PIN("공지사항 고정 바꾸기", "NOTICE"),
-    NOTICE_DELETE("공지사항 삭제", "NOTICE");
+    NOTICE_DELETE("공지사항 삭제", "NOTICE"),
+    CATALOG_TAG_CREATE("분류 항목 추가", "CATALOG_TAG"),
+    CATALOG_TAG_UPDATE("분류 항목 고치기", "CATALOG_TAG"),
+    CATALOG_TAG_VISIBILITY("분류 항목 보이기·숨기기", "CATALOG_TAG"),
+    CATALOG_RECLASSIFY("기사 전체 다시 분류", "CATALOG_TAG");
 
     private final String label;
     private final String targetType;

@@ -4,7 +4,7 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// 기기 저장소 키 4개 (값은 JSON, 기기에만 두고 서버로 보내지 않음)
+// 기기 저장소 키 8개 (값은 JSON, 관심 기술·받는 방식은 기기 등록 때 서버에도 보냄)
 export const DEVICE_STORAGE_KEYS = {
   // 방해 금지 시간 (예: {"isEnabled":true,"startTime":"22:00","endTime":"08:00","timeZone":"Asia/Seoul"})
   quietHours: 'secbrief.quietHours',
@@ -14,6 +14,14 @@ export const DEVICE_STORAGE_KEYS = {
   notificationReadState: 'secbrief.notificationReadState',
   // 읽은 기사 ID (배열, 최근에 읽은 것이 뒤)
   readArticleIds: 'secbrief.readArticleIds',
+  // 서버 분류 태그 카탈로그 사본 (예: {"version":"a1b2","tags":[{"kind":"FIELD","code":"os",...}]})
+  tagCatalog: 'secbrief.tagCatalog',
+  // 관심 기술 code (예: {"productCodes":["fortinet"],"fieldCodes":[],"ecosystemCodes":["maven"]})
+  alertInterests: 'secbrief.alertInterests',
+  // 관심 소식 받는 방식 (예: {"deliveryMode":"DIGEST","digestTime":"08:00"})
+  alertDigest: 'secbrief.alertDigest',
+  // 관심 기술 처음 안내를 닫았는지 (true 면 다시 안 보임)
+  interestPromptDismissed: 'secbrief.interestPromptDismissed',
 } as const;
 
 export type DeviceStorageKey = (typeof DEVICE_STORAGE_KEYS)[keyof typeof DEVICE_STORAGE_KEYS];

@@ -1,11 +1,19 @@
 /**
  * 서버 <-> 앱 값 계약: 서버 Java 원본(enum·상수)을 글자로 읽어 앱 상수와 비교
- * 대상 6개: 알림 종류, 알림함 종류, 대응 모아보기 구역·묶인 이유, 출처 코드, 푸시 data 값, 방해 금지 기본값
+ * 대상 9개: 알림 종류, 알림함 종류, 대응 모아보기 구역·묶인 이유, 분류 태그 종류, 관심 소식 받는 방식, 출처 코드, 푸시 data 값, 방해 금지 기본값, 경보단계 값(단계·방향·해외 지표)
+ * 분류 태그 값(분야·생태계·제품)은 서버 DB 라 여기서 비교하지 않음 (API 모양은 api-shape-contract.test)
  */
 import * as fs from 'fs';
 import * as path from 'path';
 
+import {
+  ALERT_LEVEL_DIRECTION_BY_API_NAME,
+  CYBER_CRISIS_LEVEL_BY_API_NAME,
+  INTERNATIONAL_INDICATOR_CODE_BY_API_NAME,
+} from '@/data/mappers/alert-level-mapper';
 import { ALERT_CATEGORIES } from '@/data/models/alert-category';
+import { ALERT_DELIVERY_MODES } from '@/data/models/alert-interest';
+import { CYBER_CRISIS_LEVELS, INTERNATIONAL_INDICATOR_CODES } from '@/data/models/alert-level-dashboard';
 import { APP_NOTIFICATION_KINDS } from '@/data/models/app-notification';
 import {
   CISA_KEV_SOURCE_CODE,
@@ -14,6 +22,7 @@ import {
   OPEN_SOURCE_SOURCE_CODES,
   RUNTIME_SOURCE_CODES,
 } from '@/data/models/article-source-code';
+import { CATALOG_TAG_KINDS } from '@/data/models/catalog-tag';
 import { DEFAULT_QUIET_HOURS } from '@/data/models/quiet-hours';
 import { RESPONSE_GUIDE_MATCH_REASONS, RESPONSE_GUIDE_SECTIONS } from '@/data/models/response-guide';
 
@@ -52,6 +61,14 @@ describe('서버 enum <-> 앱 상수 (같은 순서)', () => {
 
   test('알림함 종류 NotificationKind', () => {
     expect([...APP_NOTIFICATION_KINDS]).toEqual(readJavaEnumNames(`${MEMBER_PACKAGE}/constant/NotificationKind.java`));
+  });
+
+  test('분류 태그 종류 CatalogTagKind (#93)', () => {
+    expect([...CATALOG_TAG_KINDS]).toEqual(readJavaEnumNames(`${ADVISORY_PACKAGE}/constant/CatalogTagKind.java`));
+  });
+
+  test('관심 소식 받는 방식 AlertDeliveryMode (#93)', () => {
+    expect([...ALERT_DELIVERY_MODES]).toEqual(readJavaEnumNames(`${MEMBER_PACKAGE}/constant/AlertDeliveryMode.java`));
   });
 
   test('대응 모아보기 구역 ResponseGuideSection', () => {
@@ -103,4 +120,19 @@ test('방해 금지 기본값: 서버 QuietHours <-> 앱 DEFAULT_QUIET_HOURS', (
   expect(DEFAULT_QUIET_HOURS.startTime).toBe(toTimeOfDay('DEFAULT_START_TIME'));
   expect(DEFAULT_QUIET_HOURS.endTime).toBe(toTimeOfDay('DEFAULT_END_TIME'));
   expect(DEFAULT_QUIET_HOURS.timeZone).toBe(readJavaStringConstants(`${MEMBER_PACKAGE}/entity/QuietHours.java`).DEFAULT_TIME_ZONE);
+});
+
+test('경보단계 값: 서버 CyberCrisisLevel·AlertLevelChangeDirection·InternationalAlertIndicator <-> 앱 매퍼 (같은 순서)', () => {
+  // 생성자 인자가 있는 enum: 줄 앞의 대문자 이름( 만 읽음
+  const readEnumNamesWithArguments = (relativePath: string): string[] =>
+    [...readServerSource(relativePath).matchAll(/^\s{4}([A-Z_]+)\(/gm)].map((match) => match[1]);
+
+  const serverLevels = readEnumNamesWithArguments(`${ADVISORY_PACKAGE}/constant/CyberCrisisLevel.java`);
+  expect(Object.keys(CYBER_CRISIS_LEVEL_BY_API_NAME)).toEqual(serverLevels);
+  expect(serverLevels.map((name) => CYBER_CRISIS_LEVEL_BY_API_NAME[name])).toEqual([...CYBER_CRISIS_LEVELS]);
+  expect(Object.keys(ALERT_LEVEL_DIRECTION_BY_API_NAME)).toEqual(
+    readJavaEnumNames(`${ADVISORY_PACKAGE}/constant/AlertLevelChangeDirection.java`),
+  );
+  const serverIndicators = readEnumNamesWithArguments(`${ADVISORY_PACKAGE}/indicator/InternationalAlertIndicator.java`);
+  expect(serverIndicators.map((name) => INTERNATIONAL_INDICATOR_CODE_BY_API_NAME[name])).toEqual([...INTERNATIONAL_INDICATOR_CODES]);
 });

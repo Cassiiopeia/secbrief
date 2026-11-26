@@ -16,12 +16,10 @@ export interface SbColors {
   separator: string;
   /** 로딩 뼈대 블록 (바탕과 구분되는 밝기) */
   skeleton: string;
-  /** 먹색 커버 그림 바탕 (다크에서는 화면 바탕과 구분되게 한 단 밝게) */
-  coverInk: string;
   /** 민트 강조 (긴급 타일, 채움 버튼) 와 그 위 글자 */
   accent: string;
   onAccent: string;
-  /** 보라 타일 (동향 1위, 커버 바탕) 과 그 위 글자 */
+  /** 보라 타일 (동향 1위) 과 그 위 글자 */
   feature: string;
   onFeature: string;
   /** 긴급 표시 (레일 점, 속보 라벨). 바탕과 대비되는 쪽을 테마별로 고름 */
@@ -33,6 +31,12 @@ export interface SbColors {
   severityHigh: string;
   severityMedium: string;
   severityLow: string;
+  /** 경보 단계 색 5개 (사이버위기 경보 정상·관심·주의·경계·심각, 해외 지표 green·blue·yellow·orange·red 공용) */
+  alertLevelGreen: string;
+  alertLevelBlue: string;
+  alertLevelYellow: string;
+  alertLevelOrange: string;
+  alertLevelRed: string;
 }
 
 export const sbLightColors: SbColors = {
@@ -45,7 +49,6 @@ export const sbLightColors: SbColors = {
   readLabel: '#6B6B6B',
   separator: '#D6D6D0',
   skeleton: '#DFDFD9',
-  coverInk: '#131313',
   accent: '#3CFFD0',
   onAccent: '#131313',
   feature: '#5200FF',
@@ -56,6 +59,11 @@ export const sbLightColors: SbColors = {
   severityHigh: '#C2570C',
   severityMedium: '#9A7500',
   severityLow: '#51627D',
+  alertLevelGreen: '#1F9D55',
+  alertLevelBlue: '#2F6FED',
+  alertLevelYellow: '#B98900',
+  alertLevelOrange: '#E0620B',
+  alertLevelRed: '#D92D20',
 };
 
 export const sbDarkColors: SbColors = {
@@ -68,7 +76,6 @@ export const sbDarkColors: SbColors = {
   readLabel: '#B4B4B4',
   separator: '#2D2D2D',
   skeleton: '#3A3A3A',
-  coverInk: '#2D2D2D',
   accent: '#3CFFD0',
   onAccent: '#131313',
   feature: '#5200FF',
@@ -79,6 +86,11 @@ export const sbDarkColors: SbColors = {
   severityHigh: '#FFA24A',
   severityMedium: '#F2CF4A',
   severityLow: '#8FA3C2',
+  alertLevelGreen: '#4ADE80',
+  alertLevelBlue: '#6EA8FF',
+  alertLevelYellow: '#F2CF4A',
+  alertLevelOrange: '#FFA24A',
+  alertLevelRed: '#FF6B5E',
 };
 
 /** 심각도 색조 4단계 (CVSS 구간) */
@@ -95,6 +107,25 @@ export function toSbSeverityColor(colors: SbColors, tone: SbSeverityTone): strin
       return colors.severityMedium;
     case 'low':
       return colors.severityLow;
+  }
+}
+
+/** 경보 단계 색조 5개 (낮은 단계부터) */
+export type SbAlertLevelTone = 'green' | 'blue' | 'yellow' | 'orange' | 'red';
+
+/** 경보 단계 색조 > 색 토큰 값 */
+export function toSbAlertLevelColor(colors: SbColors, tone: SbAlertLevelTone): string {
+  switch (tone) {
+    case 'green':
+      return colors.alertLevelGreen;
+    case 'blue':
+      return colors.alertLevelBlue;
+    case 'yellow':
+      return colors.alertLevelYellow;
+    case 'orange':
+      return colors.alertLevelOrange;
+    case 'red':
+      return colors.alertLevelRed;
   }
 }
 

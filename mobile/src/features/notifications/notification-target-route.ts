@@ -26,7 +26,7 @@ export interface NotificationTarget {
   notificationId?: number;
 }
 
-// 서버 푸시 data.notificationKind 값 3개: 긴급 알림, 공지사항, 방해 금지 시간이 끝난 뒤 보내는 모아 보기
+// 서버 푸시 data.notificationKind 값 4개: 긴급 알림, 공지사항, 아침 요약(DIGEST, 알림 상세가 요약으로 그림), 방해 금지 시간이 끝난 뒤 보내는 모아 보기
 const NOTICE_NOTIFICATION_KIND = 'NOTICE';
 const QUIET_HOURS_DIGEST_NOTIFICATION_KIND = 'QUIET_HOURS_DIGEST';
 // 서버 푸시 data.targetTab 값: 취약점 탭 (이전 서버, 그 밖은 홈)

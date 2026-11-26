@@ -3,7 +3,7 @@
  */
 import type { ArticleDetail } from '@/data/models/article-detail';
 import type { TrendingKeyword } from '@/data/models/trending-keyword';
-import { toArticleDetailView, toOriginalButtonLabel, toShareMessage } from '@/features/article-detail/article-detail-view';
+import { toArticleDetailView, toOriginalButtonLabel } from '@/features/article-detail/article-detail-view';
 import { toKeywordRankViews, toTrendingHashtags } from '@/features/keywords/keyword-view-state';
 import { hasTopicChips, toNewsFeedQuery, toNewsHref, toNewsSelection } from '@/features/news/news-feed-filter';
 import { isSearchQueryTooShort, toSearchModeNotice, toSearchQuery } from '@/features/search/search-query';
@@ -42,27 +42,50 @@ describe('소식 탭', () => {
 });
 
 describe('취약점 탭', () => {
+  const noInterests = { productCodes: [], fieldCodes: [], ecosystemCodes: [] };
+  const todayStart = new Date('2026-11-26T15:00:00Z');
+
   test('기본은 모든 출처의 주요만', () => {
-    expect(toVulnerabilityFeedQuery(DEFAULT_VULNERABILITY_FEED_SELECTION)).toEqual({
+    expect(toVulnerabilityFeedQuery(DEFAULT_VULNERABILITY_FEED_SELECTION, noInterests, todayStart)).toEqual({
       baseFilter: { kind: 'vulnerability' },
       importanceView: 'important',
+      layout: 'feed',
     });
   });
   test('악용 중은 CISA KEV 출처, 출처 묶음을 전체로 되돌린다', () => {
     const kisaSelection = toSelectionWithSourceGroup(DEFAULT_VULNERABILITY_FEED_SELECTION, 'kisa');
     const exploitedSelection = toSelectionWithSegment(kisaSelection, 'exploited');
-    expect(exploitedSelection).toEqual({ segment: 'exploited', sourceGroup: 'all' });
-    expect(toVulnerabilityFeedQuery(exploitedSelection)).toEqual({
+    expect(exploitedSelection).toEqual({ segment: 'exploited', sourceGroup: 'all', isTodayOnly: false });
+    expect(toVulnerabilityFeedQuery(exploitedSelection, noInterests, todayStart)).toEqual({
       baseFilter: { kind: 'vulnerability', sourceCode: 'CISA_KEV' },
       importanceView: 'all',
+      layout: 'feed',
     });
   });
   test('출처 묶음을 고르면 첫 출처, 악용 중이었다면 주요만으로', () => {
-    const selection = toSelectionWithSourceGroup({ segment: 'exploited', sourceGroup: 'all' }, 'kisa');
-    expect(selection).toEqual({ segment: 'important', sourceGroup: 'kisa', sourceCode: 'KISA' });
+    const selection = toSelectionWithSourceGroup({ segment: 'exploited', sourceGroup: 'all', isTodayOnly: false }, 'kisa');
+    expect(selection).toEqual({ segment: 'important', sourceGroup: 'kisa', sourceCode: 'KISA', isTodayOnly: false });
     const reportSelection = toSelectionWithSourceCode(toSelectionWithSegment(selection, 'all'), 'KISA_REPORT');
-    expect(toVulnerabilityFeedQuery(reportSelection)).toEqual({ baseFilter: { sourceCode: 'KISA_REPORT' }, importanceView: 'all' });
-    expect(toSelectionWithSourceGroup(reportSelection, 'all')).toEqual({ segment: 'all', sourceGroup: 'all' });
+    expect(toVulnerabilityFeedQuery(reportSelection, noInterests, todayStart)).toEqual({
+      baseFilter: { sourceCode: 'KISA_REPORT' },
+      importanceView: 'all',
+      layout: 'feed',
+    });
+    expect(toSelectionWithSourceGroup(reportSelection, 'all')).toEqual({ segment: 'all', sourceGroup: 'all', isTodayOnly: false });
+  });
+  test('오픈소스는 GitHub 권고 2곳 + 생태계, 주요 카드·한 줄 행 배치 (세그먼트와 상관없이 나눠 부름)', () => {
+    const selection = { ...toSelectionWithSourceGroup(DEFAULT_VULNERABILITY_FEED_SELECTION, 'openSource'), ecosystemCode: 'eco-a' };
+    expect(selection.sourceCode).toBeUndefined();
+    expect(toVulnerabilityFeedQuery(selection, noInterests, todayStart)).toEqual({
+      baseFilter: { sourceCodes: ['GHSA', 'GHSA_HIGH'], ecosystemCode: 'eco-a' },
+      importanceView: 'all',
+      layout: 'openSourceSplit',
+    });
+  });
+  test('내 기술은 관심 기술 3가지, 오늘만이면 오늘 0시 이후 수집분', () => {
+    const interests = { productCodes: ['product-a'], fieldCodes: ['field-a'], ecosystemCodes: [] };
+    const selection = { ...toSelectionWithSourceGroup(DEFAULT_VULNERABILITY_FEED_SELECTION, 'myTech'), isTodayOnly: true };
+    expect(toVulnerabilityFeedQuery(selection, interests, todayStart).baseFilter).toEqual({ interestCodes: interests, collectedSince: todayStart });
   });
 });
 
@@ -146,9 +169,8 @@ describe('기사 상세', () => {
     expect(view.isSummaryMissing).toBe(true);
     expect(view.aiNoticeLabel).toBeUndefined();
   });
-  test('원문 보기 버튼에는 게시자 이름, 공유 글은 제목과 원문 링크', () => {
+  test('원문 보기 버튼에는 게시자 이름', () => {
     const { article } = toArticleDetailView(detail, NOW);
     expect(toOriginalButtonLabel(article)).toBe('NVD 원문 보기');
-    expect(toShareMessage(article)).toBe(`${nvdItem.title}\n${nvdItem.originalUrl}`);
   });
 });

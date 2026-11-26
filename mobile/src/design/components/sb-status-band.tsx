@@ -10,23 +10,25 @@ import { SbText } from './sb-text';
 
 interface SbStatusBandProps {
   iconName: SbIconName;
-  /** 작은 라벨 (예: KISA 경보단계 · 2시간 전) */
+  /** 아이콘 색 (없으면 긴급 색, 경보단계 띠는 단계 색) */
+  iconColor?: string;
+  /** 작은 라벨 (예: 사이버위기 경보) */
   capsLabel: string;
-  /** 본문 한두 줄 (원문 제목 그대로) */
+  /** 본문 한두 줄 (예: 주의 · 10.22부터) */
   title: string;
   accessibilityLabel: string;
   onPress: () => void;
 }
 
 /** 상태 띠: 아이콘 + 작은 라벨 + 한두 줄 글 + 화살표. 화면 위쪽에 얇게 놓이는 알림성 한 줄 */
-export function SbStatusBand({ iconName, capsLabel, title, accessibilityLabel, onPress }: SbStatusBandProps) {
+export function SbStatusBand({ iconName, iconColor, capsLabel, title, accessibilityLabel, onPress }: SbStatusBandProps) {
   const { colors } = useSbTheme();
   const styles = useSbStyles(createStyles);
   return (
     <SbPressable accessibilityLabel={accessibilityLabel} onPress={onPress}>
       <View style={styles.wrap}>
         <View style={styles.band}>
-          <MaterialIcons name={iconName} size={sbSize.rowIcon} color={colors.urgent} />
+          <MaterialIcons name={iconName} size={sbSize.rowIcon} color={iconColor ?? colors.urgent} />
           <View style={styles.text}>
             <SbCapsLabel text={capsLabel} color={colors.tertiaryLabel} />
             <SbText variant="rowTitle" color={colors.label} numberOfLines={sbMaximumLines.compactTitle}>

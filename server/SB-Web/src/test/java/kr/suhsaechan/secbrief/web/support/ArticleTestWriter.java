@@ -42,6 +42,17 @@ public class ArticleTestWriter {
         return articleRepository.save(article);
     }
 
+    /**
+     * 출처·제목을 정해 1건 저장 (경보단계 글, KEV 등재 등): 종류·지역은 출처 값, 긴급은 주어진 값 그대로
+     */
+    public Article saveSourceArticle(String sourceCode, String title, Instant publishedAt, boolean isUrgent) {
+        savedCount++;
+        Source source = sourceRepository.findByCode(sourceCode).orElseThrow();
+        return articleRepository.save(Article.create(source, new ArticleDraft(source.getKind(), source.getRegion(), title,
+                "https://example.test/articles/" + System.nanoTime() + "-" + savedCount, source.getDisplayName(),
+                publishedAt, false, null, null, null, false, isUrgent), publishedAt));
+    }
+
     public Article saveNews(Instant publishedAt, ArticleTopic topic) {
         return saveArticle(publishedAt, ArticleKind.NEWS, ArticleRegion.DOMESTIC, topic, false);
     }

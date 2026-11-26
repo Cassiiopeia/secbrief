@@ -11,6 +11,8 @@ import { SbText } from './sb-text';
 export interface SbFilterChipOption<Value extends string> {
   value: Value;
   label: string;
+  /** 이름 뒤 작은 글자 (예: 오늘 새 소식 +3, 고른 수 6). 없으면 이름만 */
+  countLabel?: string;
 }
 
 interface SbFilterChipsProps<Value extends string> {
@@ -42,6 +44,7 @@ export function SbFilterChips<Value extends string>({ options, selectedValue, on
         <SbFilterChip
           key={option.value}
           label={option.label}
+          countLabel={option.countLabel}
           isSelected={option.value === selectedValue}
           isQuiet={tone === 'quiet'}
           onPress={() => onChipPressed(option.value)}
@@ -53,13 +56,14 @@ export function SbFilterChips<Value extends string>({ options, selectedValue, on
 
 interface SbFilterChipProps {
   label: string;
+  countLabel?: string;
   isSelected: boolean;
   isQuiet: boolean;
   onPress: () => void;
 }
 
 /** 칩 하나: 선택 여부가 바뀌면 바탕색이 부드럽게 바뀜 */
-function SbFilterChip({ label, isSelected, isQuiet, onPress }: SbFilterChipProps) {
+function SbFilterChip({ label, countLabel, isSelected, isQuiet, onPress }: SbFilterChipProps) {
   const { colors } = useSbTheme();
   const restingColor = isQuiet ? colors.surface : colors.surfaceRaised;
   const selectedColor = isQuiet ? colors.label : colors.accent;
@@ -76,7 +80,7 @@ function SbFilterChip({ label, isSelected, isQuiet, onPress }: SbFilterChipProps
   }));
   return (
     <SbPressable
-      accessibilityLabel={label}
+      accessibilityLabel={countLabel === undefined ? label : `${label} ${countLabel}`}
       accessibilityRole="tab"
       accessibilityState={{ selected: isSelected }}
       hitSlop={CHIP_HIT_SLOP}
@@ -85,6 +89,11 @@ function SbFilterChip({ label, isSelected, isQuiet, onPress }: SbFilterChipProps
         <SbText variant="button" color={isSelected ? selectedLabelColor : colors.secondaryLabel}>
           {label}
         </SbText>
+        {countLabel !== undefined && (
+          <SbText variant="timeLabel" color={isSelected ? selectedLabelColor : colors.urgent}>
+            {countLabel}
+          </SbText>
+        )}
       </Animated.View>
     </SbPressable>
   );
@@ -99,6 +108,9 @@ const styles = StyleSheet.create({
   },
   chip: {
     minHeight: CHIP_HEIGHT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: sbSpacing.extraSmall,
     justifyContent: 'center',
     paddingHorizontal: sbSpacing.medium,
     borderRadius: sbRadius.pill,

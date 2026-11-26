@@ -1,6 +1,6 @@
 import { toAbsoluteDate, toClockTime, toRelativeTime } from '@/core/format/briefing-date-formatter';
 import { toDayGroupLabel, toLocalDayKey } from '@/core/format/notification-date-formatter';
-import type { AppNotificationKind, AppNotificationSummary } from '@/data/models/app-notification';
+import type { AppNotificationKind, AppNotificationSummary, InboxNotificationKind } from '@/data/models/app-notification';
 import type { SbBadgeContent } from '@/design';
 
 import { ALERT_CATEGORY_TEXTS } from './alert-category-texts';
@@ -75,7 +75,7 @@ export function toNotificationInboxRowView(
  * summaries 와 rowViews 는 같은 순서 (묶음 기준은 작성 시각)
  */
 export function toNotificationInboxSections(
-  kind: AppNotificationKind,
+  kind: InboxNotificationKind,
   summaries: AppNotificationSummary[],
   rowViews: NotificationInboxRowView[],
   now: Date,
@@ -110,7 +110,7 @@ export interface NotificationInboxEnableAlertPrompt {
 }
 
 export function toNotificationInboxEnableAlertPrompt(
-  kind: AppNotificationKind,
+  kind: InboxNotificationKind,
   hasEnabledAlertCategory: boolean,
   isPushAvailable: boolean,
 ): NotificationInboxEnableAlertPrompt | undefined {

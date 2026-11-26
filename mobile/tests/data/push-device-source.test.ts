@@ -44,7 +44,7 @@ test('PUT /api/v1/push-devices 로 토큰·기기 종류·켠 종류를 보낸�
     enabledAlertCategories: ['KEV'],
   });
   // 앱이 모르는 종류는 버림, 방해 금지 시간을 주지 않는 이전 서버면 없음
-  expect(savedSettings).toEqual({ enabledAlertCategories: ['KEV'], quietHours: undefined });
+  expect(savedSettings).toEqual({ enabledAlertCategories: ['KEV'], quietHours: undefined, interests: undefined, digest: undefined });
 });
 
 test('서버 검증 실패는 errorCode 그대로', async () => {
@@ -60,7 +60,7 @@ test('서버 검증 실패는 errorCode 그대로', async () => {
 
 test('기기 저장소: 저장한 종류를 그대로 읽는다', async () => {
   await saveEnabledAlertCategories(['KISA_URGENT', 'KEV']);
-  await expect(readEnabledAlertCategories()).resolves.toEqual(['KISA_URGENT', 'KEV']);
+  await expect(readEnabledAlertCategories()).resolves.toEqual(['KEV', 'KISA_URGENT']);
 });
 test('기기 저장소: 저장한 적이 없으면 빈 목록', async () => {
   await expect(readEnabledAlertCategories()).resolves.toEqual([]);

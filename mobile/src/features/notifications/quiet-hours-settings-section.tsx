@@ -1,5 +1,7 @@
+import { hasAnyAlertInterest } from '@/data/models/alert-interest';
 import { SbInlineErrorState, SbInlineNotice, SbReveal, SbSwitchRow, SbTimePickerRow } from '@/design';
 
+import { useAlertInterests } from '../interests/use-alert-interests';
 import { QUIET_HOURS_EXPLANATION, QUIET_HOURS_SAME_TIME_MESSAGE, toQuietHoursSectionView } from './quiet-hours-view-state';
 import { useAlertCategorySettings } from './use-alert-category-settings';
 import { useQuietHoursSettings } from './use-quiet-hours-settings';
@@ -13,7 +15,9 @@ const QUIET_HOURS_TITLE = '방해 금지 시간';
 export function QuietHoursSettingsSection() {
   const alertCategorySettings = useAlertCategorySettings();
   const settings = useQuietHoursSettings();
-  const hasEnabledAlertCategory = alertCategorySettings.enabledAlertCategories.length > 0;
+  const interests = useAlertInterests();
+  // 켠 종류가 없어도 관심 기술을 골랐으면 서버 기기가 있음 (#93)
+  const hasEnabledAlertCategory = alertCategorySettings.enabledAlertCategories.length > 0 || hasAnyAlertInterest(interests);
   const sectionView = toQuietHoursSectionView(settings.quietHours, hasEnabledAlertCategory);
   const isLocked =
     alertCategorySettings.unavailableReason !== undefined || !hasEnabledAlertCategory || settings.isSaving || alertCategorySettings.isSaving;

@@ -20,6 +20,12 @@ test('묶음 알림(기사 번호 없음)은 알림 상세, 종류가 없어도 
   expect(toNotificationTargetRoute({ notificationId: '12', notificationKind: 'ALERT', targetTab: 'vulnerability' })).toBe('/notifications/12');
   expect(toNotificationTargetRoute({ notificationId: '12' })).toBe('/notifications/12');
 });
+test('아침 요약(DIGEST, #93)은 알림 상세 (요약 화면으로 그림)', () => {
+  expect(toNotificationTarget({ notificationId: '51', notificationKind: 'DIGEST', targetTab: 'vulnerability' })).toEqual({
+    route: '/notifications/51',
+    notificationId: 51,
+  });
+});
 test('방해 금지 시간 모아 보기는 알림함', () => {
   expect(toNotificationTarget({ notificationKind: 'QUIET_HOURS_DIGEST', targetTab: 'vulnerability' })).toEqual({ route: '/notifications' });
 });

@@ -32,6 +32,7 @@ public final class ArticleTitleAnalysisPrompt {
     public static final String IMPORTANCE_FIELD = "importance";
     public static final String SUBJECT_NAME_FIELD = "subjectName";
     public static final String KEYWORDS_FIELD = "keywords";
+    public static final String FIELD_FIELD = "field";
 
     public static final String SYSTEM_INSTRUCTION = """
             You classify, rank, tag and translate security news headlines for a Korean security briefing app.
@@ -86,14 +87,39 @@ public final class ArticleTitleAnalysisPrompt {
             - Use an empty array when nothing fits.
             """;
 
+    // 분야 고르기 지시 머리 (목록은 카탈로그에서 붙임, #93)
+    private static final String FIELD_INSTRUCTION_HEAD = """
+
+            field (technology field of the main product, platform or package in the headline):
+            - Pick exactly one code from the list below. Use null when the headline names no product or technology.
+            """;
+
     // 출력 토큰 상한 계산: 응답 틀({"results":[]}) 여유
     private static final int RESPONSE_ENVELOPE_TOKENS = 64;
-    // 건당 고정분 (number, topic, importance, subjectName, 필드 이름·따옴표 112 + 키워드 5개 x 약 16토큰과 배열 틀 88)
-    private static final int PER_ARTICLE_OVERHEAD_TOKENS = 200;
+    // 건당 고정분 (number, topic, importance, subjectName, field, 필드 이름·따옴표 124 + 키워드 5개 x 약 16토큰과 배열 틀 88)
+    private static final int PER_ARTICLE_OVERHEAD_TOKENS = 212;
     // 번역 제목 토큰 추정: 원문 1자당 2토큰 (한글 1자가 1토큰을 넘는 경우까지 넉넉하게)
     private static final int TRANSLATED_TITLE_TOKENS_PER_ORIGINAL_CHARACTER = 2;
 
     private ArticleTitleAnalysisPrompt() {
+    }
+
+    /**
+     * 지시문: 고정 지시 + 분야 목록 (목록이 비면 고정 지시만, 분야를 묻지 않음)
+     */
+    public static String toSystemInstruction(List<AiFieldOption> fieldOptions) {
+        if (fieldOptions.isEmpty()) {
+            return SYSTEM_INSTRUCTION;
+        }
+        StringBuilder instruction = new StringBuilder(SYSTEM_INSTRUCTION).append(FIELD_INSTRUCTION_HEAD);
+        for (AiFieldOption fieldOption : fieldOptions) {
+            instruction.append("- ").append(fieldOption.code()).append(": ").append(fieldOption.name());
+            if (fieldOption.exampleTerms() != null && !fieldOption.exampleTerms().isBlank()) {
+                instruction.append(" (e.g. ").append(fieldOption.exampleTerms()).append(')');
+            }
+            instruction.append('\n');
+        }
+        return instruction.toString();
     }
 
     /**
@@ -122,6 +148,13 @@ public final class ArticleTitleAnalysisPrompt {
      * importance(3단계 enum), subjectName(문자열 또는 null), keywords(문자열 배열)}]} 모두 필수
      */
     public static Map<String, Object> toOutputJsonSchema() {
+        return toOutputJsonSchema(List.of());
+    }
+
+    /**
+     * 출력 JSON 스키마 + 분야(field: 카탈로그 code enum 또는 null, 필수). 분야 목록이 비면 분야를 넣지 않음
+     */
+    public static Map<String, Object> toOutputJsonSchema(List<String> fieldCodes) {
         List<String> topicApiValues = Arrays.stream(ArticleTopic.values()).map(ArticleTopic::getApiValue).toList();
 
         Map<String, Object> resultProperties = new LinkedHashMap<>();
@@ -133,12 +166,18 @@ public final class ArticleTitleAnalysisPrompt {
         resultProperties.put(SUBJECT_NAME_FIELD, Map.of("anyOf", List.of(Map.of("type", "string"), Map.of("type", "null"))));
         // 개수 상한은 스키마에 넣지 않음 (제공자마다 지원이 달라 저장 단계 검증이 5개로 자름)
         resultProperties.put(KEYWORDS_FIELD, Map.of("type", "array", "items", Map.of("type", "string")));
+        List<String> requiredFields = new ArrayList<>(
+                List.of(NUMBER_FIELD, TOPIC_FIELD, TRANSLATED_TITLE_FIELD, IMPORTANCE_FIELD, SUBJECT_NAME_FIELD, KEYWORDS_FIELD));
+        if (!fieldCodes.isEmpty()) {
+            resultProperties.put(FIELD_FIELD, Map.of("anyOf",
+                    List.of(Map.of("type", "string", "enum", List.copyOf(fieldCodes)), Map.of("type", "null"))));
+            requiredFields.add(FIELD_FIELD);
+        }
 
         Map<String, Object> resultSchema = new LinkedHashMap<>();
         resultSchema.put("type", "object");
         resultSchema.put("properties", resultProperties);
-        resultSchema.put("required",
-                List.of(NUMBER_FIELD, TOPIC_FIELD, TRANSLATED_TITLE_FIELD, IMPORTANCE_FIELD, SUBJECT_NAME_FIELD, KEYWORDS_FIELD));
+        resultSchema.put("required", List.copyOf(requiredFields));
         resultSchema.put("additionalProperties", false);
 
         Map<String, Object> resultsSchema = new LinkedHashMap<>();
@@ -205,7 +244,8 @@ public final class ArticleTitleAnalysisPrompt {
                 .map(topic -> ArticleTitleAnalysisOutcome.succeeded(new ArticleTitleAnalysis(topic,
                         toTextOrNull(resultNode.path(TRANSLATED_TITLE_FIELD)), importance,
                         toTextOrNull(resultNode.path(SUBJECT_NAME_FIELD)),
-                        toTexts(resultNode.path(KEYWORDS_FIELD)))))
+                        toTexts(resultNode.path(KEYWORDS_FIELD)),
+                        toTextOrNull(resultNode.path(FIELD_FIELD)))))
                 .orElseGet(() -> ArticleTitleAnalysisOutcome.failed("unknown topic"));
     }
 

@@ -12,6 +12,16 @@ export function toMastheadDate(date: Date): string {
   return `${toTwoDigits(date.getMonth() + 1)}.${toTwoDigits(date.getDate())} ${weekdayLabel}`;
 }
 
+/** 날짜 > 한국어 월·일 (예: 10월 22일) */
+export function toKoreanMonthDay(date: Date): string {
+  return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+}
+
+/** 날짜 > 점 찍은 짧은 월·일 (예: 10.22) */
+export function toDottedMonthDay(date: Date): string {
+  return `${date.getMonth() + 1}.${toTwoDigits(date.getDate())}`;
+}
+
 /** 시각 > 24시간 표기 (예: 09:12) */
 export function toClockTime(dateTime: Date): string {
   return `${toTwoDigits(dateTime.getHours())}:${toTwoDigits(dateTime.getMinutes())}`;
@@ -86,4 +96,11 @@ export function toCompactDateLabel(publishedAt: Date, now: Date): string {
   const elapsedDays = (now.getTime() - publishedAt.getTime()) / MILLISECONDS_PER_DAY;
   if (elapsedDays < RELATIVE_LABEL_MAXIMUM_DAYS) return toPublishedRelativeLabel(publishedAt, now);
   return toAbsoluteDate(publishedAt);
+}
+
+/** 기기 시간대 그날 0시 (오늘 새 소식 기준, 서버 건수 응답이 없을 때) */
+export function toStartOfLocalDay(dateTime: Date): Date {
+  const startOfDay = new Date(dateTime.getTime());
+  startOfDay.setHours(0, 0, 0, 0);
+  return startOfDay;
 }

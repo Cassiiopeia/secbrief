@@ -2,7 +2,7 @@ package kr.suhsaechan.secbrief.advisory.fact;
 
 /**
  * 사실 값 라벨 단일 원본 (앱 상세 화면에 그대로 보이는 한국어 문구)
- * GHSA 4개, KEV 4개, NVD 3개, 공통 2개
+ * GHSA 4개, KEV 4개, NVD 4개, 공통 2개
  */
 public final class SourceFactLabel {
 
@@ -26,6 +26,8 @@ public final class SourceFactLabel {
     public static final String CVSS_VECTOR = "CVSS 벡터";
     // GHSA severity, NVD baseSeverity
     public static final String SEVERITY = "심각도";
+    // NVD configurations CPE 제조사·제품 (예: fortinet fortios, 쉼표 구분 최대 5쌍, 분류에도 씀)
+    public static final String AFFECTED_PRODUCT = "영향 제품";
     // KEV cwes, NVD weaknesses
     public static final String WEAKNESS = "CWE";
 

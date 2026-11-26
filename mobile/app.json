@@ -2,7 +2,7 @@
   "expo": {
     "name": "시큐브리프",
     "slug": "secbrief",
-    "version": "0.8.0",
+    "version": "0.9.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "secbrief",
@@ -12,7 +12,10 @@
       "appleTeamId": "CUK22HY6YC",
       "config": {
         "usesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": [
+        "applinks:api.secbrief.suhsaechan.kr"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +26,24 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "kr.suhsaechan.secbrief",
-      "versionCode": 18
+      "versionCode": 19,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "api.secbrief.suhsaechan.kr",
+              "pathPrefix": "/a/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "output": "single",

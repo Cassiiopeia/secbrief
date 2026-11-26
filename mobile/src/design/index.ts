@@ -22,6 +22,7 @@ export * from './components/sb-headline-card';
 export * from './components/sb-horizontal-rail';
 export * from './components/sb-icon-button';
 export * from './components/sb-inline-notice';
+export * from './components/sb-level-gauge';
 export * from './components/sb-list-row';
 export * from './components/sb-loading-skeleton';
 export * from './components/sb-masthead';
@@ -54,4 +55,12 @@ export * from './tokens';
 export * from './components/sb-reveal';
 export { type SbStateIllustrationKind } from './components/sb-state-illustration-sources';
 export * from './components/sb-toast-host';
+export * from './components/sb-translated-mark';
 export { showSbToast } from './components/sb-toast-store';
+
+// 관심 기술·분류 태그 (#93): 한 줄 행, 건수 타일, 안내 카드, 펼치는 행, 고르기 알약
+export * from './components/sb-count-tile';
+export * from './components/sb-disclosure-row';
+export * from './components/sb-one-line-row';
+export * from './components/sb-pick-chips';
+export * from './components/sb-prompt-card';

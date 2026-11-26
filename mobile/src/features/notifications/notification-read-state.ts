@@ -1,4 +1,4 @@
-import type { AppNotificationKind, AppNotificationSummary } from '@/data/models/app-notification';
+import type { AppNotificationSummary, InboxNotificationKind } from '@/data/models/app-notification';
 import type { AppNotificationReadState } from '@/data/models/app-notification-read-state';
 
 // 기기에 남기는 연 글 번호 수 한도 (넘으면 오래된 것부터 버림)
@@ -24,7 +24,7 @@ export function toReadStateWithOpened(readState: AppNotificationReadState, notif
 /** 목록에서 본 가장 큰 번호 반영 (작아지지 않음) */
 export function toReadStateWithSeen(
   readState: AppNotificationReadState,
-  kind: AppNotificationKind,
+  kind: InboxNotificationKind,
   seenNotificationIds: number[],
 ): AppNotificationReadState {
   if (seenNotificationIds.length === 0) return readState;

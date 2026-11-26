@@ -12,6 +12,8 @@ import {
   SbStreamRailItem,
   SbUrgentTile,
   sbSpacing,
+  toSbAlertLevelColor,
+  useSbTheme,
 } from '@/design';
 
 import { useArticleOpener } from '../articles/use-article-opener';
@@ -23,12 +25,13 @@ import { toNewsHref } from '../news/news-feed-filter';
 import { useTabMastheadActions } from '../notifications/use-tab-masthead-actions';
 import type { AlertLevelView } from './alert-level-view';
 import { TodayHeadlineSection } from './today-headline-section';
+import { TodayNewArticlesStrip } from './today-new-articles-strip';
 import type { TodayStreamItemView, TodayUrgentView, TodayViewState } from './today-view-state';
 
 interface TodayBriefingContentProps {
   mastheadTitleLines: string[];
   state: TodayViewState;
-  /** KISA 경보단계 띠 (없으면 생략) */
+  /** 사이버위기 경보 띠 (없으면 생략) */
   alertLevel?: AlertLevelView;
 }
 
@@ -65,6 +68,7 @@ export function TodayBriefingContent({ mastheadTitleLines, state, alertLevel }: 
       )}
       {state.urgent !== undefined && <TodayUrgentSection urgent={state.urgent} />}
       <TodayStatSection state={state} />
+      <TodayNewArticlesStrip entranceOrder={STAT_ORDER} />
       <SbEntrance order={TOPIC_ORDER}>
         <SbSectionHeader title="주제별로 보기" />
         <SbShortcutGrid shortcuts={state.topicShortcuts} onShortcutPress={onShortcutPressed} />
@@ -75,17 +79,18 @@ export function TodayBriefingContent({ mastheadTitleLines, state, alertLevel }: 
   );
 }
 
-/** KISA 경보단계 띠: 누르면 그 공지 상세 */
+/** 사이버위기 경보 띠: 지금 단계·시작일, 누르면 경보단계 화면 */
 function TodayAlertLevelBand({ alertLevel }: { alertLevel: AlertLevelView }) {
-  const openArticle = useArticleOpener();
+  const { colors } = useSbTheme();
   return (
     <SbEntrance order={ALERT_LEVEL_ORDER}>
       <SbStatusBand
-        iconName="campaign"
+        iconName="shield"
+        iconColor={alertLevel.tone === undefined ? undefined : toSbAlertLevelColor(colors, alertLevel.tone)}
         capsLabel={alertLevel.capsLabel}
         title={alertLevel.title}
         accessibilityLabel={alertLevel.accessibilityLabel}
-        onPress={() => openArticle(alertLevel.article)}
+        onPress={() => router.push(APP_ROUTES.alertLevel)}
       />
     </SbEntrance>
   );
@@ -102,7 +107,7 @@ function TodayUrgentSection({ urgent }: { urgent: TodayUrgentView }) {
           capsLabel={urgent.capsLabel}
           title={urgent.title}
           footerLabel={urgent.footerLabel}
-          coverKind={urgent.coverKind}
+          translatedMarkLabel={urgent.translatedMarkLabel}
           coverImageUrl={urgent.coverImageUrl}
           onPress={() => openArticle(urgent.article)}
         />
@@ -111,12 +116,12 @@ function TodayUrgentSection({ urgent }: { urgent: TodayUrgentView }) {
   );
 }
 
-/** 숫자로 보기 구역: 오늘·이번 주 건수 타일(누르면 소식 탭 전체) > (이번 주 1위 주제 타일: 누르면 탐색 탭) */
+/** 한눈에 보기 구역: 오늘·이번 주 건수 타일(누르면 소식 탭 전체) > (이번 주 1위 주제 타일: 누르면 탐색 탭) */
 function TodayStatSection({ state }: { state: TodayViewState }) {
   const { trend } = state;
   return (
     <SbEntrance order={STAT_ORDER}>
-      <SbSectionHeader title="숫자로 보기" />
+      <SbSectionHeader title="한눈에 보기" />
       <View style={styles.tiles}>
         <View style={styles.statRow}>
           <SbStatTile
@@ -170,8 +175,7 @@ function TodayStreamSection({ streamItems }: { streamItems: TodayStreamItemView[
               <SbStreamRailItem
                 timeLabel={item.timeLabel}
                 title={item.title}
-                thumbnailKind={item.thumbnailKind}
-                thumbnailTone={item.thumbnailTone}
+                translatedMarkLabel={item.translatedMarkLabel}
                 thumbnailImageUrl={item.thumbnailImageUrl}
                 isLatest={itemIndex === 0}
                 isRead={readArticleIds.has(item.id)}

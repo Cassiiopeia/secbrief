@@ -1,0 +1,7 @@
+{
+  "since": "2026-11-26T15:00:00Z", "lastCollectedAt": "2026-11-26T22:36:00Z", "totalCount": 39,
+  "exploitedCount": 0, "kisaCount": 0, "newsCount": 8,
+  "fieldCounts": [ { "code": "web-app", "count": 11, "sampleNames": ["Budibase", "ToolJet"] } ],
+  "ecosystemCounts": [ { "code": "npm", "count": 5, "sampleNames": ["appium"] } ],
+  "sourceCounts": [ { "sourceCode": "NVD", "count": 12 } ]
+}

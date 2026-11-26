@@ -58,8 +58,8 @@ public final class ArticleNormalizer {
         boolean isPublishedAtEstimated = isPublishedAtUnreliable(collected.publishedAt(), collectedAt);
         Instant publishedAt = isPublishedAtEstimated ? collectedAt : collected.publishedAt();
 
-        boolean isUrgent = ArticleUrgencyPolicy.isUrgent(
-                source.getCode(), title, collected.cvssScore(), collected.isKev());
+        boolean isUrgent = ArticleUrgencyPolicy.isUrgentAt(
+                source.getCode(), title, collected.cvssScore(), collected.isKev(), publishedAt, collectedAt);
 
         return Optional.of(new ArticleDraft(
                 source.getKind(),

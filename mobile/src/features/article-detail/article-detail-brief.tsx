@@ -18,14 +18,13 @@ const SUMMARY_ORDER = 0;
 const KEY_POINT_ORDER = 1;
 const ACTION_GUIDE_ORDER = 2;
 const SUMMARY_CARD_COUNT = 3;
-// 요약 카드 대신 쓰는 글 2개: 요약·핵심 모두 없음 (입력 없음·대기·실패 공통, 서버가 상태를 주지 않아 '준비 중'으로 약속하지 않음), 핵심만 있음
-const SUMMARY_MISSING_TEXT = '이 소식은 AI 요약 없이 보여 드려요. 내용은 원문 보기에서 확인해 주세요.';
+// 요약 없이 핵심만 있을 때 요약 카드에 쓰는 글 (요약·핵심 모두 없으면 요약 카드를 숨기고 확인된 정보·원문 보기로, #96)
 const KEY_POINTS_ONLY_TEXT = '아래 핵심을 확인해 주세요.';
 
 /**
  * 기사 상세의 브리프 구역 (조회가 끝난 뒤): AI 브리핑 카드 > 확인된 정보 > 대응 모아보기
  * 대응 모아보기가 비면 함께 보면 좋은 소식, 그것도 없으면 다른 소식 보러 가기
- * 브리핑이 없는 기사는 이전 방식 카드 3개(요약·핵심·대응)로, 요약도 없으면 준비 중 안내만
+ * 브리핑이 없는 기사는 이전 방식 카드 3개(요약·핵심·대응)로, AI 글이 하나도 없으면 요약 카드 없이
  */
 export function ArticleDetailBrief({
   detail,
@@ -72,18 +71,18 @@ export function ArticleDetailBrief({
 
 /**
  * 이전 방식 AI 카드 3개 (브리핑이 없는 기사): 요약 > 핵심 > 이렇게 대응해요
- * 요약이 아직 없으면 준비 중 안내만, 대응은 원문에 있을 때만. AI 가 쓴 카드에는 AI 표시
+ * 요약·핵심이 모두 없으면 요약 카드 없음, 대응은 원문에 있을 때만. AI 가 쓴 카드에는 AI 표시
  */
 function SummaryCards({ detail }: { detail: ArticleDetailView }) {
   return (
     <View>
-      <SbEntrance order={SUMMARY_ORDER}>
-        <SbBriefCard title="요약" iconName="subject" noticeLabel={detail.aiNoticeLabel}>
-          <SbBriefParagraph
-            text={detail.summary ?? (detail.isSummaryMissing ? SUMMARY_MISSING_TEXT : KEY_POINTS_ONLY_TEXT)}
-          />
-        </SbBriefCard>
-      </SbEntrance>
+      {!detail.isSummaryMissing && (
+        <SbEntrance order={SUMMARY_ORDER}>
+          <SbBriefCard title="요약" iconName="subject" noticeLabel={detail.aiNoticeLabel}>
+            <SbBriefParagraph text={detail.summary ?? KEY_POINTS_ONLY_TEXT} />
+          </SbBriefCard>
+        </SbEntrance>
+      )}
       {detail.keyPoints.length > 0 && (
         <SbEntrance order={KEY_POINT_ORDER}>
           <SbBriefCard title="핵심" iconName="format-list-numbered" noticeLabel={detail.aiNoticeLabel}>

@@ -67,6 +67,7 @@
         <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'dashboard', '/admin', 'layout-dashboard', '대시보드')}"></li>
         <li class="menu-title">수집</li>
         <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'sources', '/admin/sources', 'rss', '출처 관리')}"></li>
+        <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'catalog-tags', '/admin/catalog-tags', 'tags', '분류 태그')}"></li>
         <li class="menu-title">알림</li>
         <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'notices', '/admin/notices', 'megaphone', '공지사항')}"></li>
         <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'alerts', '/admin/alerts', 'bell-ring', '알림 기록')}"></li>

@@ -97,7 +97,7 @@ class NewSourceArticleTest extends PostgresContainerTestSupport {
 
         assertThat(today.urgentItem()).isNull();
         assertThat(today.headlineItems()).isEmpty();
-        assertThat(articleRepository.findUrgentAlertTargets(now, Limit.of(50))).isEmpty();
+        assertThat(articleRepository.findAlertCandidates(now, Limit.of(50))).filteredOn(Article::isUrgent).isEmpty();
         assertThat(articleRepository.findAll()).allSatisfy(
                 article -> assertThat(article.getImportance()).isEqualTo(ArticleImportance.ROUTINE));
     }
@@ -125,7 +125,7 @@ class NewSourceArticleTest extends PostgresContainerTestSupport {
         assertThat(saveVulnerability(SourceCode.GHSA_HIGH, cveId, "https://github.com/advisories/GHSA-hhhh-iiii-jjjj", "8.8"))
                 .isEqualTo(SaveOutcome.CREATED);
         assertThat(findByCveId(cveId).isUrgent()).isFalse();
-        assertThat(articleRepository.findUrgentAlertTargets(now, Limit.of(50))).isEmpty();
+        assertThat(articleRepository.findAlertCandidates(now, Limit.of(50))).filteredOn(Article::isUrgent).isEmpty();
 
         // 같은 권고를 high 출처가 다시 줌: 변화 없음
         assertThat(saveVulnerability(SourceCode.GHSA_HIGH, cveId, "https://github.com/advisories/GHSA-hhhh-iiii-jjjj", "8.8"))

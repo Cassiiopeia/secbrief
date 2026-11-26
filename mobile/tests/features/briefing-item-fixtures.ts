@@ -21,6 +21,7 @@ export const kisaItem: BriefingItem = {
   isPublishedAtEstimated: false,
   isKev: false,
   isUrgent: false,
+  isNotable: false,
 };
 
 export const nvdItem: BriefingItem = {
@@ -40,6 +41,7 @@ export const nvdItem: BriefingItem = {
   cvssVersion: '3.1',
   isKev: false,
   isUrgent: true,
+  isNotable: false,
 };
 
 export const kevOnlyItem: BriefingItem = {
@@ -68,4 +70,5 @@ export const overseasNewsItem: BriefingItem = {
   isPublishedAtEstimated: false,
   isKev: false,
   isUrgent: false,
+  isNotable: false,
 };
