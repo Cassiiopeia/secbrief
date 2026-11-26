@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { sbFontFamily } from '@/design';
+import { NotificationLaunchEffects } from '@/features/notifications/notification-launch-effects';
 
 // 글꼴을 다 불러올 때까지 시작 화면 유지
 SplashScreen.preventAutoHideAsync();
@@ -13,7 +14,7 @@ SplashScreen.preventAutoHideAsync();
 // 서버 상태 캐시 (앱 전체에서 하나)
 const queryClient = new QueryClient();
 
-/** 앱 최상위: 글꼴 불러오기 > 서버 상태 캐시 > 화면 스택 */
+/** 앱 최상위: 글꼴 불러오기 > 서버 상태 캐시 > 화면 스택 > 알림 시작 처리 */
 export default function RootLayout() {
   const [areFontsLoaded, fontError] = useFonts({
     [sbFontFamily.sansRegular]: require('@/assets/fonts/Pretendard-Regular.ttf'),
@@ -37,6 +38,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }} />
+      <NotificationLaunchEffects />
     </QueryClientProvider>
   );
 }

@@ -19,6 +19,24 @@ mobile/
 └── tests/architecture/ 규칙 테스트
 ```
 
+## 화면 구성
+
+하단 탭 5개 + 탭 밖 스택 화면 3개. 기사를 누르면 브라우저가 아니라 앱 안 상세를 연다 (원문은 상세의 원문 보기 버튼).
+
+| 라우트 | 화면 | 역할 |
+|---|---|---|
+| `(tabs)/index` | 홈 | 오늘의 브리핑: KISA 경보 상태, 주요 소식, 긴급, 숫자, 주제·키워드 바로가기, 최신 |
+| `(tabs)/news` | 소식 | 뉴스·공지 피드, 카테고리·주제 칩 |
+| `(tabs)/vulnerability` | 취약점 | 주요만 / 악용 중 / 전체, 출처 묶음 칩 |
+| `(tabs)/explore` | 탐색 | 검색 들머리, 키워드 순위, 주제 동향, 행사 소식 |
+| `(tabs)/settings` | 더보기 | 알림 설정, 출처, 문의, 약관, 앱 정보 |
+| `articles/[articleId]` | 기사 상세 | AI 요약, 핵심, 대응, 확인된 정보, 관련 소식, 원문 보기 |
+| `search` | 검색 | 글자·의미 검색, 요즘 키워드 |
+| `browse/[browseKey]` | 모아 보기 | 주제·출처·키워드별 목록 |
+
+- 버전·수치는 서버가 준 값만 보여 준다 (앱에서 만들지 않음). AI 가 쓴 부분에는 AI 표시를 붙인다.
+- 알림(`expo-notifications`)은 `data/sources/device-notification-client.ts` 한 곳에서만 부른다.
+
 의존 방향: `core ← data ← features · design ← app`. 계층 밖은 `@/계층/...` 로만 import 한다.
 
 ## 규칙 (tests/architecture 와 ESLint 가 강제)

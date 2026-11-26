@@ -1,17 +1,32 @@
-import { Linking, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet } from 'react-native';
 
 import { appInfo } from '@/core/config/app-info';
 import { supportLinks, toContactMailUrl } from '@/core/config/support-links';
 import { toAppFailure } from '@/core/error/app-failure';
-import { SbCapsLabel, SbErrorState, SbListRow, SbLoadingSkeleton, SbMasthead, SbScreen, sbSpacing, useSbTheme } from '@/design';
+import {
+  SbEntrance,
+  SbErrorState,
+  SbListRow,
+  SbLoadingSkeleton,
+  SbMasthead,
+  SbScreen,
+  SbSectionHeader,
+  createSbRefreshControl,
+  sbSpacing,
+  useSbTheme,
+} from '@/design';
 
 import { openOriginalArticle } from '../articles/open-original-article';
 import { usePullRefresh } from '../articles/use-pull-refresh';
+import { AlertCategorySettingsSection } from '../notifications/alert-category-settings-section';
+import { SEARCH_MASTHEAD_ACTION } from '../search/search-action';
 import { toSourceStatusRowView } from './settings-view-state';
 import { useCollectSourceStatuses } from './use-collect-source-statuses';
 
-const MASTHEAD_TITLE_LINES = ['설정'];
+const MASTHEAD_TITLE_LINES = ['더보기'];
 const OPEN_ICON_NAME = 'open-in-new';
+// 출처 구역 로딩 뼈대 행 수
+const SOURCE_SKELETON_ROW_COUNT = 4;
 
 /** 메일로 문의: 메일 앱이 없으면 지원 페이지 (주소는 행에 늘 보임) */
 async function openContactMail() {
@@ -24,7 +39,7 @@ async function openContactMail() {
   await openOriginalArticle(supportLinks.supportPageUrl);
 }
 
-/** 설정 탭: 문의 > 약관 > 출처(마지막 갱신) > 앱 정보. 출처 조회 실패는 그 구역에만 */
+/** 더보기 탭: 알림 > 문의 > 약관 > 출처(마지막 갱신) > 앱 정보. 출처 조회 실패는 그 구역에만. 당겨서 출처 새로고침 */
 export function SettingsScreen() {
   const { colors } = useSbTheme();
   const sourceStatusesQuery = useCollectSourceStatuses();
@@ -33,79 +48,97 @@ export function SettingsScreen() {
   return (
     <SbScreen>
       <ScrollView
-        refreshControl={<RefreshControl refreshing={isPullRefreshing} onRefresh={onPullRefresh} tintColor={colors.label} />}>
-        <SbMasthead titleLines={MASTHEAD_TITLE_LINES} />
-
-        {renderSectionLabel('문의')}
-        <SbListRow
-          title="메일로 문의하기"
-          detail={supportLinks.contactEmail}
-          trailingIconName="mail-outline"
-          accessibilityLabel={`메일로 문의하기, ${supportLinks.contactEmail}`}
-          onPress={openContactMail}
-        />
-        <SbListRow
-          title="지원 페이지"
-          trailingIconName={OPEN_ICON_NAME}
-          accessibilityLabel="지원 페이지 열기"
-          onPress={() => openOriginalArticle(supportLinks.supportPageUrl)}
-        />
-
-        {renderSectionLabel('약관')}
-        <SbListRow
-          title="개인정보처리방침"
-          trailingIconName={OPEN_ICON_NAME}
-          accessibilityLabel="개인정보처리방침 열기"
-          onPress={() => openOriginalArticle(supportLinks.privacyPolicyUrl)}
-        />
-        <SbListRow
-          title="이용약관"
-          trailingIconName={OPEN_ICON_NAME}
-          accessibilityLabel="이용약관 열기"
-          onPress={() => openOriginalArticle(supportLinks.termsUrl)}
-        />
-
-        {renderSectionLabel('출처')}
-        {renderSourceStatuses()}
-
-        {renderSectionLabel('앱 정보')}
-        <SbListRow title="버전" detail={appInfo.version} accessibilityLabel={`앱 버전 ${appInfo.version}`} />
-        <SbListRow
-          title="해외 소식 제목은 AI 가 번역해요"
-          detail="원문 제목을 함께 보여 드려요. 정확한 내용은 원문에서 확인해 주세요."
-          accessibilityLabel="해외 소식 제목은 AI 가 번역해요. 원문 제목을 함께 보여 드려요."
-        />
+        contentContainerStyle={styles.content}
+        refreshControl={createSbRefreshControl({ colors, isRefreshing: isPullRefreshing, onRefresh: onPullRefresh })}>
+        <SbMasthead titleLines={MASTHEAD_TITLE_LINES} action={SEARCH_MASTHEAD_ACTION} />
+        <SbSectionHeader title="알림" />
+        <AlertCategorySettingsSection />
+        <SettingsContactSection />
+        <SettingsTermsSection />
+        <SbSectionHeader title="출처" />
+        <SettingsSourceStatusList sourceStatusesQuery={sourceStatusesQuery} />
+        <SettingsAppInfoSection />
       </ScrollView>
     </SbScreen>
   );
+}
 
-  function renderSectionLabel(text: string) {
-    return (
-      <View style={styles.sectionLabel}>
-        <SbCapsLabel text={text} color={colors.tertiaryLabel} />
-      </View>
-    );
+/** 문의 구역: 메일로 문의, 지원 페이지 */
+function SettingsContactSection() {
+  return (
+    <>
+      <SbSectionHeader title="문의" />
+      <SbListRow
+        title="메일로 문의하기"
+        detail={supportLinks.contactEmail}
+        trailingIconName="mail-outline"
+        accessibilityLabel={`메일로 문의하기, ${supportLinks.contactEmail}`}
+        onPress={openContactMail}
+      />
+      <SbListRow
+        title="지원 페이지"
+        trailingIconName={OPEN_ICON_NAME}
+        accessibilityLabel="지원 페이지 열기"
+        onPress={() => openOriginalArticle(supportLinks.supportPageUrl)}
+      />
+    </>
+  );
+}
+
+/** 약관 구역: 개인정보처리방침, 이용약관 */
+function SettingsTermsSection() {
+  return (
+    <>
+      <SbSectionHeader title="약관" />
+      <SbListRow
+        title="개인정보처리방침"
+        trailingIconName={OPEN_ICON_NAME}
+        accessibilityLabel="개인정보처리방침 열기"
+        onPress={() => openOriginalArticle(supportLinks.privacyPolicyUrl)}
+      />
+      <SbListRow
+        title="이용약관"
+        trailingIconName={OPEN_ICON_NAME}
+        accessibilityLabel="이용약관 열기"
+        onPress={() => openOriginalArticle(supportLinks.termsUrl)}
+      />
+    </>
+  );
+}
+
+/** 출처 목록: 로딩 / 오류 / 출처별 마지막 갱신 (누름 없음) */
+function SettingsSourceStatusList({ sourceStatusesQuery }: { sourceStatusesQuery: ReturnType<typeof useCollectSourceStatuses> }) {
+  if (sourceStatusesQuery.isPending) return <SbLoadingSkeleton variant="listRows" rowCount={SOURCE_SKELETON_ROW_COUNT} />;
+  if (sourceStatusesQuery.isError) {
+    const failure = toAppFailure(sourceStatusesQuery.error);
+    return <SbErrorState message={failure.userMessage} errorCode={failure.errorCode} onRetry={() => sourceStatusesQuery.refetch()} />;
   }
-
-  /** 출처 구역: 로딩 / 오류 / 출처 목록 (누름 없음) */
-  function renderSourceStatuses() {
-    if (sourceStatusesQuery.isPending) return <SbLoadingSkeleton />;
-    if (sourceStatusesQuery.isError) {
-      const failure = toAppFailure(sourceStatusesQuery.error);
-      return (
-        <SbErrorState message={failure.userMessage} errorCode={failure.errorCode} onRetry={() => sourceStatusesQuery.refetch()} />
-      );
-    }
-    const now = new Date();
-    return sourceStatusesQuery.data.map((status) => {
-      const rowView = toSourceStatusRowView(status, now);
-      return (
+  const now = new Date();
+  const rowViews = sourceStatusesQuery.data.map((status) => toSourceStatusRowView(status, now));
+  return (
+    <SbEntrance order={0}>
+      {rowViews.map((rowView) => (
         <SbListRow key={rowView.code} title={rowView.title} detail={rowView.detail} accessibilityLabel={`${rowView.title}, ${rowView.detail}`} />
-      );
-    });
-  }
+      ))}
+    </SbEntrance>
+  );
+}
+
+/** 앱 정보 구역: 버전, AI 번역 안내 */
+function SettingsAppInfoSection() {
+  return (
+    <>
+      <SbSectionHeader title="앱 정보" />
+      <SbListRow title="버전" detail={appInfo.version} accessibilityLabel={`앱 버전 ${appInfo.version}`} />
+      <SbListRow
+        title="해외 소식 제목은 AI 가 번역해요"
+        detail="원문 제목을 함께 보여 드려요. 정확한 내용은 원문에서 확인해 주세요."
+        accessibilityLabel="해외 소식 제목은 AI 가 번역해요. 원문 제목을 함께 보여 드려요."
+      />
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
-  sectionLabel: { paddingHorizontal: sbSpacing.pageHorizontal, paddingTop: sbSpacing.sectionTop, paddingBottom: sbSpacing.small },
+  content: { paddingBottom: sbSpacing.extraLarge },
 });

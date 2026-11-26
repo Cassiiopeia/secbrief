@@ -10,6 +10,8 @@ export interface TodayBriefing {
   urgentItem?: BriefingItem;
   /** 이번 주 가장 많이 나온 주제 (일반 제외, 없으면 undefined) */
   topTrend?: TrendTopic;
+  /** 최근 72시간의 큰 소식 (중요도 높은 순 > 최신순, 최대 6건). 이 필드가 생기기 전 서버는 빈 배열 */
+  headlineItems: BriefingItem[];
   /** 최신 소식 (최신이 먼저, 긴급 소식 제외) */
   streamItems: BriefingItem[];
 }

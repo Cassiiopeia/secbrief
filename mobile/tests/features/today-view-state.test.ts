@@ -14,7 +14,7 @@ const ransomwareTrend: TrendTopic = { topic: 'ransomware', weeklyCount: 12, prev
 
 /** 기본 브리핑 + 바꿀 값 */
 function createBriefing(overrides: Partial<TodayBriefing> = {}): TodayBriefing {
-  return { date: new Date(2026, 10, 23), todayCount: 0, weeklyCount: 0, streamItems: [], ...overrides };
+  return { date: new Date(2026, 10, 23), todayCount: 0, weeklyCount: 0, headlineItems: [], streamItems: [], ...overrides };
 }
 
 test('머리 라벨은 날짜와 오늘 건수', () => {
@@ -43,15 +43,23 @@ test('새 주제도 커버 그림이 있다', () => {
 });
 test('스트림 항목에 원문 주소와 게시자·날짜가 실린다', () => {
   const streamItem = toTodayViewState(createBriefing({ streamItems: [newsItem] }), NOW).streamItems[0];
-  expect(streamItem.originalUrl).toBe(newsItem.originalUrl);
-  expect(streamItem.timeLabel).toBe('BleepingComputer · 2026.11.23 09:12 · 2시간 전');
+  expect(streamItem.article.originalUrl).toBe(newsItem.originalUrl);
+  expect(streamItem.timeLabel).toBe('BleepingComputer · 2시간 전');
 });
-test('동향 1위 문구는 동향 탭과 같다', () => {
+test('동향 1위 문구는 탐색 탭 주간 동향과 같다', () => {
   expect(toTodayViewState(createBriefing({ topTrend: ransomwareTrend }), NOW).trend?.detail).toBe(
     toTrendTopicView(ransomwareTrend).detail,
   );
-  expect(toTodayViewState(createBriefing({ topTrend: ransomwareTrend }), NOW).trend?.topicName).toBe('랜섬웨어');
+  expect(toTodayViewState(createBriefing({ topTrend: ransomwareTrend }), NOW).trend).toMatchObject({ topicName: '랜섬웨어', coverKind: 'lock' });
 });
 test('이번 주 건수 타일', () => {
   expect(toTodayViewState(createBriefing({ weeklyCount: 40 }), NOW).weeklyCount).toBe(40);
+});
+test('스트림·긴급 항목에 대표 이미지 주소가 실린다 (없으면 없음)', () => {
+  const state = toTodayViewState(
+    createBriefing({ urgentItem: { ...nvdItem, imagePath: '/api/v1/articles/2/image' }, streamItems: [newsItem] }),
+    NOW,
+  );
+  expect(state.urgent?.coverImageUrl).toMatch(/\/api\/v1\/articles\/2\/image$/);
+  expect(state.streamItems[0].thumbnailImageUrl).toBeUndefined();
 });
