@@ -1,15 +1,42 @@
 {
   "metadata": {
-    "lastUpdated": "2026-11-26T04:40:17Z",
-    "currentVersion": "0.6.0",
+    "lastUpdated": "2026-11-26T06:45:45Z",
+    "currentVersion": "0.6.1",
     "projectType": "spring",
     "projectTypes": [
       "spring",
       "react-native-expo"
     ],
-    "totalReleases": 7
+    "totalReleases": 8
   },
   "releases": [
+    {
+      "version": "0.6.1",
+      "project_type": "spring",
+      "project_types": [
+        "spring",
+        "react-native-expo"
+      ],
+      "date": "2026-11-26",
+      "pr_number": 46,
+      "raw_summary": "## Summary by CodeRabbit\n\n## 릴리스 노트\n\n* **새 기능**\n  * 긴급 보안 소식 알림을 받을 수 있어요\n  * 알림을 끄고 저장된 정보를 지우는 방법 안내 페이지를 추가했어요\n\n* **개선**\n  * 문의 페이지의 데이터 삭제 안내를 알림 기능에 맞게 고쳤어요",
+      "parsed_changes": {
+        "새_기능": {
+          "title": "새 기능",
+          "items": [
+            "긴급 보안 소식 알림을 받을 수 있어요",
+            "알림을 끄고 저장된 정보를 지우는 방법 안내 페이지를 추가했어요"
+          ]
+        },
+        "개선": {
+          "title": "개선",
+          "items": [
+            "문의 페이지의 데이터 삭제 안내를 알림 기능에 맞게 고쳤어요"
+          ]
+        }
+      },
+      "parse_method": "markdown"
+    },
     {
       "version": "0.6.0",
       "project_type": "spring",

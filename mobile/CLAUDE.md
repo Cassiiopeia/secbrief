@@ -39,6 +39,19 @@ mobile/
 
 의존 방향: `core ← data ← features · design ← app`. 계층 밖은 `@/계층/...` 로만 import 한다.
 
+## 푸시 알림 설정
+
+앱 설정값은 `mobile/.env` 한 곳에 둔다 (커밋 안 함, 빌드 워크플로는 `ENV_FILE` 비밀값으로 만든다).
+
+| 값 | 뜻 |
+|---|---|
+| `EXPO_PUBLIC_EAS_PROJECT_ID` | Expo 프로젝트 `@suhsaechan/secbrief` 의 ID. 없으면 알림을 쓸 수 없는 상태로 빌드된다 |
+| `IOS_PUSH_APS_ENVIRONMENT` | iOS 푸시 권한 (`production`). 배포 프로파일에 Push Notifications 가 들어 있어야 한다 |
+
+- 발송 인증정보는 Expo 프로젝트에 등록돼 있다: Android 는 FCM 발송 전용 서비스 계정 `secbrief-push-sender`, iOS 는 팀 APNs 키.
+- 키를 바꾸면 Expo 프로젝트의 인증정보도 다시 등록한다 (앱 재빌드는 필요 없음).
+- 서버는 `secbrief.push.expo.experience-id` 로 우리 프로젝트 토큰만 받는다 (`server/CLAUDE.md`).
+
 ## 규칙 (tests/architecture 와 ESLint 가 강제)
 
 - 화면(`app`, `features`)에 색·글꼴·글자 크기·간격·모서리·지속시간 숫자를 직접 쓰지 않는다. 토큰이 없으면 토큰을 먼저 추가한다.
