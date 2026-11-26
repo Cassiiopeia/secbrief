@@ -2,8 +2,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { useSbStyles, useSbTheme } from '../theme/use-sb-theme';
 import { type SbColors, sbMaximumLines, sbRadius, sbSize, sbSpacing, toSbArticleTitleColor } from '../tokens';
-import { SbArticleImage } from './sb-article-image';
-import type { SbArticleHashtags, SbArticleThumbnail } from './sb-article-row';
+import { SbArticleImage, useSbArticleImageState } from './sb-article-image';
+import { toSbArticleTitleMaximumLines } from './sb-article-image-layout';
+import type { SbArticleHashtags } from './sb-article-row';
 import { type SbArticleSecondaryLine, SbArticleSecondaryLineText } from './sb-article-secondary-line';
 import { type SbBadgeContent, SbBadgeRow } from './sb-badge';
 import { SbCvssGauge, type SbCvssGaugeValue } from './sb-cvss-gauge';
@@ -20,8 +21,8 @@ interface SbHeadlineCardProps {
   /** 게시자 · 짧은 날짜 (· AI 번역) 줄 */
   metaLabel: string;
   badges: SbBadgeContent[];
-  /** 위쪽 그림 (없으면 글만 있는 카드) */
-  cover?: SbArticleThumbnail;
+  /** 위쪽 대표 이미지 주소 (없거나 못 불러오면 그림 자리 없이 글만 있는 카드, 제목 전체) */
+  imageUrl?: string;
   /** 그림 위에 얹는 CVSS 게이지 (그림이 없으면 글 위) */
   cvss?: SbCvssGaugeValue;
   hashtags?: SbArticleHashtags;
@@ -31,14 +32,17 @@ interface SbHeadlineCardProps {
   onPress: () => void;
 }
 
-/** 큰 소식 카드: (그림 + CVSS 게이지) > 배지 > 큰 제목 > (한 줄 결론 또는 원문 제목) > 게시자·날짜 > (해시태그) */
+/**
+ * 큰 소식 카드: (실제 이미지 + CVSS 게이지) > 배지 > 큰 제목 > (한 줄 결론 또는 원문 제목) > 게시자·날짜 > (해시태그)
+ * 이미지가 없으면 글 카드: 위쪽 강조 띠 + CVSS 게이지를 글 위에, 제목 줄 제한 없음
+ */
 export function SbHeadlineCard({
   layout,
   title,
   secondaryLine,
   metaLabel,
   badges,
-  cover,
+  imageUrl,
   cvss,
   hashtags,
   isRead = false,
@@ -48,13 +52,15 @@ export function SbHeadlineCard({
   const { colors } = useSbTheme();
   const styles = useSbStyles(createStyles);
   const isRail = layout === 'rail';
+  const { shownImageUrl, onImageFailed } = useSbArticleImageState(imageUrl);
+  const hasImage = shownImageUrl !== undefined;
   // 해시태그는 카드 누름 영역 밖에 둠 (누를 수 있는 것 안에 또 누를 수 있는 것을 넣지 않음)
   return (
     <View style={[styles.card, isRail ? styles.railCard : styles.wideCard]}>
       <SbPressable accessibilityLabel={accessibilityLabel} onPress={onPress} feedback="dim" isFilling={isRail}>
-        {cover !== undefined && (
+        {hasImage && (
           <View style={isRail ? styles.railCover : styles.wideCover}>
-            <SbArticleImage imageUrl={cover.imageUrl} coverKind={cover.coverKind} coverTone={cover.coverTone} />
+            <SbArticleImage imageUrl={shownImageUrl} onImageFailed={onImageFailed} />
             {cvss !== undefined && (
               <View style={styles.gaugeOverlay}>
                 <SbCvssGauge value={cvss} isBoxed />
@@ -62,13 +68,13 @@ export function SbHeadlineCard({
             )}
           </View>
         )}
-        <View style={styles.body}>
-          {cover === undefined && cvss !== undefined && <SbCvssGauge value={cvss} />}
+        <View style={[styles.body, !hasImage && styles.textOnlyBody]}>
+          {!hasImage && cvss !== undefined && <SbCvssGauge value={cvss} />}
           <SbBadgeRow badges={badges} />
           <SbText
             variant={isRail ? 'streamTitle' : 'headline'}
             color={toSbArticleTitleColor(colors, isRead)}
-            numberOfLines={sbMaximumLines.cardTitle}>
+            numberOfLines={toSbArticleTitleMaximumLines(hasImage, sbMaximumLines.cardTitle)}>
             {title}
           </SbText>
           {secondaryLine !== undefined && <SbArticleSecondaryLineText secondaryLine={secondaryLine} />}
@@ -100,5 +106,7 @@ const createStyles = (colors: SbColors) =>
     wideCover: { height: sbSize.wideCoverHeight },
     gaugeOverlay: { position: 'absolute', left: sbSpacing.compact, bottom: sbSpacing.compact },
     body: { padding: sbSpacing.medium, gap: sbSpacing.small },
+    // 글 카드: 위쪽 강조 띠로 큰 카드임을 표시 (그림 자리 대신)
+    textOnlyBody: { borderTopWidth: sbSize.headlineAccentBarHeight, borderTopColor: colors.accent },
     hashtags: { paddingHorizontal: sbSpacing.medium, paddingBottom: sbSpacing.medium },
   });

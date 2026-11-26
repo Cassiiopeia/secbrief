@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { useSbStyles, useSbTheme } from '../theme/use-sb-theme';
 import { type SbColors, sbMaximumLines, sbRadius, sbSize, sbSpacing } from '../tokens';
-import { SbCoverArt, type SbCoverKind, toSbCoverPalette } from './sb-cover-art';
+import { SbCoverArt, type SbCoverKind, toSbNeutralCoverPalette } from './sb-cover-art';
 import { SbPressable } from './sb-pressable';
 import { SbText } from './sb-text';
 
@@ -30,7 +30,7 @@ export function SbShortcutGrid({ shortcuts, onShortcutPress }: SbShortcutGridPro
           <SbPressable accessibilityLabel={shortcut.accessibilityLabel} onPress={() => onShortcutPress(shortcut.key)}>
             <View style={styles.shortcut}>
               <View style={styles.art}>
-                <SbCoverArt kind={shortcut.coverKind} palette={toSbCoverPalette(colors, 'neutral')} />
+                <SbCoverArt kind={shortcut.coverKind} palette={toSbNeutralCoverPalette(colors)} />
               </View>
               <SbText variant="caption" color={colors.label} numberOfLines={sbMaximumLines.singleLine} isCentered>
                 {shortcut.label}

@@ -69,20 +69,16 @@ test('배지 색조: 긴급 urgent, 분류 neutral', () => {
 test('CVSS 심각도 구간: 9.0 이상 critical, 7.0 이상 high, 4.0 이상 medium, 그 미만 low', () => {
   expect([9.0, 8.9, 7.0, 6.9, 4.0, 3.9].map(toCvssSeverityTone)).toEqual(['critical', 'high', 'high', 'medium', 'medium', 'low']);
 });
-test('뉴스 행은 이미지가 없어도 썸네일 자리(커버 그림)가 있다', () => {
-  const thumbnail = toArticleRowView(overseasNewsItem, NOW).thumbnail;
-  expect(thumbnail?.imageUrl).toBeUndefined();
-  expect(thumbnail?.coverKind).toBeDefined();
-  // 큰 카드 그림은 종류와 상관없이 항상 있음
-  expect(toArticleRowView(kisaItem, NOW).cover.coverKind).toBeDefined();
+test('대표 이미지가 없으면 종류와 상관없이 그림 없음 (글만)', () => {
+  expect(toArticleRowView(overseasNewsItem, NOW).imageUrl).toBeUndefined();
+  expect(toArticleRowView(kisaItem, NOW).imageUrl).toBeUndefined();
+  expect(toArticleRowView(nvdItem, NOW).imageUrl).toBeUndefined();
 });
-test('이미지 경로는 서버 기본 주소를 붙인 절대 주소로', () => {
-  const view = toArticleRowView({ ...overseasNewsItem, imagePath: '/api/v1/articles/4/image' }, NOW);
-  expect(view.thumbnail?.imageUrl).toBe(`${apiConfig.baseUrl}/api/v1/articles/4/image`);
-});
-test('공지·취약점 행은 이미지가 있을 때만 썸네일', () => {
-  expect(toArticleRowView(kisaItem, NOW).thumbnail).toBeUndefined();
-  expect(toArticleRowView({ ...nvdItem, imagePath: '/api/v1/articles/2/image' }, NOW).thumbnail?.imageUrl).toBeDefined();
+test('이미지 경로는 서버 기본 주소를 붙인 절대 주소로 (뉴스·공지·취약점 모두)', () => {
+  expect(toArticleRowView({ ...overseasNewsItem, imagePath: '/api/v1/articles/4/image' }, NOW).imageUrl).toBe(
+    `${apiConfig.baseUrl}/api/v1/articles/4/image`,
+  );
+  expect(toArticleRowView({ ...nvdItem, imagePath: '/api/v1/articles/2/image' }, NOW).imageUrl).toBe(`${apiConfig.baseUrl}/api/v1/articles/2/image`);
 });
 test('제목 아래 줄: 한 줄 결론이 있으면 원문 제목 대신 한 줄 결론', () => {
   const translatedItem = { ...overseasNewsItem, title: 'Critical flaw in Next.js', translatedTitle: 'Next.js 심각 취약점' };

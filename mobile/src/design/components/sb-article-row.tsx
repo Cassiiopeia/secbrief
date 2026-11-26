@@ -2,21 +2,14 @@ import { StyleSheet, View } from 'react-native';
 
 import { useSbStyles, useSbTheme } from '../theme/use-sb-theme';
 import { type SbColors, sbMaximumLines, sbRadius, sbSize, sbSpacing, toSbArticleTitleColor } from '../tokens';
-import { SbArticleImage } from './sb-article-image';
+import { SbArticleImage, useSbArticleImageState } from './sb-article-image';
+import { toSbArticleTitleMaximumLines } from './sb-article-image-layout';
 import { type SbArticleSecondaryLine, SbArticleSecondaryLineText } from './sb-article-secondary-line';
 import { type SbBadgeContent, SbBadgeRow } from './sb-badge';
-import type { SbCoverKind, SbCoverTone } from './sb-cover-art';
 import { SbCvssGauge, type SbCvssGaugeValue } from './sb-cvss-gauge';
 import { type SbHashtag, SbHashtagChips } from './sb-hashtag-chips';
 import { SbPressable } from './sb-pressable';
 import { SbText } from './sb-text';
-
-/** 소식 그림: 대표 이미지(있으면) + 대신 보일 커버 그림 */
-export interface SbArticleThumbnail {
-  imageUrl?: string;
-  coverKind: SbCoverKind;
-  coverTone: SbCoverTone;
-}
 
 /** 해시태그 칩 묶음 (칩 + 읽기 도우미 문구 + 누름) */
 export interface SbArticleHashtags {
@@ -37,8 +30,8 @@ interface SbArticleRowProps {
   badges: SbBadgeContent[];
   /** 왼쪽 CVSS 게이지 (점수가 있을 때) */
   cvss?: SbCvssGaugeValue;
-  /** 오른쪽 썸네일 (없으면 글만) */
-  thumbnail?: SbArticleThumbnail;
+  /** 오른쪽 썸네일 대표 이미지 주소 (없거나 못 불러오면 썸네일 없이 제목 전체) */
+  imageUrl?: string;
   /** 카드에만 보이는 해시태그 */
   hashtags?: SbArticleHashtags;
   /** 이미 읽은 소식 (제목을 흐리게) */
@@ -48,7 +41,8 @@ interface SbArticleRowProps {
 }
 
 /**
- * 소식 행 2종: 중간 카드(주목할 소식)와 조밀한 행(그 밖). 배치는 (CVSS 게이지) + 글 + (썸네일)
+ * 소식 행 2종: 중간 카드(주목할 소식)와 조밀한 행(그 밖). 배치는 (CVSS 게이지) + 글 + (실제 이미지 썸네일)
+ * 이미지가 없으면 썸네일 자리 없이 제목을 줄 제한 없이 보여 줌
  * 디자인 계층은 문구를 갖지 않음 (모든 글은 화면이 넘김)
  */
 export function SbArticleRow({
@@ -58,7 +52,7 @@ export function SbArticleRow({
   metaLabel,
   badges,
   cvss,
-  thumbnail,
+  imageUrl,
   hashtags,
   isRead = false,
   accessibilityLabel,
@@ -67,6 +61,7 @@ export function SbArticleRow({
   const { colors } = useSbTheme();
   const styles = useSbStyles(createStyles);
   const isCard = density === 'card';
+  const { shownImageUrl, onImageFailed } = useSbArticleImageState(imageUrl);
   // 해시태그는 누름 영역 밖에 둠 (누를 수 있는 것 안에 또 누를 수 있는 것을 넣지 않음)
   return (
     <View style={isCard ? styles.cardWrap : styles.compactWrap}>
@@ -79,7 +74,10 @@ export function SbArticleRow({
               <SbText
                 variant="streamTitle"
                 color={toSbArticleTitleColor(colors, isRead)}
-                numberOfLines={isCard ? sbMaximumLines.cardTitle : sbMaximumLines.compactTitle}>
+                numberOfLines={toSbArticleTitleMaximumLines(
+                  shownImageUrl !== undefined,
+                  isCard ? sbMaximumLines.cardTitle : sbMaximumLines.compactTitle,
+                )}>
                 {title}
               </SbText>
               {secondaryLine !== undefined && <SbArticleSecondaryLineText secondaryLine={secondaryLine} />}
@@ -88,9 +86,9 @@ export function SbArticleRow({
               </SbText>
               {!isCard && <SbBadgeRow badges={badges} />}
             </View>
-            {thumbnail !== undefined && (
+            {shownImageUrl !== undefined && (
               <View style={[styles.thumbnail, !isCard && styles.compactThumbnail]}>
-                <SbArticleImage imageUrl={thumbnail.imageUrl} coverKind={thumbnail.coverKind} coverTone={thumbnail.coverTone} />
+                <SbArticleImage imageUrl={shownImageUrl} onImageFailed={onImageFailed} />
               </View>
             )}
           </View>

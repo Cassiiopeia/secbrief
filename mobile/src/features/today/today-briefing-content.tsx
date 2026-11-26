@@ -102,7 +102,6 @@ function TodayUrgentSection({ urgent }: { urgent: TodayUrgentView }) {
           capsLabel={urgent.capsLabel}
           title={urgent.title}
           footerLabel={urgent.footerLabel}
-          coverKind={urgent.coverKind}
           coverImageUrl={urgent.coverImageUrl}
           onPress={() => openArticle(urgent.article)}
         />
@@ -170,8 +169,6 @@ function TodayStreamSection({ streamItems }: { streamItems: TodayStreamItemView[
               <SbStreamRailItem
                 timeLabel={item.timeLabel}
                 title={item.title}
-                thumbnailKind={item.thumbnailKind}
-                thumbnailTone={item.thumbnailTone}
                 thumbnailImageUrl={item.thumbnailImageUrl}
                 isLatest={itemIndex === 0}
                 isRead={readArticleIds.has(item.id)}

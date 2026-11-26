@@ -16,12 +16,10 @@ export interface SbColors {
   separator: string;
   /** 로딩 뼈대 블록 (바탕과 구분되는 밝기) */
   skeleton: string;
-  /** 먹색 커버 그림 바탕 (다크에서는 화면 바탕과 구분되게 한 단 밝게) */
-  coverInk: string;
   /** 민트 강조 (긴급 타일, 채움 버튼) 와 그 위 글자 */
   accent: string;
   onAccent: string;
-  /** 보라 타일 (동향 1위, 커버 바탕) 과 그 위 글자 */
+  /** 보라 타일 (동향 1위) 과 그 위 글자 */
   feature: string;
   onFeature: string;
   /** 긴급 표시 (레일 점, 속보 라벨). 바탕과 대비되는 쪽을 테마별로 고름 */
@@ -45,7 +43,6 @@ export const sbLightColors: SbColors = {
   readLabel: '#6B6B6B',
   separator: '#D6D6D0',
   skeleton: '#DFDFD9',
-  coverInk: '#131313',
   accent: '#3CFFD0',
   onAccent: '#131313',
   feature: '#5200FF',
@@ -68,7 +65,6 @@ export const sbDarkColors: SbColors = {
   readLabel: '#B4B4B4',
   separator: '#2D2D2D',
   skeleton: '#3A3A3A',
-  coverInk: '#2D2D2D',
   accent: '#3CFFD0',
   onAccent: '#131313',
   feature: '#5200FF',

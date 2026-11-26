@@ -2,9 +2,9 @@ import { toArticleDateLabel, toMastheadDate } from '@/core/format/briefing-date-
 import type { BriefingItem } from '@/data/models/briefing-item';
 import { type TodayBriefing, isTodayBriefingEmpty } from '@/data/models/today-briefing';
 import type { TrendTopic } from '@/data/models/trend-topic';
-import type { SbCoverKind, SbCoverTone, SbShortcut } from '@/design';
+import type { SbCoverKind, SbShortcut } from '@/design';
 
-import { toArticleCoverKind, toArticleImageUrl, toTopicCoverKind } from '../articles/article-cover';
+import { toArticleImageUrl, toTopicCoverKind } from '../articles/article-cover';
 import {
   type ArticleRowView,
   toArticleRowView,
@@ -23,7 +23,7 @@ export interface TodayUrgentView {
   capsLabel: string;
   title: string;
   footerLabel: string;
-  coverKind: SbCoverKind;
+  /** 대표 이미지 주소 (없으면 글만) */
   coverImageUrl?: string;
   /** 누르면 열 기사 (상세 화면이 먼저 그릴 표시 내용) */
   article: ArticleRowView;
@@ -42,8 +42,7 @@ export interface TodayStreamItemView {
   id: string;
   timeLabel: string;
   title: string;
-  thumbnailKind: SbCoverKind;
-  thumbnailTone: SbCoverTone;
+  /** 대표 이미지 주소 (없으면 글만) */
   thumbnailImageUrl?: string;
   /** 누르면 열 기사 (상세 화면이 먼저 그릴 표시 내용) */
   article: ArticleRowView;
@@ -74,9 +73,6 @@ export interface TodayViewState {
   isEmpty: boolean;
 }
 
-// 스트림 썸네일 색 조합: 순서대로 3종 반복
-const THUMBNAIL_TONES: SbCoverTone[] = ['feature', 'accent', 'neutral'];
-
 // 주요 소식 구역 문구 2종: AI 가 고른 경우 / 대체 규칙으로 채운 경우
 const AI_PICKED_HEADLINE_TEXTS = { title: 'AI 가 고른 주요 소식', caption: '제목을 보고 AI 가 골랐어요. 정확한 내용은 원문에서 확인해 주세요.' };
 const FALLBACK_HEADLINE_TEXTS = { title: '지금 주목할 소식', caption: '악용 중인 취약점과 새로 올라온 소식이에요.' };
@@ -100,7 +96,7 @@ export function toTodayViewState(briefing: TodayBriefing, now: Date = new Date()
     weeklyDetail: '이번 주에 모은 소식',
     urgent: briefing.urgentItem && toUrgentView(briefing.urgentItem, now),
     trend: briefing.topTrend && toTrendView(briefing.topTrend),
-    streamItems: selection.streamItems.map((item, itemIndex) => toStreamItemView(item, itemIndex, now)),
+    streamItems: selection.streamItems.map((item) => toStreamItemView(item, now)),
     isEmpty: isTodayBriefingEmpty(briefing),
   };
 }
@@ -111,7 +107,6 @@ function toUrgentView(item: BriefingItem, now: Date): TodayUrgentView {
     capsLabel: toUrgentCapsLabel(item),
     title: toDisplayTitle(item),
     footerLabel: `${toPublisherLabel(item)} · ${toArticleDateLabel(item.publishedAt, now)}${toTranslationSuffix(item)}`,
-    coverKind: toArticleCoverKind(item),
     coverImageUrl: toArticleImageUrl(item),
     article: toArticleRowView(item, now),
   };
@@ -139,14 +134,12 @@ function toTrendView(trend: TrendTopic): TodayTrendView {
   return { topicName: trendView.topicLabel, detail: trendView.detail, coverKind: toTopicCoverKind(trend.topic) };
 }
 
-/** 소식 > 스트림 항목 (게시자 · 짧은 날짜 (· AI 번역), 썸네일 색은 순서대로 3종 반복) */
-function toStreamItemView(item: BriefingItem, itemIndex: number, now: Date): TodayStreamItemView {
+/** 소식 > 스트림 항목 (게시자 · 짧은 날짜 (· AI 번역), 대표 이미지 있을 때만 썸네일) */
+function toStreamItemView(item: BriefingItem, now: Date): TodayStreamItemView {
   return {
     id: item.id,
     timeLabel: toCompactMetaLabel(item, now),
     title: toDisplayTitle(item),
-    thumbnailKind: toArticleCoverKind(item),
-    thumbnailTone: THUMBNAIL_TONES[itemIndex % THUMBNAIL_TONES.length],
     thumbnailImageUrl: toArticleImageUrl(item),
     article: toArticleRowView(item, now),
   };

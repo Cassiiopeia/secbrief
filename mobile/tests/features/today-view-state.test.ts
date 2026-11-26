@@ -36,9 +36,9 @@ test('번역된 긴급 항목은 한국어 제목과 AI 번역 표시', () => {
   expect(urgent?.title).toBe('원격 코드 실행 취약점');
   expect(urgent?.footerLabel).toMatch(/ · AI 번역$/);
 });
-test('새 주제도 커버 그림이 있다', () => {
+test('스트림 항목은 대표 이미지가 없으면 주제와 상관없이 썸네일 없음 (대신 보일 그림 없음)', () => {
   for (const topic of ['supplyChain', 'policy', 'general'] as const) {
-    expect(toTodayViewState(createBriefing({ streamItems: [{ ...newsItem, topic }] }), NOW).streamItems[0].thumbnailKind).toBeDefined();
+    expect(toTodayViewState(createBriefing({ streamItems: [{ ...newsItem, topic }] }), NOW).streamItems[0].thumbnailImageUrl).toBeUndefined();
   }
 });
 test('스트림 항목에 원문 주소와 게시자·날짜가 실린다', () => {
