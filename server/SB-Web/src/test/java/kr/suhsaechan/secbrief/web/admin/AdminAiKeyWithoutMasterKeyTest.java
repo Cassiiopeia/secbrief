@@ -11,8 +11,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import kr.suhsaechan.secbrief.advisory.ai.ArticleTitleAnalyzer;
-import kr.suhsaechan.secbrief.advisory.ai.key.AnthropicApiKey;
-import kr.suhsaechan.secbrief.advisory.ai.key.AnthropicApiKeyService;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKey;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKeyService;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKeyServiceRegistry;
+import kr.suhsaechan.secbrief.advisory.constant.KeyedAiProvider;
 import kr.suhsaechan.secbrief.web.support.AdminTestAccounts;
 import kr.suhsaechan.secbrief.web.support.PostgresContainerTestSupport;
 import org.junit.jupiter.api.Test;
@@ -41,7 +43,7 @@ class AdminAiKeyWithoutMasterKeyTest extends PostgresContainerTestSupport {
     @Autowired
     private MockMvc mockMvc;
     @Autowired
-    private AnthropicApiKeyService anthropicApiKeyService;
+    private AiApiKeyServiceRegistry aiApiKeyServiceRegistry;
     @Autowired
     private ArticleTitleAnalyzer articleTitleAnalyzer;
     @Autowired
@@ -66,7 +68,7 @@ class AdminAiKeyWithoutMasterKeyTest extends PostgresContainerTestSupport {
 
     @Test
     void refusesToAddKeyInsteadOfStoringPlainText() throws Exception {
-        mockMvc.perform(post(AI_KEYS_PATH).with(user(adminUsername).roles("ADMIN")).with(csrf())
+        mockMvc.perform(post(AI_KEYS_PATH + "/anthropic").with(user(adminUsername).roles("ADMIN")).with(csrf())
                         .param("nickname", "운영").param("apiKey", "sk-test-page-first-00000000000-AAAA"))
                 .andExpect(flash().attribute("flashError", containsString("SECRET_MASTER_KEY_MISSING")));
 
@@ -76,9 +78,13 @@ class AdminAiKeyWithoutMasterKeyTest extends PostgresContainerTestSupport {
 
     @Test
     void usesDeployPropertyKeysAsFallback() {
-        assertThat(anthropicApiKeyService.isUsingDeployPropertyKeys()).isTrue();
-        assertThat(anthropicApiKeyService.findCallableKeys()).extracting(AnthropicApiKey::nickname)
+        AiApiKeyService anthropicKeyService = aiApiKeyServiceRegistry.find(KeyedAiProvider.ANTHROPIC);
+        assertThat(anthropicKeyService.isUsingDeployPropertyKeys()).isTrue();
+        assertThat(anthropicKeyService.findCallableKeys()).extracting(AiApiKey::nickname)
                 .containsExactly("config", "config-2");
+        // 운영 설정 키가 없는 제공자는 그대로 미설정
+        assertThat(aiApiKeyServiceRegistry.find(KeyedAiProvider.OPENAI).hasCallableKey()).isFalse();
+        assertThat(aiApiKeyServiceRegistry.find(KeyedAiProvider.GOOGLE).hasCallableKey()).isFalse();
         // 제목 분석이 이 키들로 호출 가능 상태 (실제 호출은 하지 않음)
         assertThat(articleTitleAnalyzer.isAvailable()).isTrue();
     }

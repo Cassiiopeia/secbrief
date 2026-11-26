@@ -23,10 +23,10 @@ import org.junit.jupiter.params.provider.EnumSource;
 class ApiKeyFallbackExecutorTest {
 
     private static final Instant NOW = Instant.parse("2026-11-26T00:00:00Z");
-    private static final AnthropicApiKey FIRST_KEY = new AnthropicApiKey("key-1", "첫째", "first-secret-value-000000", true);
-    private static final AnthropicApiKey SECOND_KEY = new AnthropicApiKey("key-2", "둘째", "second-secret-value-00000", true);
-    private static final AnthropicApiKey THIRD_KEY = new AnthropicApiKey("key-3", "셋째", "third-secret-value-000000", true);
-    private static final List<AnthropicApiKey> KEYS = List.of(FIRST_KEY, SECOND_KEY, THIRD_KEY);
+    private static final AiApiKey FIRST_KEY = new AiApiKey("key-1", "첫째", "first-secret-value-000000", true);
+    private static final AiApiKey SECOND_KEY = new AiApiKey("key-2", "둘째", "second-secret-value-00000", true);
+    private static final AiApiKey THIRD_KEY = new AiApiKey("key-3", "셋째", "third-secret-value-000000", true);
+    private static final List<AiApiKey> KEYS = List.of(FIRST_KEY, SECOND_KEY, THIRD_KEY);
 
     private final MutableClock clock = new MutableClock(NOW);
     private final ApiKeyHealthTracker tracker = new ApiKeyHealthTracker(clock);
@@ -149,7 +149,7 @@ class ApiKeyFallbackExecutorTest {
             failureKindByKeyId.remove(keyId);
         }
 
-        private String call(AnthropicApiKey key) {
+        private String call(AiApiKey key) {
             calledKeyIds.add(key.id());
             AiFailureKind failureKind = failureKindByKeyId.get(key.id());
             if (failureKind != null) {
