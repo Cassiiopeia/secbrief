@@ -187,9 +187,9 @@ class ArticleTitleAnalysisPromptTest {
         ArticleTitleAnalysisRequest longRequest = new ArticleTitleAnalysisRequest("a".repeat(500), ArticleRegion.OVERSEAS);
         ArticleTitleAnalysisRequest tooLongRequest = new ArticleTitleAnalysisRequest("a".repeat(900), ArticleRegion.OVERSEAS);
 
-        // 응답 틀 64 + 건당 (고정분 200 + 원문 길이 x 2)
-        assertThat(calculateMaximumOutputTokens(List.of(shortRequest))).isEqualTo(64 + 200 + 200);
-        assertThat(calculateMaximumOutputTokens(List.of(shortRequest, shortRequest))).isEqualTo(64 + 2 * (200 + 200));
+        // 응답 틀 64 + 건당 (고정분 212 + 원문 길이 x 2)
+        assertThat(calculateMaximumOutputTokens(List.of(shortRequest))).isEqualTo(64 + 212 + 200);
+        assertThat(calculateMaximumOutputTokens(List.of(shortRequest, shortRequest))).isEqualTo(64 + 2 * (212 + 200));
         assertThat(calculateMaximumOutputTokens(List.of(tooLongRequest)))
                 .isEqualTo(calculateMaximumOutputTokens(List.of(longRequest)));
     }
@@ -206,5 +206,23 @@ class ArticleTitleAnalysisPromptTest {
         Map<String, Object> resultProperties = (Map<String, Object>) readResultSchema(schema).get("properties");
         Map<String, Object> topic = (Map<String, Object>) resultProperties.get("topic");
         return (List<String>) topic.get("enum");
+    }
+
+    @Test
+    void asksFieldFromCatalogListAndReadsItBack() {
+        List<AiFieldOption> fieldOptions = List.of(new AiFieldOption("os", "운영체제·시스템 패키지", "linux, kernel"),
+                new AiFieldOption("browser", "브라우저", ""));
+
+        // 목록이 비면 이전 지시문·스키마 그대로 (분야를 묻지 않음)
+        assertThat(ArticleTitleAnalysisPrompt.toSystemInstruction(List.of())).isEqualTo(ArticleTitleAnalysisPrompt.SYSTEM_INSTRUCTION);
+        assertThat(toOutputJsonSchema(List.of())).isEqualTo(toOutputJsonSchema());
+        assertThat(ArticleTitleAnalysisPrompt.toSystemInstruction(fieldOptions))
+                .contains("- os: 운영체제·시스템 패키지 (e.g. linux, kernel)").contains("- browser: 브라우저\n");
+        assertThat(toOutputJsonSchema(List.of("os", "browser")).toString()).contains("field").contains("[os, browser]");
+
+        List<ArticleTitleAnalysisOutcome> outcomes = ArticleTitleAnalysisPrompt.toOutcomes("""
+                {"results":[{"number":1,"topic":"vulnerability","translatedTitle":null,"importance":"notable",
+                "subjectName":"Chrome","keywords":[],"field":"browser"}]}""", 1);
+        assertThat(outcomes.get(0).analysis().fieldCode()).isEqualTo("browser");
     }
 }

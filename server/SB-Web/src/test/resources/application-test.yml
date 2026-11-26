@@ -23,6 +23,9 @@ secbrief:
     enabled: false
   image-storage:
     endpoint: ""
+  classification:
+    # 분류 묶음은 테스트가 서비스를 직접 부름
+    enabled: false
   notification:
     # 보관 정리는 테스트가 서비스를 직접 부름
     retention-enabled: false

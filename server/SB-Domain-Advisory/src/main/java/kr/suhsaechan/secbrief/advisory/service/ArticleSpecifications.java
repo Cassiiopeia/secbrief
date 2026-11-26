@@ -17,12 +17,13 @@ import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
 import kr.suhsaechan.secbrief.advisory.dto.ArticleSearchCondition;
+import kr.suhsaechan.secbrief.advisory.dto.ArticleTagFilter;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 /**
- * 기사 조회 조건: 종류·지역·주제·최소 중요도·출처·키워드 필터, 검색어 포함, 커서 이전, 긴급, 게시일 이후 + 최신순·중요도순 정렬
+ * 기사 조회 조건: 종류·지역·주제·최소 중요도·출처·키워드·분류(#93) 필터, 검색어 포함, 커서 이전, 긴급, 게시일 이후 + 최신순·중요도순 정렬
  */
 public final class ArticleSpecifications {
 
@@ -62,10 +63,55 @@ public final class ArticleSpecifications {
         if (condition.keyword() != null && !condition.keyword().isBlank()) {
             specifications.add(hasKeyword(condition.keyword()));
         }
+        specifications.addAll(toTagSpecifications(condition.tagFilter()));
         if (cursor != null) {
             specifications.add(isBeforeCursor(cursor));
         }
         return Specification.allOf(specifications);
+    }
+
+    /**
+     * 분류 조건 (#93): 출처 여러 곳, 분야, 생태계, 주요 여부, 내 기술(셋 중 하나), 수집 시각 이후
+     */
+    public static List<Specification<Article>> toTagSpecifications(ArticleTagFilter tagFilter) {
+        List<Specification<Article>> specifications = new ArrayList<>();
+        if (!tagFilter.sourceCodes().isEmpty()) {
+            specifications.add((root, query, builder) -> root.get("source").get("code").in(tagFilter.sourceCodes()));
+        }
+        if (tagFilter.fieldCode() != null && !tagFilter.fieldCode().isBlank()) {
+            specifications.add((root, query, builder) -> builder.equal(root.get("fieldCode"), tagFilter.fieldCode()));
+        }
+        if (tagFilter.ecosystemCode() != null && !tagFilter.ecosystemCode().isBlank()) {
+            specifications.add((root, query, builder) -> builder.equal(root.get("ecosystemCode"), tagFilter.ecosystemCode()));
+        }
+        if (tagFilter.isNotable() != null) {
+            specifications.add((root, query, builder) -> builder.equal(root.get("isNotable"), tagFilter.isNotable()));
+        }
+        if (tagFilter.hasInterests()) {
+            specifications.add(matchesAnyInterest(tagFilter));
+        }
+        if (tagFilter.collectedSince() != null) {
+            specifications.add((root, query, builder) ->
+                    builder.greaterThanOrEqualTo(root.get("collectedAt"), tagFilter.collectedSince()));
+        }
+        return specifications;
+    }
+
+    // 내 기술: 제품 code ∈ 목록 or 분야 code ∈ 목록 or 생태계 code ∈ 목록 (빈 목록은 건너뜀)
+    private static Specification<Article> matchesAnyInterest(ArticleTagFilter tagFilter) {
+        return (root, query, builder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (!tagFilter.interestProductCodes().isEmpty()) {
+                predicates.add(root.get("productCode").in(tagFilter.interestProductCodes()));
+            }
+            if (!tagFilter.interestFieldCodes().isEmpty()) {
+                predicates.add(root.get("fieldCode").in(tagFilter.interestFieldCodes()));
+            }
+            if (!tagFilter.interestEcosystemCodes().isEmpty()) {
+                predicates.add(root.get("ecosystemCode").in(tagFilter.interestEcosystemCodes()));
+            }
+            return builder.or(predicates.toArray(Predicate[]::new));
+        };
     }
 
     public static Specification<Article> hasKind(ArticleKind kind) {

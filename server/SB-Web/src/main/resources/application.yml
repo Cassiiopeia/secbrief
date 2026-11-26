@@ -158,6 +158,14 @@ secbrief:
       access-token: ${EXPO_ACCESS_TOKEN:}
       # 우리 앱의 Expo 프로젝트 이름 (@계정/slug): 다른 프로젝트 토큰이 섞여 들어오면 가려내는 기준
       experience-id: ${EXPO_EXPERIENCE_ID:}
+  classification:
+    # 기사 분류 틱 켜기 (분류 대기 행: AI 판단 끝·대기 기한 초과·백필·다시 분류, false 면 AI 결과 기록 때만 분류)
+    enabled: ${CLASSIFICATION_ENABLED:true}
+    # 분류 틱 (1분): 한 틱에 200건씩 최대 batches-per-tick 번 (기존 행 백필은 첫 몇 틱에 끝남)
+    tick-milliseconds: 60000
+    batches-per-tick: 10
+    # 기동 후 첫 틱까지 대기 (45초)
+    initial-delay-milliseconds: 45000
   notification:
     # 알림함 보관 정리 켜기 (30일 지난 긴급 알림 기록 삭제, 공지사항은 지우지 않음)
     retention-enabled: true

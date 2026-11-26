@@ -8,13 +8,25 @@ import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 
 /**
- * 기사 목록 조건: 필터 6개(종류, 지역, 주제, 최소 중요도, 출처 코드, 키워드 — null 이면 전체) + 커서 + 크기
+ * 기사 목록 조건: 필터 6개(종류, 지역, 주제, 최소 중요도, 출처 코드, 키워드 — null 이면 전체) + 분류 조건 + 커서 + 크기
  */
 public record ArticleSearchCondition(ArticleKind kind, ArticleRegion region, ArticleTopic topic,
                                      ArticleImportance minimumImportance, String sourceCode,
                                      // 키워드: 정확히 일치 (대소문자 무시)
                                      String keyword,
-                                     String cursor, Integer size) {
+                                     String cursor, Integer size,
+                                     ArticleTagFilter tagFilter) {
+
+    public ArticleSearchCondition {
+        tagFilter = tagFilter == null ? ArticleTagFilter.none() : tagFilter;
+    }
+
+    /** 분류 조건 없이 (#93 이전 조건) */
+    public ArticleSearchCondition(ArticleKind kind, ArticleRegion region, ArticleTopic topic,
+                                  ArticleImportance minimumImportance, String sourceCode, String keyword,
+                                  String cursor, Integer size) {
+        this(kind, region, topic, minimumImportance, sourceCode, keyword, cursor, size, ArticleTagFilter.none());
+    }
 
     public static final int DEFAULT_PAGE_SIZE = 20;
     public static final int MAXIMUM_PAGE_SIZE = 50;

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{admin/fragments/admin-layout :: page('분류 태그', 'catalog-tags', ~{::content})}">
+<body>
+
+<main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6">
+  <div th:replace="~{admin/fragments/admin-ui :: pageHeader('분류 태그',
+       '기술 분야·생태계·제품을 추가하거나 이름·순서를 바꾸고 숨겨요. 앱 목록·관심 기술·분류에 바로 반영돼요. 코드는 처음 한 번만 정해요.')}"></div>
+
+  <!--/* 종류 탭 */-->
+  <div role="tablist" class="tabs tabs-box w-fit">
+    <a role="tab" class="tab" th:each="kindTab : ${kindTabs}"
+       th:href="@{/admin/catalog-tags(kind=${kindTab.kind})}"
+       th:classappend="${kindTab.kind == selectedKind} ? 'tab-active'"
+       th:text="${kindTab.label}">기술 분야</a>
+  </div>
+
+  <!--/* 추가 */-->
+  <section class="card border border-base-300 bg-base-100">
+    <div class="card-body">
+      <div th:replace="~{admin/fragments/admin-ui :: cardHeader(|${selectedKindLabel} 추가|,
+           '분류 낱말은 쉼표로 나눠요. ~ 로 시작하면 약한 낱말이에요 (다른 낱말이 안 맞을 때만 써요).')}"></div>
+      <form method="post" th:action="@{/admin/catalog-tags}" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            data-confirm-title="항목을 추가할까요?" data-confirm-label="추가"
+            data-confirm-message="코드는 나중에 바꿀 수 없어요. 기사·관심 기술이 이 코드로 연결돼요.">
+        <input type="hidden" name="kind" th:value="${selectedKind}"/>
+        <label class="form-control">
+          <span class="label-text text-sm">코드</span>
+          <input type="text" name="code" class="input input-sm w-full" required maxlength="64" placeholder="예: web-app"/>
+        </label>
+        <label class="form-control">
+          <span class="label-text text-sm">이름</span>
+          <input type="text" name="name" class="input input-sm w-full" required maxlength="80"/>
+        </label>
+        <label class="form-control">
+          <span class="label-text text-sm">짧은 이름</span>
+          <input type="text" name="shortName" class="input input-sm w-full" maxlength="40" placeholder="비우면 이름과 같아요"/>
+        </label>
+        <label class="form-control">
+          <span class="label-text text-sm">순서</span>
+          <input type="number" name="displayOrder" class="input input-sm admin-number w-full" value="500" step="1"/>
+        </label>
+        <th:block th:if="${selectedKind.name() == 'PRODUCT'}">
+          <label class="form-control">
+            <span class="label-text text-sm">인기 묶음</span>
+            <select name="groupCode" class="select select-sm w-full">
+              <option value="">검색으로만</option>
+              <option th:each="groupOption : ${groupOptions}" th:value="${groupOption.code}" th:text="${groupOption.name}">묶음</option>
+            </select>
+          </label>
+          <label class="form-control">
+            <span class="label-text text-sm">기술 분야</span>
+            <select name="fieldCode" class="select select-sm w-full">
+              <option value="">없음</option>
+              <option th:each="fieldOption : ${fieldOptions}" th:value="${fieldOption.code}" th:text="${fieldOption.name}">분야</option>
+            </select>
+          </label>
+          <label class="label cursor-pointer justify-start gap-2">
+            <input type="checkbox" name="widelyUsed" value="true" class="toggle toggle-sm toggle-primary"/>
+            <span class="label-text text-sm">널리 쓰는 제품 (주요 판정)</span>
+          </label>
+        </th:block>
+        <label class="form-control sm:col-span-2 lg:col-span-4">
+          <span class="label-text text-sm">분류 낱말</span>
+          <textarea name="matchTerms" class="textarea textarea-sm w-full" rows="2" placeholder="예: fortinet, fortios, fortigate"></textarea>
+        </label>
+        <div class="sm:col-span-2 lg:col-span-4">
+          <button type="submit" class="btn btn-primary btn-sm">추가</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!--/* 목록 */-->
+  <section class="card border border-base-300 bg-base-100">
+    <div class="card-body p-0 py-4">
+      <div class="flex flex-wrap items-start justify-between gap-2 px-4">
+        <div th:replace="~{admin/fragments/admin-ui :: cardHeader(|${selectedKindLabel} 목록|,
+             |${#lists.size(catalogTags)}개 · 숨긴 항목은 앱·분류에서 빠지고 관심 기술에 남은 코드는 조용히 무시돼요|)}"></div>
+        <form method="post" th:action="@{/admin/catalog-tags/reclassify}"
+              data-confirm-title="기사를 모두 다시 분류할까요?" data-confirm-label="다시 분류"
+              data-confirm-message="분류 틱이 1분마다 차례로 다시 분류해요. 알림은 다시 보내지 않아요.">
+          <input type="hidden" name="kind" th:value="${selectedKind}"/>
+          <button type="submit" class="btn btn-outline btn-sm">기사 전체 다시 분류</button>
+        </form>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table admin-stack-table">
+          <thead>
+          <tr>
+            <th>코드</th>
+            <th>이름</th>
+            <th>짧은 이름</th>
+            <th>순서</th>
+            <th th:if="${selectedKind.name() == 'PRODUCT'}">묶음 · 분야</th>
+            <th>분류 낱말</th>
+            <th>보이기</th>
+            <th class="text-right">작업</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="catalogTag : ${catalogTags}" th:classappend="${!catalogTag.isVisible()} ? 'opacity-60'">
+            <td class="admin-stack-primary">
+              <div class="font-mono text-sm" th:text="${catalogTag.code}">code</div>
+              <span th:if="${catalogTag.isWidelyUsed()}" class="badge badge-soft badge-primary badge-sm">널리 씀</span>
+            </td>
+            <td data-label="이름">
+              <input type="text" name="name" class="input input-sm w-40" required maxlength="80" th:value="${catalogTag.name}"
+                     th:attr="form='catalogTagForm' + ${catalogTag.id},aria-label=${catalogTag.code} + ' 이름'"/>
+            </td>
+            <td data-label="짧은 이름">
+              <input type="text" name="shortName" class="input input-sm w-32" maxlength="40" th:value="${catalogTag.shortName}"
+                     th:attr="form='catalogTagForm' + ${catalogTag.id},aria-label=${catalogTag.code} + ' 짧은 이름'"/>
+            </td>
+            <td data-label="순서">
+              <input type="number" name="displayOrder" class="input input-sm admin-number w-20" step="1" th:value="${catalogTag.displayOrder}"
+                     th:attr="form='catalogTagForm' + ${catalogTag.id},aria-label=${catalogTag.code} + ' 순서'"/>
+            </td>
+            <td data-label="묶음 · 분야" th:if="${selectedKind.name() == 'PRODUCT'}">
+              <div class="flex flex-col gap-1">
+                <select name="groupCode" class="select select-sm w-40"
+                        th:attr="form='catalogTagForm' + ${catalogTag.id},aria-label=${catalogTag.code} + ' 인기 묶음'">
+                  <option value="">검색으로만</option>
+                  <option th:each="groupOption : ${groupOptions}" th:value="${groupOption.code}" th:text="${groupOption.name}"
+                          th:selected="${groupOption.code == catalogTag.groupCode}">묶음</option>
+                </select>
+                <select name="fieldCode" class="select select-sm w-40"
+                        th:attr="form='catalogTagForm' + ${catalogTag.id},aria-label=${catalogTag.code} + ' 기술 분야'">
+                  <option value="">없음</option>
+                  <option th:each="fieldOption : ${fieldOptions}" th:value="${fieldOption.code}" th:text="${fieldOption.shortName}"
+                          th:selected="${fieldOption.code == catalogTag.fieldCode}">분야</option>
+                </select>
+                <label class="label cursor-pointer justify-start gap-2">
+                  <input type="checkbox" name="widelyUsed" value="true" class="toggle toggle-xs toggle-primary"
+                         th:checked="${catalogTag.isWidelyUsed()}"
+                         th:attr="form='catalogTagForm' + ${catalogTag.id},aria-label=${catalogTag.code} + ' 널리 쓰는 제품'"/>
+                  <span class="label-text text-xs">널리 씀</span>
+                </label>
+              </div>
+            </td>
+            <td data-label="분류 낱말">
+              <textarea name="matchTerms" class="textarea textarea-sm w-64" rows="2" th:text="${catalogTag.matchTerms}"
+                        th:attr="form='catalogTagForm' + ${catalogTag.id},aria-label=${catalogTag.code} + ' 분류 낱말'"></textarea>
+            </td>
+            <td data-label="보이기">
+              <form method="post" th:action="@{/admin/catalog-tags/{catalogTagId}/visibility(catalogTagId=${catalogTag.id})}"
+                    data-confirm-title="보이기를 바꿀까요?" data-confirm-label="바꾸기"
+                    th:attr="data-confirm-message=|「${catalogTag.name}」 항목을 ${catalogTag.isVisible() ? '숨겨요' : '다시 보여요'}.|">
+                <input type="hidden" name="kind" th:value="${selectedKind}"/>
+                <input type="hidden" name="visible" th:value="${!catalogTag.isVisible()}"/>
+                <button type="submit" class="btn btn-ghost btn-sm whitespace-nowrap"
+                        th:text="${catalogTag.isVisible()} ? '숨기기' : '보이기'">숨기기</button>
+              </form>
+            </td>
+            <td class="text-right" data-label="작업">
+              <!-- 칸이 나뉜 표라 입력은 form 속성으로 이 폼에 묶음 -->
+              <form method="post" th:id="'catalogTagForm' + ${catalogTag.id}"
+                    th:action="@{/admin/catalog-tags/{catalogTagId}(catalogTagId=${catalogTag.id})}"
+                    data-confirm-title="항목을 저장할까요?" data-confirm-label="저장"
+                    th:attr="data-confirm-message=|「${catalogTag.name}」 항목을 저장해요. 새 분류 낱말은 다음 분류부터 써요.|">
+                <input type="hidden" name="kind" th:value="${selectedKind}"/>
+                <input type="hidden" name="groupCode" th:value="${catalogTag.groupCode}" th:if="${selectedKind.name() != 'PRODUCT'}"/>
+                <button type="submit" class="btn btn-primary btn-sm whitespace-nowrap"
+                        th:attr="aria-label=${catalogTag.code} + ' 저장'">저장</button>
+              </form>
+            </td>
+          </tr>
+          <th:block th:if="${#lists.isEmpty(catalogTags)}">
+            <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(8, '등록한 항목이 없어요')}"></tr>
+          </th:block>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+</body>
+</html>

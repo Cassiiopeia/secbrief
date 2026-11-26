@@ -44,6 +44,9 @@ public final class NvdResponseParser {
     // weaknesses 값 중 실제 CWE 번호만 (NVD-CWE-noinfo, NVD-CWE-Other 는 정보 없음 표시라 제외)
     private static final String WEAKNESS_ID_PREFIX = "CWE-";
     private static final String WEAKNESS_SEPARATOR = ", ";
+    // 영향 제품(CPE) 사실 값: 쉼표 구분, 최대 5쌍 (ArticleClassificationInputs 가 같은 구분자로 나눔)
+    public static final String AFFECTED_PRODUCT_SEPARATOR = ", ";
+    private static final int MAXIMUM_CPE_PRODUCT_COUNT = 5;
 
     private NvdResponseParser() {
     }
@@ -102,7 +105,7 @@ public final class NvdResponseParser {
                 score.version(),
                 false,
                 description.isEmpty() ? null : description,
-                toSourceFacts(score, cve.path("weaknesses")));
+                toSourceFacts(score, cve.path("weaknesses"), cve.path("configurations")));
     }
 
     // 첫 영어 설명 (없으면 빈 문자열)
@@ -124,14 +127,41 @@ public final class NvdResponseParser {
     }
 
     // 응답 값 그대로 5개: 고른 점수 항목의 점수·버전·벡터·심각도 + CWE (없는 필드는 싣지 않음)
-    private static List<SourceFact> toSourceFacts(CvssScore score, JsonNode weaknesses) {
+    private static List<SourceFact> toSourceFacts(CvssScore score, JsonNode weaknesses, JsonNode configurations) {
         List<SourceFact> sourceFacts = new ArrayList<>();
         sourceFacts.add(new SourceFact(SourceFactLabel.CVSS_SCORE, score.baseScoreText()));
         sourceFacts.add(new SourceFact(SourceFactLabel.CVSS_VERSION, score.version()));
         addFact(sourceFacts, SourceFactLabel.CVSS_VECTOR, score.vectorString());
         addFact(sourceFacts, SourceFactLabel.SEVERITY, score.baseSeverity());
         addFact(sourceFacts, SourceFactLabel.WEAKNESS, String.join(WEAKNESS_SEPARATOR, toWeaknessIds(weaknesses)));
+        addFact(sourceFacts, SourceFactLabel.AFFECTED_PRODUCT,
+                String.join(AFFECTED_PRODUCT_SEPARATOR, toCpeVendorProducts(configurations)));
         return sourceFacts;
+    }
+
+    /**
+     * configurations[].nodes[].cpeMatch[] 중 vulnerable 항목의 CPE 2.3 제조사·제품 (예: cpe:2.3:o:fortinet:fortios:... > fortinet fortios)
+     * 중복 제거, 나온 순서, 최대 5쌍 (분석 전인 새 CVE 는 configurations 가 없어 빈 목록)
+     */
+    static List<String> toCpeVendorProducts(JsonNode configurations) {
+        List<String> vendorProducts = new ArrayList<>();
+        for (JsonNode configuration : configurations) {
+            for (JsonNode node : configuration.path("nodes")) {
+                for (JsonNode cpeMatch : node.path("cpeMatch")) {
+                    String[] cpeParts = cpeMatch.path("criteria").asText("").split(":");
+                    // cpe:2.3:{part}:{vendor}:{product}:... (제조사·제품은 4·5번째)
+                    if (!cpeMatch.path("vulnerable").asBoolean(false) || cpeParts.length < 5
+                            || vendorProducts.size() >= MAXIMUM_CPE_PRODUCT_COUNT) {
+                        continue;
+                    }
+                    String vendorProduct = (cpeParts[3] + " " + cpeParts[4]).replace('_', ' ').strip();
+                    if (!vendorProducts.contains(vendorProduct)) {
+                        vendorProducts.add(vendorProduct);
+                    }
+                }
+            }
+        }
+        return vendorProducts;
     }
 
     // weaknesses[].description[].value 중 CWE-번호 (중복 제거, 나온 순서)

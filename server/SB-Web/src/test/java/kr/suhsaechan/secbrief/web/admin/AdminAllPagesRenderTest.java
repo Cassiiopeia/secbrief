@@ -139,7 +139,7 @@ class AdminAllPagesRenderTest extends PostgresContainerTestSupport {
     private static List<String> listPagePaths(Long noticeId) {
         List<String> pagePaths = new ArrayList<>(List.of("/admin", "/admin/sources", "/admin/notices", "/admin/alerts",
                 "/admin/settings", "/admin/settings/" + HISTORY_CONFIG_KEY + "/history", "/admin/ai-keys", "/admin/ai-calls",
-                "/admin/audit", "/admin/password"));
+                "/admin/audit", "/admin/password", "/admin/catalog-tags", "/admin/catalog-tags?kind=PRODUCT"));
         if (noticeId != null) {
             pagePaths.add("/admin/notices/" + noticeId + "/edit");
         }
