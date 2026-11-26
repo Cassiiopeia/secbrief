@@ -1,3 +1,4 @@
+import { toSharedArticleUrl } from '@/core/config/share-link-config';
 import type { ArticleDetail } from '@/data/models/article-detail';
 import type { BriefingTopic } from '@/data/models/briefing-item';
 import type { SbFact } from '@/design';
@@ -76,7 +77,14 @@ export function toOriginalButtonLabel(article: ArticleRowView): string {
   return `${article.publisherName} 원문 보기`;
 }
 
-/** 공유할 글: 제목 + 원문 링크 (요약은 넣지 않음) */
-export function toShareMessage(article: ArticleRowView): string {
-  return `${article.title}\n${article.originalUrl}`;
+/** 공유 내용 (Share.share 첫 인자): iOS 는 url 칸이 따로 있음, Android 는 url 을 무시해 글에 이어 붙임 */
+export interface ArticleShareContent {
+  message: string;
+  url?: string;
+}
+
+/** 공유 내용: 한국어 제목 + 시큐브리프 공유 링크 (원문 링크·요약은 넣지 않음, 원문은 링크 복사로) */
+export function toArticleShareContent(article: ArticleRowView, platformOs: string): ArticleShareContent {
+  const sharedArticleUrl = toSharedArticleUrl(article.id);
+  return platformOs === 'ios' ? { message: article.title, url: sharedArticleUrl } : { message: `${article.title}\n${sharedArticleUrl}` };
 }

@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { type LayoutChangeEvent, ScrollView, type ScrollViewInstance, Share, StyleSheet, View } from 'react-native';
+import { type LayoutChangeEvent, Platform, ScrollView, type ScrollViewInstance, Share, StyleSheet, View } from 'react-native';
 
 import { toAppFailure } from '@/core/error/app-failure';
 import {
@@ -24,6 +24,7 @@ import {
 } from '@/design';
 
 import { type ArticleRowView, toBadgesWithoutImplied } from '../articles/article-row-view';
+import { copyOriginalArticleLink } from '../articles/copy-original-article-link';
 import { openOriginalArticle } from '../articles/open-original-article';
 import { useMarkArticleRead } from '../articles/use-read-articles';
 import { toHashtagAccessibilityLabel } from '../keywords/keyword-view-state';
@@ -31,7 +32,7 @@ import { openKeywordArticles } from '../keywords/open-keyword-articles';
 import { ARTICLE_DETAIL_FOCUSES, type ArticleDetailFocus } from '../navigation/app-routes';
 import { goBackOrHome } from '../navigation/go-back-or-home';
 import { ArticleDetailBrief } from './article-detail-brief';
-import { toOriginalButtonLabel, toShareMessage } from './article-detail-view';
+import { toArticleShareContent, toOriginalButtonLabel } from './article-detail-view';
 import { useArticleDetail } from './use-article-detail';
 
 const BACK_ACCESSIBILITY_LABEL = '뒤로';
@@ -40,7 +41,7 @@ const FOCUS_SCROLL_TOP_INSET = sbSpacing.medium;
 
 /**
  * 기사 상세 화면 (탭 밖, 앱 안 브리프): 그림 > 배지·CVSS > 제목 > 출처·게시일 > 브리프(AI 브리핑·확인된 정보·대응 모아보기)
- * 아래 고정 줄에 원문 보기와 공유. 조회가 실패해도 넘겨받은 기본 정보와 원문 보기는 남음
+ * 아래 고정 줄: 원문 보기 > 원문 링크 복사 > 공유(시큐브리프 공유 링크). 조회가 실패해도 넘겨받은 기본 정보와 원문 보기는 남음
  * ?focus=responseGuide 로 열면 대응 모아보기가 그려진 뒤 한 번 그 위치로 내려감 (알림 상세에서 들어옴)
  */
 export function ArticleDetailScreen() {
@@ -71,11 +72,18 @@ export function ArticleDetailScreen() {
             />
           }
           secondaryAction={
-            <SbIconButton
-              iconName="ios-share"
-              accessibilityLabel="공유하기"
-              onPress={() => void Share.share({ message: toShareMessage(article) }).catch(() => undefined)}
-            />
+            <>
+              <SbIconButton
+                iconName="link"
+                accessibilityLabel="원문 링크 복사"
+                onPress={() => void copyOriginalArticleLink(article.originalUrl)}
+              />
+              <SbIconButton
+                iconName="ios-share"
+                accessibilityLabel="공유하기"
+                onPress={() => void Share.share(toArticleShareContent(article, Platform.OS)).catch(() => undefined)}
+              />
+            </>
           }
         />
       )}
