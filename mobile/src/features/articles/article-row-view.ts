@@ -1,10 +1,18 @@
 import type { ArticleImportance, BriefingItem } from '@/data/models/briefing-item';
-import type { SbArticleSecondaryLine, SbArticleThumbnail, SbBadgeContent, SbCvssGaugeValue, SbHashtag } from '@/design';
+import type { SbArticleSecondaryLine, SbBadgeContent, SbCvssGaugeValue, SbHashtag } from '@/design';
 
 import { toCardHashtags } from '../keywords/keyword-view-state';
 import { toArticleBadges, toCvssGaugeValue } from './article-badges';
-import { toArticleCover, toArticleRowThumbnail } from './article-cover';
-import { toCompactMetaLabel, toCvssLabel, toDisplayTitle, toKindLabel, toMetaLabel, toOneLineAccessibilityLabel } from './article-labels';
+import { toArticleImageUrl } from './article-cover';
+import {
+  toCompactMetaLabel,
+  toCvssLabel,
+  toDisplayTitle,
+  toKindLabel,
+  toMetaLabel,
+  toOneLineAccessibilityLabel,
+  toTranslatedMarkLabel,
+} from './article-labels';
 
 export * from './article-badges';
 export * from './article-labels';
@@ -19,17 +27,17 @@ export interface ArticleRowView {
   secondaryLine?: SbArticleSecondaryLine;
   /** 게시자 · 절대 날짜 · 상대 표기 (읽기 도우미용 전체 표기) */
   metaLabel: string;
-  /** 게시자 · 짧은 날짜 (· AI 번역) (목록에 보이는 줄) */
+  /** 게시자 · 짧은 날짜 (목록에 보이는 줄) */
   compactMetaLabel: string;
+  /** 번역 항목의 번역 아이콘 읽기 도우미 문구 (번역 아니면 없음: 아이콘 없음) */
+  translatedMarkLabel?: string;
   /** 배지 전체 (목록은 toFeedBadges 로 골라 보여 줌) */
   badges: SbBadgeContent[];
   cvss?: SbCvssGaugeValue;
   /** 카드에 보일 해시태그 (최대 3개) */
   hashtags: SbHashtag[];
-  /** 행 오른쪽 썸네일 (뉴스이거나 대표 이미지가 있을 때만) */
-  thumbnail?: SbArticleThumbnail;
-  /** 큰 카드 위쪽 그림 (항상 있음: 이미지 없으면 커버 그림) */
-  cover: SbArticleThumbnail;
+  /** 대표 이미지 절대 주소 (행 썸네일·큰 카드·상세 머리 공통). 없으면 그림 없이 글로, 제목 전체 */
+  imageUrl?: string;
   /** 표현 크기를 고르는 기준 */
   importance: ArticleImportance;
   /** 게시자 이름 (원문 보기 버튼) */
@@ -41,7 +49,7 @@ export interface ArticleRowView {
   originalUrl: string;
 }
 
-/** 소식 > 표시 내용: 제목(번역 우선) > 원문 제목 > 제목 아래 줄 > 메타 > 배지 > CVSS > 해시태그 > 그림 */
+/** 소식 > 표시 내용: 제목(번역 우선) > 원문 제목 > 제목 아래 줄 > 메타 > 배지 > CVSS > 해시태그 > 대표 이미지 */
 export function toArticleRowView(item: BriefingItem, now: Date): ArticleRowView {
   const metaLabel = toMetaLabel(item, now);
   const cvssLabel = toCvssLabel(item);
@@ -53,16 +61,16 @@ export function toArticleRowView(item: BriefingItem, now: Date): ArticleRowView 
     secondaryLine: toArticleSecondaryLine(item.oneLine, originalTitle),
     metaLabel,
     compactMetaLabel: toCompactMetaLabel(item, now),
+    translatedMarkLabel: toTranslatedMarkLabel(item),
     badges: toArticleBadges(item),
     cvss: toCvssGaugeValue(item),
     hashtags: toCardHashtags(item.keywords),
-    thumbnail: toArticleRowThumbnail(item),
-    cover: toArticleCover(item),
+    imageUrl: toArticleImageUrl(item),
     importance: item.importance,
     publisherName: item.publisherName,
     kindLabel: toKindLabel(item.kind),
     publishedAt: item.publishedAt,
-    accessibilityLabel: [toDisplayTitle(item), toOneLineAccessibilityLabel(item), metaLabel, cvssLabel, '자세히 보기']
+    accessibilityLabel: [toDisplayTitle(item), toTranslatedMarkLabel(item), toOneLineAccessibilityLabel(item), metaLabel, cvssLabel, '자세히 보기']
       .filter((part) => part !== undefined)
       .join(', '),
     originalUrl: item.originalUrl,

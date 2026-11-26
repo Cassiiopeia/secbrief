@@ -102,7 +102,7 @@ function TodayUrgentSection({ urgent }: { urgent: TodayUrgentView }) {
           capsLabel={urgent.capsLabel}
           title={urgent.title}
           footerLabel={urgent.footerLabel}
-          coverKind={urgent.coverKind}
+          translatedMarkLabel={urgent.translatedMarkLabel}
           coverImageUrl={urgent.coverImageUrl}
           onPress={() => openArticle(urgent.article)}
         />
@@ -111,12 +111,12 @@ function TodayUrgentSection({ urgent }: { urgent: TodayUrgentView }) {
   );
 }
 
-/** 숫자로 보기 구역: 오늘·이번 주 건수 타일(누르면 소식 탭 전체) > (이번 주 1위 주제 타일: 누르면 탐색 탭) */
+/** 한눈에 보기 구역: 오늘·이번 주 건수 타일(누르면 소식 탭 전체) > (이번 주 1위 주제 타일: 누르면 탐색 탭) */
 function TodayStatSection({ state }: { state: TodayViewState }) {
   const { trend } = state;
   return (
     <SbEntrance order={STAT_ORDER}>
-      <SbSectionHeader title="숫자로 보기" />
+      <SbSectionHeader title="한눈에 보기" />
       <View style={styles.tiles}>
         <View style={styles.statRow}>
           <SbStatTile
@@ -170,8 +170,7 @@ function TodayStreamSection({ streamItems }: { streamItems: TodayStreamItemView[
               <SbStreamRailItem
                 timeLabel={item.timeLabel}
                 title={item.title}
-                thumbnailKind={item.thumbnailKind}
-                thumbnailTone={item.thumbnailTone}
+                translatedMarkLabel={item.translatedMarkLabel}
                 thumbnailImageUrl={item.thumbnailImageUrl}
                 isLatest={itemIndex === 0}
                 isRead={readArticleIds.has(item.id)}

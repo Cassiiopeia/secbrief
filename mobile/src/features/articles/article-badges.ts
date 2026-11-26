@@ -1,7 +1,7 @@
 import type { BriefingItem } from '@/data/models/briefing-item';
 import type { SbBadgeContent, SbCvssGaugeValue, SbSeverityTone } from '@/design';
 
-import { AI_TRANSLATION_NOTICE_LABEL, toKindLabel, toTopicLabel } from './article-labels';
+import { toKindLabel, toTopicLabel } from './article-labels';
 
 const URGENT_BADGE_LABEL = '긴급';
 // CISA KEV 등재 = 실제 공격에 쓰이는 취약점 (대응 모아보기 행도 같은 말)
@@ -35,8 +35,8 @@ export function toCvssGaugeValue(item: BriefingItem): SbCvssGaugeValue | undefin
 }
 
 /**
- * 소식 > 배지 전체 (강한 것부터): 긴급 > 악용 중(KEV) > AI 번역 > 회사·제품 > 주제(일반 제외) > 종류(주제와 이름이 같으면 생략)
- * CVSS 는 배지가 아니라 게이지로 따로 보여 줌
+ * 소식 > 배지 전체 (강한 것부터): 긴급 > 악용 중(KEV) > 회사·제품 > 주제(일반 제외) > 종류(주제와 이름이 같으면 생략)
+ * CVSS 는 게이지로, AI 번역은 번역 아이콘으로 따로 보여 줌
  */
 export function toArticleBadges(item: BriefingItem): SbBadgeContent[] {
   const badges: SbBadgeContent[] = [];
@@ -44,7 +44,6 @@ export function toArticleBadges(item: BriefingItem): SbBadgeContent[] {
   const kindLabel = toKindLabel(item.kind);
   if (item.isUrgent) badges.push({ label: URGENT_BADGE_LABEL, tone: 'urgent' });
   if (item.isKev) badges.push({ label: EXPLOITED_BADGE_LABEL, tone: 'exploited' });
-  if (item.translatedTitle !== undefined) badges.push({ label: AI_TRANSLATION_NOTICE_LABEL, tone: 'notice' });
   if (item.subjectName !== undefined) badges.push({ label: item.subjectName, tone: 'subject' });
   if (topicLabel !== undefined) badges.push({ label: topicLabel, tone: 'neutral' });
   if (kindLabel !== topicLabel) badges.push({ label: kindLabel, tone: 'neutral' });
@@ -58,10 +57,10 @@ export function toBadgesWithoutImplied(badges: SbBadgeContent[], impliedLabel: s
 
 /**
  * 배지 전체 > 목록 한 건에 보일 배지 (2개까지, 강한 것부터)
- * 빼는 것 3개: AI 번역(메타 줄 꼬리로 표시), 자리만 봐도 아는 분류, 조밀한 행의 분류 배지
+ * 빼는 것 2개: 자리만 봐도 아는 분류, 조밀한 행의 분류 배지
  */
 export function toFeedBadges(badges: SbBadgeContent[], isCompact: boolean, impliedLabel?: string): SbBadgeContent[] {
   return toBadgesWithoutImplied(badges, impliedLabel)
-    .filter((badge) => badge.tone !== 'notice' && (!isCompact || badge.tone !== 'neutral'))
+    .filter((badge) => !isCompact || badge.tone !== 'neutral')
     .slice(0, FEED_BADGE_MAXIMUM_COUNT);
 }
