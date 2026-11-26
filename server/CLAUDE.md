@@ -62,7 +62,8 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 | 기사 이미지 처리 | `image.batch-size`, `image.tick-budget-seconds`, `image.tick-milliseconds`, `image.initial-delay-milliseconds` | 20건, 60초, 2분, 150초 |
 | 제목 임베딩 | `embedding.batch-size`, `embedding.request-batch-size`, `embedding.tick-milliseconds`, `embedding.initial-delay-milliseconds` | 100건, 25건, 5분, 210초 |
 | 긴급 알림 (방해 금지 보류분 발송도 같은 틱) | `push.alert-tick-milliseconds`, `push.alert-initial-delay-milliseconds`, `push.receipt-tick-milliseconds`, `push.receipt-initial-delay-milliseconds` | 5분, 2분, 15분, 3분 |
-| 알림함 보관 정리 | `notification.retention-enabled`, `notification.retention-tick-milliseconds`, `notification.retention-initial-delay-milliseconds` | 켜짐, 6시간, 10분 (긴급 알림 기록 30일 보관, 공지사항은 지우지 않음) |
+| 알림함 보관 정리 | `notification.retention-enabled`, `notification.retention-tick-milliseconds`, `notification.retention-initial-delay-milliseconds` | 켜짐, 6시간, 10분 (알림·아침 요약 기록 30일 보관, 공지사항은 지우지 않음) |
+| 기사 분류 (백필·다시 분류·AI 대기 초과) | `classification.enabled`(`CLASSIFICATION_ENABLED`), `classification.tick-milliseconds`, `classification.batches-per-tick`, `classification.initial-delay-milliseconds` | 켜짐, 1분, 10번(x200건), 45초 |
 
 ## 알림함 · 공지사항 · 방해 금지 시간 (#70)
 
@@ -78,6 +79,33 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 - 방해 금지 시간은 기기 시간대 기준 `[시작, 끝)`, 끝이 이르면 자정을 넘긴다. 켰을 때 시작 == 끝은 `QUIET_HOURS_SAME_TIME`, 모르는 시간대는 `INVALID_TIME_ZONE`. 기존·새 기기 모두 기본 꺼짐.
 - 방해 금지 시간이면 그 기기가 받을 글을 `push_device_held_push` 에 보류하고 (KEV 도 예외 없음), 끝난 뒤 첫 알림 틱에 1건이면 그대로, 여러 건이면 모음 1건을 보낸다. 실패하면 보류분을 남긴다.
 - 공지사항은 관리자 화면(`/admin/notices`)에서 쓰고, 올릴 때 "푸시도 보내기"를 고르면 알림을 켠 기기 전체에 보낸다 (방해 금지면 보류). 고칠 때는 다시 보내지 않는다. 발송 기록 화면은 `/admin/alerts`.
+
+## 분류 태그 · 관심 기술 알림 · 아침 요약 (#93, #97)
+
+설계: [docs/superpowers/specs/2026-11-27-interest-alerts-tag-catalog-design.md](../docs/superpowers/specs/2026-11-27-interest-alerts-tag-catalog-design.md)
+
+- 기술 분야·생태계·제품·인기 묶음은 **DB `catalog_tag` 가 단일 원본**이다 (V0.9.0 시드, 관리자 화면 `/admin/catalog-tags` 에서 추가·이름·순서·숨김·분류 낱말). Java·앱에 목록을 두지 않는다. 기사·기기는 `code` 만 저장한다.
+- 스냅샷은 `TagCatalogProvider` 한 곳 (30초마다, 관리자 변경 즉시). 분류·AI 분야 선택지·API·관심 판정이 모두 이 스냅샷을 쓴다.
+- 분류(`ArticleClassifier`): 사실 값의 CPE 제조사·제품(NVD `영향 제품`) > KEV 제조사·제품 > GitHub 패키지 > 제목 속 이름 > 제목 순서로 제품 사전(가장 긴 낱말) > 분야 낱말(강한 > `~` 약한) > AI 분야 > `other`. 생태계는 GitHub 권고 ecosystem 원문 값. KISA 경보단계·보고서는 분류하지 않음.
+- AI 분야는 제목 분석 호출의 스키마 `field`(카탈로그 code enum 또는 null)로 받는다 (추가 호출 없음). AI 결과 기록 때 바로 분류한다.
+- 주요(`ArticleNotablePolicy`): KEV, 널리 쓰는 제품, CVSS 9.0 이상 + AI 판단 끝 + 일반 아님, 헤드라인.
+- 분류 틱(`ArticleClassificationScheduler`)이 `classified_at is null` 행을 분류한다: 배포 뒤 기존 행 백필, AI 대기 60분 초과, 관리자 "기사 전체 다시 분류". 규칙으로 분야를 못 정한 예전 AI 완료 행만 AI 대기로 1번 돌린다. 로그 `[article classify] classified : targets=…, byProduct=…, byKeyword=…, byAi=…, other=…, aiRequested=…`.
+
+| API (인증 없음) | 응답 `data` |
+|---|---|
+| `GET /api/v1/catalog/tags` | `{version, tags[{kind, code, name, shortName, groupCode, fieldCode, displayOrder, isWidelyUsed}]}`, `ETag` = 판, `If-None-Match` 같으면 304 |
+| `GET /api/v1/articles` 추가 조건 | `sourceCodes`, `fieldCode`, `ecosystemCode`, `isNotable`, `interestProductCodes`·`interestFieldCodes`·`interestEcosystemCodes`(하나라도), `collectedSince`. 응답 기사에 `fieldCode`, `ecosystemCode`, `packageName`, `productCode`, `isNotable` |
+| `GET /api/v1/articles/new-counts?timeZone=` | 기기 날짜 0시 이후 수집분 `{since, lastCollectedAt, totalCount, exploitedCount, kisaCount, newsCount, fieldCounts[], ecosystemCounts[], sourceCounts[]}` |
+| `PUT /api/v1/push-devices` 추가 | `interests {productCodes, fieldCodes, ecosystemCodes}`, `digest {deliveryMode IMMEDIATE\|DIGEST, digestTime}` (없으면 저장값 유지, 카탈로그에 없는 code 는 빠짐) |
+| `POST /api/v1/push-devices/alert-estimate` | 어제(기기 날짜) 수집분을 지금 규칙으로: `{date, immediatePushCount, immediateArticleCount, digestArticleCount, digestPushCount, currentPushCount}` |
+| `GET /api/v1/notifications/{id}` (DIGEST) | `digest {articleCount, notableArticles, fieldSections[{fieldCode, articles}]}` |
+
+- 응답 모양은 앱과 함께 쓰는 예시 `SB-Web/src/test/resources/contract/*.json` 과 같아야 한다 (`InterestApiContractTest`, 앱 `api-shape-contract.test.ts`).
+- 알림 판정(`AlertRoutingPolicy` 한 곳): 악용 중(KEV 켬) > KISA 긴급(켬) > 관심 일치(제품은 전부, 분야·생태계는 주요만 / 긴급이면 바로, 아니면 받는 방식) > 그 밖의 고위험(`CRITICAL_CVE` 켬) > 안 알림. 뉴스는 관심 알림에 넣지 않는다.
+- 알림 후보는 AI 판단이 끝나 분류된 기사만 (#97). 수집 후 60분(`Article.AI_JUDGEMENT_HOLD_DURATION`)이 지나면 규칙만으로: 고위험은 널리 쓰는 제품일 때만 알린다.
+- `urgent_notified_at` 은 알림 처리 시각이다 (긴급 아님도 관심 판정을 거침, 알리지 않은 기사도 처리 표시). 실제로 보낸 기사는 알림함 기록(`notification_article`)으로 본다.
+- 공통 알림 기록은 지금처럼 알림함 목록에 보인다. 관심만 맞은 여러 건 알림·아침 요약은 기기 전용 기록(`notification.push_device_id`)이라 목록에 보이지 않고 푸시로만 연다.
+- 아침 요약: 대기분(`push_device_digest_item`, 48시간 보관)을 기기 시각이 요약 시각을 지난 첫 알림 틱에 1건 (방해 금지 시간이면 끝난 뒤, 하루 1번).
 
 ## 대응 모아보기 (#71)
 
