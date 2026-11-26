@@ -1,5 +1,6 @@
 import type { AlertCategory } from './alert-category';
 import type { BriefingItem } from './briefing-item';
+import type { ResponseGuideItem } from './response-guide';
 
 /** 알림함 글 종류 2개: ALERT 긴급 알림 기록(서버가 발송 때 남김), NOTICE 공지사항(관리자가 씀) */
 export const APP_NOTIFICATION_KINDS = ['ALERT', 'NOTICE'] as const;
@@ -34,10 +35,24 @@ export interface AppNotificationArticleSection {
   articles: BriefingItem[];
 }
 
-/** 알림함 상세: 목록 한 줄 + 전체 본문 + 링크(공지사항) + 종류별 기사 묶음(긴급 알림) */
+/** 알린 기사 1건의 대응 안내 요약: 브리핑의 대응 + 대응 모아보기 구역별 건수 + 첫 공식 대응 (전체는 기사 상세) */
+export interface AppNotificationArticleGuide {
+  articleId: string;
+  /** 원문에 적힌 대응 (AI 브리핑, 없으면 빈 배열) */
+  actions: string[];
+  officialCount: number;
+  factCount: number;
+  newsCount: number;
+  /** 공식 대응 첫 항목 (KISA 먼저, 없으면 없음) */
+  leadOfficialItem?: ResponseGuideItem;
+}
+
+/** 알림함 상세: 목록 한 줄 + 전체 본문 + 링크(공지사항) + 종류별 기사 묶음·기사별 대응 안내(긴급 알림) */
 export interface AppNotificationDetail extends AppNotificationSummary {
   linkUrl?: string;
   articleSections: AppNotificationArticleSection[];
+  /** 알린 순서대로 앞 20건까지 (공지사항·이전 서버는 빈 배열) */
+  articleGuides: AppNotificationArticleGuide[];
 }
 
 /** 알림함 목록 한 페이지 */

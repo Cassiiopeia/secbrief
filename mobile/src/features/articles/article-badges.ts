@@ -4,8 +4,8 @@ import type { SbBadgeContent, SbCvssGaugeValue, SbSeverityTone } from '@/design'
 import { AI_TRANSLATION_NOTICE_LABEL, toKindLabel, toTopicLabel } from './article-labels';
 
 const URGENT_BADGE_LABEL = '긴급';
-// CISA KEV 등재 = 실제 공격에 쓰이는 취약점
-const EXPLOITED_BADGE_LABEL = '악용 중';
+// CISA KEV 등재 = 실제 공격에 쓰이는 취약점 (대응 모아보기 행도 같은 말)
+export const EXPLOITED_BADGE_LABEL = '악용 중';
 // CVSS 심각도 구간 하한 (SbColors 심각도 4단계와 같은 기준), 만점
 const CVSS_CRITICAL_MINIMUM_SCORE = 9;
 const CVSS_HIGH_MINIMUM_SCORE = 7;

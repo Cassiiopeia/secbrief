@@ -4,6 +4,7 @@ import type { SbFact } from '@/design';
 
 import { type ArticleRowView, toArticleRowView, toTopicLabel } from '../articles/article-row-view';
 import { BROWSABLE_TOPICS, toTopicBrowseKey } from '../browse/browse-target';
+import { type ResponseGuideSectionView, toResponseGuideSectionViews } from '../response-guide/response-guide-view';
 import { AI_SUMMARY_NOTICE_LABEL, type ArticleBriefingView, toArticleBriefingView } from './article-briefing-view';
 
 /** 함께 볼 소식이 없을 때 대신 보여 주는 이동: 버튼 문구 + 모아 보기 묶음 키 (없으면 홈) */
@@ -13,7 +14,7 @@ export interface MoreArticlesLink {
 }
 
 /**
- * 기사 상세 화면 표시 내용: AI 브리핑(있으면 이것만) 또는 이전 방식 요약·핵심·대응 + 확인된 정보 + 함께 볼 소식
+ * 기사 상세 화면 표시 내용: AI 브리핑(있으면 이것만) 또는 이전 방식 요약·핵심·대응 + 확인된 정보 + 대응 모아보기(없으면 함께 볼 소식)
  */
 export interface ArticleDetailView {
   article: ArticleRowView;
@@ -29,17 +30,25 @@ export interface ArticleDetailView {
   isSummaryPending: boolean;
   /** 서버가 준 값 그대로 (앱에서 만들거나 고치지 않음) */
   facts: SbFact[];
+  /** 대응 모아보기 구역 (공식 대응 > 확인된 취약점 정보 > 관련 기사, 없으면 빈 배열) */
+  responseGuideSections: ResponseGuideSectionView[];
+  /** 대응 모아보기가 비었을 때만 채움 (있으면 빈 배열: 같은 자료를 두 번 보여 주지 않음) */
   relatedArticles: ArticleRowView[];
-  /** 함께 볼 소식이 한 건도 없을 때만 있음 */
+  /** 대응 모아보기도 함께 볼 소식도 없을 때만 있음 */
   moreArticlesLink?: MoreArticlesLink;
 }
 
-/** 기사 상세 > 표시 내용: 기사 표시 내용 > 브리핑 > 요약 > 핵심 > 대응 > 확인된 정보 > 함께 볼 소식(자기 자신 제외, 없으면 다른 소식 이동) */
+/**
+ * 기사 상세 > 표시 내용: 기사 표시 내용 > 브리핑 > 요약 > 핵심 > 대응 > 확인된 정보
+ * > 대응 모아보기 (비었으면 함께 볼 소식(자기 자신 제외), 그것도 없으면 다른 소식 이동)
+ */
 export function toArticleDetailView(detail: ArticleDetail, now: Date): ArticleDetailView {
   const keyPoints = detail.keyPoints.map((keyPoint) => keyPoint.trim()).filter((keyPoint) => keyPoint !== '');
-  const relatedArticles = detail.relatedItems
-    .filter((relatedItem) => relatedItem.id !== detail.article.id)
-    .map((relatedItem) => toArticleRowView(relatedItem, now));
+  const responseGuideSections = toResponseGuideSectionViews(detail.responseGuideSections, now);
+  const relatedArticles =
+    responseGuideSections.length > 0
+      ? []
+      : detail.relatedItems.filter((relatedItem) => relatedItem.id !== detail.article.id).map((relatedItem) => toArticleRowView(relatedItem, now));
   return {
     article: toArticleRowView(detail.article, now),
     briefing: detail.brief && toArticleBriefingView(detail.brief),
@@ -49,8 +58,10 @@ export function toArticleDetailView(detail: ArticleDetail, now: Date): ArticleDe
     aiNoticeLabel: detail.isAiSummarized ? AI_SUMMARY_NOTICE_LABEL : undefined,
     isSummaryPending: detail.summary === undefined && keyPoints.length === 0,
     facts: detail.facts.filter((fact) => fact.label.trim() !== '' && fact.value.trim() !== ''),
+    responseGuideSections,
     relatedArticles,
-    moreArticlesLink: relatedArticles.length === 0 ? toMoreArticlesLink(detail.article.topic) : undefined,
+    moreArticlesLink:
+      responseGuideSections.length === 0 && relatedArticles.length === 0 ? toMoreArticlesLink(detail.article.topic) : undefined,
   };
 }
 
