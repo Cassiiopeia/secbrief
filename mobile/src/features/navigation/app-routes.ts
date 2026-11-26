@@ -24,3 +24,5 @@ export const toArticleDetailRoute = (articleId: string, focus?: ArticleDetailFoc
 export const toNotificationDetailRoute = (notificationId: string): NotificationDetailRoute =>
   `/notifications/${encodeURIComponent(notificationId)}`;
 export const toNoticeDetailRoute = (noticeId: string): NoticeDetailRoute => `/notices/${encodeURIComponent(noticeId)}`;
+/** 알림함을 그 종류 칸으로 열기 (ALERT 알림, NOTICE 공지사항) */
+export const toNotificationInboxRoute = (segment: string): NotificationInboxRoute => `${APP_ROUTES.notifications}?segment=${segment}`;

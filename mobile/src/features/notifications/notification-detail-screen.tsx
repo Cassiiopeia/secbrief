@@ -6,7 +6,7 @@ import { toAppFailure } from '@/core/error/app-failure';
 import type { AppNotificationKind } from '@/data/models/app-notification';
 import { SbEmptyState, SbErrorState, SbLoadingSkeleton, SbScreen, SbScreenHeader, sbSpacing } from '@/design';
 
-import { APP_ROUTES } from '../navigation/app-routes';
+import { toNotificationInboxRoute } from '../navigation/app-routes';
 import { goBackOrHome } from '../navigation/go-back-or-home';
 import { AlertDetailContent } from './alert-detail-content';
 import { NoticeDetailContent } from './notice-detail-content';
@@ -63,7 +63,7 @@ function AppNotificationDetailFrame({ notificationId, expectedKind }: { notifica
             description={DETAIL_TEXTS[kind].notFoundDescription}
             illustration="notFound"
             actionLabel="알림함 보기"
-            onActionPress={() => router.replace(APP_ROUTES.notifications)}
+            onActionPress={() => router.replace(toNotificationInboxRoute(kind))}
           />
         );
       }
