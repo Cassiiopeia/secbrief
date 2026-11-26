@@ -128,6 +128,13 @@ public class ArticleCollectService {
         }
     }
 
+    /**
+     * 수집기 밖에서 모은 원본 항목 저장 (KISA 지난 글 채우기): 주기 수집과 같은 정규화·중복 확인·저장, 수집 기록은 남기지 않음
+     */
+    public SaveCounts saveCollectedArticles(Source source, List<CollectedArticle> collectedArticles, Instant collectedAt) {
+        return saveAll(source, collectedArticles, collectedAt);
+    }
+
     // 켜진 출처 중 주기가 된 것 (주기 판정은 마지막 시도 시작 시각 기준)
     private List<Source> findDueSources() {
         List<Source> dueSources = new ArrayList<>();
@@ -242,6 +249,7 @@ public class ArticleCollectService {
         return new CollectRunResult(CollectStatus.FAILED, 0, errorCode.name());
     }
 
-    private record SaveCounts(int createdCount, int mergedCount) {
+    /** 저장 결과 건수: 새 기사, 기존 기사에 합친 것 */
+    public record SaveCounts(int createdCount, int mergedCount) {
     }
 }

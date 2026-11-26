@@ -63,6 +63,9 @@ public final class ArticleSpecifications {
         if (condition.keyword() != null && !condition.keyword().isBlank()) {
             specifications.add(hasKeyword(condition.keyword()));
         }
+        if (Boolean.TRUE.equals(condition.isUrgent())) {
+            specifications.add(isUrgent());
+        }
         specifications.addAll(toTagSpecifications(condition.tagFilter()));
         if (cursor != null) {
             specifications.add(isBeforeCursor(cursor));
@@ -173,6 +176,10 @@ public final class ArticleSpecifications {
                 builder.and(
                         builder.equal(root.get("publishedAt"), cursor.publishedAt()),
                         builder.lessThan(root.get("id"), cursor.id())));
+    }
+
+    public static Specification<Article> isUrgent() {
+        return (root, query, builder) -> builder.isTrue(root.get("isUrgent"));
     }
 
     public static Specification<Article> isUrgentPublishedSince(Instant start) {

@@ -30,6 +30,10 @@ export const sbSize = {
   /** 고르기 알약 높이·체크 아이콘 (#93 관심 기술) */
   pickHeight: 36,
   pickIcon: 16,
+  /** 경보 단계 막대 두께: 큰 막대 칸 / 그중 지금 단계 칸 / 작은 막대 (해외 지표) */
+  levelGaugeBar: 8,
+  levelGaugeCurrentBar: 14,
+  levelGaugeCompactBar: 6,
 } as const;
 
 /** 비율(0~1) > 너비 % 로 바꿀 때 곱하는 값 (비율 막대) */

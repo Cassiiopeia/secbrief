@@ -1,29 +1,31 @@
-import { toCompactDateLabel } from '@/core/format/briefing-date-formatter';
-import { KISA_SOURCE_CODES } from '@/data/models/article-source-code';
-import type { BriefingItem } from '@/data/models/briefing-item';
+import { toDottedMonthDay } from '@/core/format/briefing-date-formatter';
+import type { AlertLevelDashboard } from '@/data/models/alert-level-dashboard';
+import type { SbAlertLevelTone } from '@/design';
 
-import { type ArticleRowView, toArticleRowView } from '../articles/article-row-view';
+import { ALERT_LEVEL_SCREEN_TITLE, CYBER_CRISIS_LEVEL_TEXTS } from '../alert-level/alert-level-texts';
 
-/** 오늘 탭 위쪽 KISA 경보단계 띠 표시 내용 */
+/** 오늘 탭 위쪽 사이버위기 경보 띠 (누르면 경보단계 화면) */
 export interface AlertLevelView {
   capsLabel: string;
-  /** 원문 제목 그대로 (단계 값을 따로 지어내지 않음) */
+  /** 예: 주의 · 10.22부터 (단계를 못 읽었으면 공지 제목 그대로) */
   title: string;
+  /** 단계 색 (못 읽었으면 없음: 띠 기본 색) */
+  tone?: SbAlertLevelTone;
   accessibilityLabel: string;
-  /** 누르면 열 기사 (상세 화면이 먼저 그릴 표시 내용) */
-  article: ArticleRowView;
 }
 
-const ALERT_LEVEL_CAPTION = 'KISA 경보단계';
-
 /**
- * 소식들 > 경보단계 띠: 출처가 KISA 경보단계인 가장 새 소식 1건 (받은 순서 = 최신순)
- * 출처 코드가 없는 소식(이전 서버)은 경보단계인지 알 수 없어 띠를 만들지 않음
+ * 경보단계 화면 데이터 > 띠: 지금 단계 + 시작일 (경보단계 글이 없으면 띠 없음)
  */
-export function toAlertLevelView(items: BriefingItem[], now: Date): AlertLevelView | undefined {
-  const alertLevelItem = items.find((item) => item.sourceCode === KISA_SOURCE_CODES.alertLevel);
-  if (alertLevelItem === undefined) return undefined;
-  const capsLabel = `${ALERT_LEVEL_CAPTION} · ${toCompactDateLabel(alertLevelItem.publishedAt, now)}`;
-  const article = toArticleRowView(alertLevelItem, now);
-  return { capsLabel, title: article.title, accessibilityLabel: `${capsLabel}, ${article.title}, 자세히 보기`, article };
+export function toAlertLevelView(dashboard: AlertLevelDashboard): AlertLevelView | undefined {
+  const { current } = dashboard;
+  if (current === undefined) return undefined;
+  const levelText = current.level === undefined ? undefined : CYBER_CRISIS_LEVEL_TEXTS[current.level];
+  const title = levelText === undefined ? current.title : `${levelText.name} · ${toDottedMonthDay(current.since)}부터`;
+  return {
+    capsLabel: ALERT_LEVEL_SCREEN_TITLE,
+    title,
+    tone: levelText?.tone,
+    accessibilityLabel: `${ALERT_LEVEL_SCREEN_TITLE}, ${title}, 자세히 보기`,
+  };
 }

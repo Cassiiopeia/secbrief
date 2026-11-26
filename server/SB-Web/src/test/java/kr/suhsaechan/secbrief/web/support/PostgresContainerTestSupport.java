@@ -16,7 +16,9 @@ public abstract class PostgresContainerTestSupport {
     // 그래서 한 번만 띄우고 JVM 종료 때 정리 (Testcontainers 가 정리 담당)
     // @ServiceConnection: 컨테이너 접속 정보로 spring.datasource.* 자동 대체
     @ServiceConnection
-    protected static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+    // 접속 상한 300: 캐시한 컨텍스트마다 접속 풀(10개)을 들고 있어 기본 100 이면 컨텍스트가 늘 때 접속 거부
+    protected static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine")
+            .withCommand("postgres", "-c", "max_connections=300");
 
     static {
         // 도커 없으면 시작하지 않음 (@Testcontainers 가 테스트를 건너뜀)

@@ -90,4 +90,6 @@ export interface ArticleFilter {
   interestCodes?: { productCodes: string[]; fieldCodes: string[]; ecosystemCodes: string[] };
   /** 이 시각 이후 수집분 (오늘) */
   collectedSince?: Date;
+  /** true 면 긴급 소식만 (경보단계 화면의 이번 주 긴급 건수에서 들어옴) */
+  isUrgent?: boolean;
 }

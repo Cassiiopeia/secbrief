@@ -64,6 +64,8 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 | 긴급 알림 (방해 금지 보류분 발송도 같은 틱) | `push.alert-tick-milliseconds`, `push.alert-initial-delay-milliseconds`, `push.receipt-tick-milliseconds`, `push.receipt-initial-delay-milliseconds` | 5분, 2분, 15분, 3분 |
 | 알림함 보관 정리 | `notification.retention-enabled`, `notification.retention-tick-milliseconds`, `notification.retention-initial-delay-milliseconds` | 켜짐, 6시간, 10분 (알림·아침 요약 기록 30일 보관, 공지사항은 지우지 않음) |
 | 기사 분류 (백필·다시 분류·AI 대기 초과) | `classification.enabled`(`CLASSIFICATION_ENABLED`), `classification.tick-milliseconds`, `classification.batches-per-tick`, `classification.initial-delay-milliseconds` | 켜짐, 1분, 10번(x200건), 45초 |
+| KISA 지난 글 채우기 | `collect.kisa-backfill-tick-milliseconds`, `collect.kisa-backfill-initial-delay-milliseconds` | 6시간, 3분 (`collect.enabled=false` 면 함께 꺼짐) |
+| 경보단계 (해외 지표 읽기, 지난 경보단계 글 긴급 해제) | `alert-level.enabled`, `alert-level.tick-milliseconds`, `alert-level.initial-delay-milliseconds` | 켜짐, 1시간, 20초 |
 
 ## 알림함 · 공지사항 · 방해 금지 시간 (#70)
 
@@ -135,6 +137,20 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 - 묶는 규칙 3개 (확실한 순): 같은 CVE(전용 열·제목, 1년) > 같은 제품 이름(소문자·문장부호 정리 후 같음, 게시일 ±14일) > KISA 보안공지 제조사 이름 = 상대 이름의 앞 낱말(±14일).
 - 잘못 묶이지 않게: 행사·정책·개인정보 주제는 제품으로 묶지 않음, 양쪽 모두 CVE 가 있는데 겹치지 않으면 버림, CVE 가 있는 기사에는 다른 CVE 항목을 제품 이름만으로 붙이지 않음, 제조사 앞 낱말 일치는 KISA 보안공지에만.
 - 조치 기한은 KEV 사실 값(`조치 기한`) 원문 그대로, 기사 본문은 싣지 않는다 (기사는 목록과 같은 `ArticleResponse`).
+
+## KISA 지난 글 채우기 · 사이버위기 경보 화면 (#96)
+
+- KISA 게시판 4곳은 RSS 가 첫 쪽 10건만 줘서, 출처마다 **한 번** 게시판 목록 쪽(`/kr/bbs/list.do`)을 넘겨 채운다: 보안공지·취약점 정보·보고서는 1년, 경보단계는 게시판 전체(69건). 이후 새 글은 주기 RSS 수집이 맡는다.
+  게시판 번호·메뉴 번호·범위는 `KisaBoard` 한 곳, 끝나면 `source.backfill_completed_at` 을 채워 다시 하지 않는다 (실패한 출처는 다음 틱에 다시).
+  쪽 사이 2초 쉼, 최대 200쪽, 글 페이지는 읽지 않는다. 게시판은 ETag·Last-Modified 를 주지 않아 일반 GET 이다. 글 주소는 RSS link 와 같은 모양으로 만들어 원문 링크 중복 확인이 그대로 맞는다.
+- 경보단계 글의 긴급은 게시 후 7일까지만 (`ArticleUrgencyPolicy.KISA_ALERT_LEVEL_URGENT_DURATION`): 수집할 때 지난 글은 처음부터 긴급이 아니고, 경보단계 틱이 7일 지난 글의 긴급 표시를 푼다.
+- 단계는 공지 제목에서만 읽는다 (`CyberCrisisLevelTitleParser`, 5단계 밖 이름·못 읽은 제목은 단계 null + 제목 그대로). 게시판 전체 제목 69건이 시험 자료다.
+- 해외 지표 2개는 공개 피드를 1시간마다 읽어 메모리에 둔다 (`InternationalAlertIndicatorStore`): CIS MS-ISAC `https://feeds.cisecurity.org/text?keys=level,color`, SANS ISC `https://isc.sans.edu/api/infocon?json`. 실패하면 이전 값을 두고, 한 번도 못 읽었으면 `level` null 로 내려 화면은 그대로 열린다.
+
+| API (인증 없음) | 응답 `data` |
+|---|---|
+| `GET /api/v1/alert-level` | `{current{level, since, articleId, title, originalUrl}, changes[{articleId, fromLevel, toLevel, direction, publishedAt, title, originalUrl}], weeklyCounts{weekStart, exploitedVulnerabilityCount, urgentArticleCount, kisaNoticeCount}, internationalIndicators[{code, level, levelStep, levelCount, checkedAt, sourceUrl}], sourceUrl}` (level: `NORMAL`·`ATTENTION`·`CAUTION`·`ALERT`·`SEVERE`, direction: `RAISED`·`LOWERED`·`KEPT`, 변경 이력 최근 20건, 경보단계 글이 없으면 `current` null) |
+| `GET /api/v1/articles?isUrgent=true` | 긴급 소식만 (경보단계 화면의 이번 주 긴급 건수에서 들어옴) |
 
 ## 설정 저장소 (관리자 화면에서 바꾸는 값)
 

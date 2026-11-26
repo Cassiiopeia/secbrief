@@ -9,6 +9,8 @@ export const APP_ROUTES = {
   settings: '/settings',
   // 관심 기술 고르기 (탭 밖 스택 화면, #93)
   interests: '/interests',
+  // 사이버위기 경보 화면 (app/alert-level.tsx, 탭 밖 스택)
+  alertLevel: '/alert-level',
 } as const;
 
 // 탭 밖 상세 경로 (app/articles/[articleId], app/notifications/[notificationId], app/notices/[noticeId] 와 같아야 함)

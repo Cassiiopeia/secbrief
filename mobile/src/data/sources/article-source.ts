@@ -27,6 +27,7 @@ export async function fetchArticlePage(filter: ArticleFilter, cursor?: string): 
     interestFieldCodes: toCommaList(filter.interestCodes?.fieldCodes),
     interestEcosystemCodes: toCommaList(filter.interestCodes?.ecosystemCodes),
     collectedSince: filter.collectedSince?.toISOString(),
+    isUrgent: filter.isUrgent ? 'true' : undefined,
     cursor,
   });
   return toArticlePage(response);

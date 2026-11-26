@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 기사 API 3개 (인증 없음): 목록 (필터 enum 대문자 이름, 틀리면 TYPE_MISMATCH + 출처 코드·키워드·분류 조건 + 커서 + 크기), 대표 이미지 (저장된 JPEG), 오늘 새 소식 건수
+ * 기사 API 3개 (인증 없음): 목록 (필터 enum 대문자 이름, 틀리면 TYPE_MISMATCH + 출처 코드·키워드·긴급만·분류 조건 + 커서 + 크기), 대표 이미지 (저장된 JPEG), 오늘 새 소식 건수
  */
 @RestController
 @RequiredArgsConstructor
@@ -48,6 +48,7 @@ public class ArticleController {
             @RequestParam(required = false) ArticleImportance minimumImportance,
             @RequestParam(required = false) String sourceCode,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean isUrgent,
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) Integer size,
             // 분류 조건 (#93): 쉼표 목록, 주요 여부, 수집 시각 이후 (ISO)
@@ -62,7 +63,7 @@ public class ArticleController {
         ArticleTagFilter tagFilter = new ArticleTagFilter(sourceCodes, fieldCode, ecosystemCode, isNotable,
                 interestProductCodes, interestFieldCodes, interestEcosystemCodes, collectedSince);
         return ApiResponse.of(articleQueryService.findArticles(new ArticleSearchCondition(kind, region, topic,
-                minimumImportance, sourceCode, keyword, cursor, size, tagFilter)));
+                minimumImportance, sourceCode, keyword, isUrgent, cursor, size, tagFilter)));
     }
 
     /**

@@ -55,6 +55,8 @@ export interface ArticleRowView {
   publishedAt: Date;
   accessibilityLabel: string;
   originalUrl: string;
+  /** 출처 코드 (경보단계 글은 기사 상세 대신 경보단계 화면으로 열기, 이전 서버면 없음) */
+  sourceCode?: string;
 }
 
 /** 소식 > 표시 내용: 제목(번역 우선) > 원문 제목 > 제목 아래 줄 > 메타 > 배지(카탈로그를 주면 분류 태그도) > CVSS > 해시태그 > 대표 이미지 */
@@ -90,6 +92,7 @@ export function toArticleRowView(item: BriefingItem, now: Date, catalogIndex?: T
       .filter((part) => part !== undefined)
       .join(', '),
     originalUrl: item.originalUrl,
+    sourceCode: item.sourceCode,
   };
 }
 

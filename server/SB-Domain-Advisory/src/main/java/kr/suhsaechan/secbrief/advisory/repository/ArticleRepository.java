@@ -83,6 +83,12 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
     // 게시일 start 이후 건수 (오늘·이번 주 건수)
     long countByPublishedAtGreaterThanEqual(Instant start);
 
+    // 긴급 기간이 지난 출처 글의 긴급 표시 해제: sourceCode 출처의 긴급 글 중 게시일이 expiredBefore 이전 (KISA 경보단계, #96)
+    @Modifying
+    @Query("update Article a set a.isUrgent = false where a.isUrgent = true and a.publishedAt < :expiredBefore "
+            + "and a.source.id in (select s.id from Source s where s.code = :sourceCode)")
+    int clearUrgentPublishedBefore(@Param("sourceCode") String sourceCode, @Param("expiredBefore") Instant expiredBefore);
+
     // 주제별 건수: 게시일 [start, end)
     @Query("select new kr.suhsaechan.secbrief.advisory.repository.TopicCount(a.topic, count(a)) "
             + "from Article a where a.publishedAt >= :start and a.publishedAt < :end group by a.topic")

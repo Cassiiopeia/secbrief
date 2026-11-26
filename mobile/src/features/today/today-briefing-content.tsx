@@ -12,6 +12,8 @@ import {
   SbStreamRailItem,
   SbUrgentTile,
   sbSpacing,
+  toSbAlertLevelColor,
+  useSbTheme,
 } from '@/design';
 
 import { useArticleOpener } from '../articles/use-article-opener';
@@ -29,7 +31,7 @@ import type { TodayStreamItemView, TodayUrgentView, TodayViewState } from './tod
 interface TodayBriefingContentProps {
   mastheadTitleLines: string[];
   state: TodayViewState;
-  /** KISA 경보단계 띠 (없으면 생략) */
+  /** 사이버위기 경보 띠 (없으면 생략) */
   alertLevel?: AlertLevelView;
 }
 
@@ -77,17 +79,18 @@ export function TodayBriefingContent({ mastheadTitleLines, state, alertLevel }: 
   );
 }
 
-/** KISA 경보단계 띠: 누르면 그 공지 상세 */
+/** 사이버위기 경보 띠: 지금 단계·시작일, 누르면 경보단계 화면 */
 function TodayAlertLevelBand({ alertLevel }: { alertLevel: AlertLevelView }) {
-  const openArticle = useArticleOpener();
+  const { colors } = useSbTheme();
   return (
     <SbEntrance order={ALERT_LEVEL_ORDER}>
       <SbStatusBand
-        iconName="campaign"
+        iconName="shield"
+        iconColor={alertLevel.tone === undefined ? undefined : toSbAlertLevelColor(colors, alertLevel.tone)}
         capsLabel={alertLevel.capsLabel}
         title={alertLevel.title}
         accessibilityLabel={alertLevel.accessibilityLabel}
-        onPress={() => openArticle(alertLevel.article)}
+        onPress={() => router.push(APP_ROUTES.alertLevel)}
       />
     </SbEntrance>
   );
