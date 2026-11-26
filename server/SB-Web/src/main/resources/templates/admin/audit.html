@@ -10,7 +10,7 @@
   <section class="card border border-base-300 bg-base-100">
     <div class="card-body gap-4 p-0 pb-4">
       <div class="overflow-x-auto">
-        <table class="table table-sm">
+        <table class="table table-sm admin-stack-table">
           <thead>
           <tr>
             <th>시각</th>
@@ -22,14 +22,14 @@
           </thead>
           <tbody>
           <tr th:each="auditLog : ${auditLogs}">
-            <td class="admin-number whitespace-nowrap" th:text="${@adminDateTimeFormatter.format(auditLog.createdAt)}">-</td>
-            <td th:text="${auditLog.adminUsername}">admin</td>
-            <td><span class="badge badge-ghost badge-sm whitespace-nowrap" th:text="${auditLog.action.label}">동작</span></td>
-            <td>
+            <td class="admin-stack-primary admin-number whitespace-nowrap" th:text="${@adminDateTimeFormatter.format(auditLog.createdAt)}">-</td>
+            <td data-label="관리자" th:text="${auditLog.adminUsername}">admin</td>
+            <td data-label="동작"><span th:replace="~{admin/fragments/admin-ui :: toneBadge('ghost', ${auditLog.action.label})}"></span></td>
+            <td data-label="대상">
               <span th:text="${auditLog.targetId} ?: '-'">대상</span>
               <span class="ml-1 text-xs text-base-content/50" th:text="${auditLog.targetType}">종류</span>
             </td>
-            <td class="max-w-md break-words text-sm text-base-content/70" th:text="${auditLog.detail} ?: '-'">내용</td>
+            <td class="max-w-md break-words text-sm text-base-content/70" data-label="내용" th:text="${auditLog.detail} ?: '-'">내용</td>
           </tr>
           <th:block th:if="${#lists.isEmpty(auditLogs)}">
             <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(5, '아직 남은 기록이 없어요')}"></tr>

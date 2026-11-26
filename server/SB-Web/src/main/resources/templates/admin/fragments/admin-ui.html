@@ -2,31 +2,68 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <!--
   관리자 화면 공통 조각: 화면마다 새로 짜지 않고 여기 것을 씀
-  pageHeader(title, description) · statCard(title, value, description, iconName) · toneBadge(tone, label)
+  pageHeader(title, description) · cardHeader(title, description)
+  statCard(title, value, description, iconName) · linkedStatCard(..., href, tone)
+  toneBadge(tone, label) · sourceStatusBadge(sourceRow) · attentionItem(tone, iconName, message, href, linkLabel)
   emptyRow(columnCount, message) · emptyState(message) · pagination(pagination, basePath)
+  표: table 에 admin-stack-table + 칸마다 data-label (좁은 화면에서 행마다 카드, admin.css)
   확인 모달: 폼에 data-confirm-message (선택 data-confirm-title, -label, -tone="danger") / 스크립트는 AdminUi.confirm
   토스트: AdminUi.toast(문구, 종류) / 리다이렉트 뒤에는 flashMessage · flashError
 -->
 <body>
 
+<!-- 화면 제목 (화면마다 h1 1개) -->
 <div th:fragment="pageHeader(title, description)">
-  <h2 class="text-2xl font-bold" th:text="${title}">제목</h2>
+  <h1 class="text-2xl font-bold" th:text="${title}">제목</h1>
   <p class="mt-1 text-sm text-base-content/60" th:text="${description}"
      th:if="${description != null and !description.isEmpty()}">설명</p>
 </div>
 
-<!-- 숫자 카드: value 는 화면이 포맷한 글자 -->
-<div th:fragment="statCard(title, value, description, iconName)" class="stat rounded-box border border-base-300 bg-base-100">
+<!-- 카드 안 제목 줄 -->
+<div th:fragment="cardHeader(title, description)" class="min-w-0">
+  <h2 class="text-lg font-bold" th:text="${title}">제목</h2>
+  <p class="text-sm text-base-content/60" th:text="${description}"
+     th:if="${description != null and !description.isEmpty()}">설명</p>
+</div>
+
+<!-- 숫자 카드: value 는 화면이 포맷한 글자. 설명이 길면 줄바꿈 (카드 밖으로 넘치지 않게) -->
+<div th:fragment="statCard(title, value, description, iconName)" class="stat min-w-0 rounded-box border border-base-300 bg-base-100">
   <div class="stat-figure text-base-content/40"><i th:attr="data-lucide=${iconName}" class="size-7"></i></div>
   <div class="stat-title" th:text="${title}">제목</div>
   <div class="stat-value admin-number text-3xl" th:text="${value}">0</div>
-  <div class="stat-desc" th:text="${description}" th:if="${description != null and !description.isEmpty()}">설명</div>
+  <div class="stat-desc whitespace-normal" th:text="${description}" th:if="${description != null and !description.isEmpty()}">설명</div>
 </div>
+
+<!-- 누르면 자세한 화면으로 가는 숫자 카드: tone 3개 error, warning(테두리 강조), 그 외 기본 -->
+<a th:fragment="linkedStatCard(title, value, description, iconName, href, tone)" th:href="@{${href}}"
+   class="stat min-w-0 rounded-box border bg-base-100 transition-colors hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-primary"
+   th:classappend="${tone == 'error'} ? 'border-error/60' : (${tone == 'warning'} ? 'border-warning/60' : 'border-base-300')">
+  <div class="stat-figure" th:classappend="${tone == 'error'} ? 'text-error' : (${tone == 'warning'} ? 'text-warning' : 'text-base-content/40')">
+    <i th:attr="data-lucide=${iconName}" class="size-7"></i>
+  </div>
+  <div class="stat-title" th:text="${title}">제목</div>
+  <div class="stat-value admin-number text-3xl" th:text="${value}">0</div>
+  <div class="stat-desc whitespace-normal" th:text="${description}" th:if="${description != null and !description.isEmpty()}">설명</div>
+</a>
 
 <!-- 상태 배지: tone 5개 success, error, warning, info, ghost(그 외). 색만으로 뜻을 전하지 않게 label 필수 -->
 <span th:fragment="toneBadge(tone, label)" class="badge badge-soft badge-sm whitespace-nowrap"
       th:classappend="${tone == 'success'} ? 'badge-success' : (${tone == 'error'} ? 'badge-error' : (${tone == 'warning'} ? 'badge-warning' : (${tone == 'info'} ? 'badge-info' : 'badge-ghost')))"
       th:text="${label}">상태</span>
+
+<!-- 출처 수집 상태 배지 (대시보드·출처 관리 공용): 꺼짐 > 실패 > 기록 없음 > 정상 -->
+<span th:fragment="sourceStatusBadge(sourceRow)"
+      th:replace="~{admin/fragments/admin-ui :: toneBadge(
+          ${!sourceRow.isEnabled()} ? 'ghost' : (${sourceRow.isLastCollectFailed()} ? 'error' : (${sourceRow.lastStatus == null} ? 'ghost' : 'success')),
+          ${!sourceRow.isEnabled()} ? '꺼짐' : ${sourceRow.lastStatusLabel})}"></span>
+
+<!-- 확인할 일 1줄: tone error·warning·success, 링크는 선택 (href 가 null 이면 없음) -->
+<li th:fragment="attentionItem(tone, iconName, message, href, linkLabel)" class="flex items-start gap-3 border-b border-base-300 py-2 last:border-b-0">
+  <i th:attr="data-lucide=${iconName}" class="mt-0.5 size-5 flex-none"
+     th:classappend="${tone == 'error'} ? 'text-error' : (${tone == 'warning'} ? 'text-warning' : 'text-success')"></i>
+  <span class="min-w-0 flex-1 text-sm" th:text="${message}">내용</span>
+  <a class="link link-primary flex-none text-sm" th:if="${href != null}" th:href="@{${href}}" th:text="${linkLabel}">보기</a>
+</li>
 
 <!-- 표 안 빈 줄: 칸 수는 쓰는 쪽이 넘김 -->
 <tr th:fragment="emptyRow(columnCount, message)">
