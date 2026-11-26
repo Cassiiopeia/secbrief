@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
+import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
+import kr.suhsaechan.secbrief.advisory.repository.SourceRepository;
 import kr.suhsaechan.secbrief.web.support.AdminTestAccounts;
 import kr.suhsaechan.secbrief.web.support.ArticleTestWriter;
 import kr.suhsaechan.secbrief.web.support.PostgresContainerTestSupport;
@@ -21,7 +23,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -34,7 +35,6 @@ import org.springframework.test.web.servlet.ResultActions;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(ArticleTestWriter.class)
 class AdminAllPagesRenderTest extends PostgresContainerTestSupport {
 
     private static final String ADMIN_USERNAME = AdminTestAccounts.randomUsername();
@@ -47,7 +47,9 @@ class AdminAllPagesRenderTest extends PostgresContainerTestSupport {
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
-    private ArticleTestWriter articleTestWriter;
+    private ArticleRepository articleRepository;
+    @Autowired
+    private SourceRepository sourceRepository;
 
     private Map<String, Object> originalFailingSourceState;
 
@@ -107,7 +109,8 @@ class AdminAllPagesRenderTest extends PostgresContainerTestSupport {
 
     // 목록 화면마다 1행 이상: 공지, 긴급 알림(보냄·보류), AI 호출(성공·실패), 알림 기기, 설정 이력, 수집 실패 출처, 요약 실패 기사
     private long seedRows() {
-        Article article = articleTestWriter.saveNews(Instant.now(), ArticleTopic.GENERAL);
+        // @Import 로 테스트 컨텍스트를 하나 더 만들지 않게 직접 생성 (DB 연결 수 한도)
+        Article article = new ArticleTestWriter(articleRepository, sourceRepository).saveNews(Instant.now(), ArticleTopic.GENERAL);
         jdbcTemplate.update("update article set summary_status = 'FAILED' where id = ?", article.getId());
         jdbcTemplate.update("insert into notification (kind, title, body, link_url, is_pinned, pushed_at) "
                 + "values ('NOTICE', '렌더 확인 공지', '줄 1\n줄 2', 'https://example.test', true, now())");
