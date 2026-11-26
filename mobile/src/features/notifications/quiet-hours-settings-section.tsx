@@ -30,7 +30,9 @@ export function QuietHoursSettingsSection() {
       />
       {sectionView.isOn && (
         <SbReveal>
+          {/* 거부한 변경이 있으면 key 가 바뀌어 선택기를 저장값으로 다시 그림 */}
           <SbTimePickerRow
+            key={`start-${settings.rejectedChangeCount}`}
             title={sectionView.startLabel}
             timeOfDay={settings.quietHours.startTime}
             timeLabel={sectionView.startTimeLabel}
@@ -39,6 +41,7 @@ export function QuietHoursSettingsSection() {
             onTimeSelected={(timeOfDay) => settings.onTimeSelected('start', timeOfDay)}
           />
           <SbTimePickerRow
+            key={`end-${settings.rejectedChangeCount}`}
             title={sectionView.endLabel}
             timeOfDay={settings.quietHours.endTime}
             timeLabel={sectionView.endTimeLabel}

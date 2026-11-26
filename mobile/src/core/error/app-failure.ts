@@ -31,6 +31,16 @@ export const PUSH_UNAVAILABLE_ERROR_CODE = 'APP_PUSH_UNAVAILABLE';
 // 앱 자체 코드: 켠 알림 종류 없이 방해 금지 시간을 저장하려 함 (서버에 기기가 없음)
 export const QUIET_HOURS_WITHOUT_ALERT_ERROR_CODE = 'APP_QUIET_HOURS_WITHOUT_ALERT';
 
+// 서버 ErrorCode: 찾는 글이 없거나 보관 기간이 지남 (다시 불러도 같아 재시도하지 않음)
+export const RESOURCE_NOT_FOUND_ERROR_CODE = 'RESOURCE_NOT_FOUND';
+// 그 밖의 실패를 다시 부르는 횟수 (React Query 기본값과 같음)
+const MAXIMUM_QUERY_RETRY_COUNT = 3;
+
+/** 조회 재시도 여부: 찾지 못함은 곧바로 실패, 그 밖은 3회까지 */
+export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
+  return toAppFailure(error).errorCode !== RESOURCE_NOT_FOUND_ERROR_CODE && failureCount < MAXIMUM_QUERY_RETRY_COUNT;
+}
+
 /**
  * 임의의 예외 > AppFailure (이미 AppFailure 면 그대로, 아니면 알 수 없는 실패)
  */

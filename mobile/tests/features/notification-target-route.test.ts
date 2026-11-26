@@ -1,6 +1,7 @@
 /**
  * 알림 누름 > 열 곳: 기사 1건, 공지, 묶음 알림, 방해 금지 시간 모아 보기, 이전 서버(targetTab), 깨진 data
  */
+import { toNotificationInboxRoute } from '@/features/navigation/app-routes';
 import { isTabRoute, toNotificationTarget, toNotificationTargetRoute } from '@/features/notifications/notification-target-route';
 
 test('숫자 articleId 가 있으면 그 기사 상세 (알림 번호는 연 글로 기록)', () => {
@@ -42,4 +43,9 @@ test('탭 경로만 탭으로 본다', () => {
   expect(isTabRoute('/vulnerability')).toBe(true);
   expect(isTabRoute('/notifications')).toBe(false);
   expect(isTabRoute('/articles/1')).toBe(false);
+});
+
+test('찾지 못한 글의 알림함 보기는 그 종류 칸으로 (내려간 공지는 공지사항 칸)', () => {
+  expect(toNotificationInboxRoute('NOTICE')).toBe('/notifications?segment=NOTICE');
+  expect(toNotificationInboxRoute('ALERT')).toBe('/notifications?segment=ALERT');
 });
