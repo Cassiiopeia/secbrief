@@ -2,6 +2,7 @@ package kr.suhsaechan.secbrief.advisory.ai;
 
 import java.util.Collections;
 import java.util.List;
+import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallType;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class StructuredOutputArticleTitleAnalyzer implements ArticleTitleAnalyze
             throw new CustomException(ErrorCode.AI_API_ERROR, "provider not configured");
         }
         StructuredCompletion completion = structuredCompletionClient.requestCompletion(new StructuredCompletionRequest(
+                AiCallType.TITLE_ANALYSIS,
                 ArticleTitleAnalysisPrompt.SYSTEM_INSTRUCTION,
                 ArticleTitleAnalysisPrompt.toUserMessage(requests),
                 ArticleTitleAnalysisPrompt.toOutputJsonSchema(),

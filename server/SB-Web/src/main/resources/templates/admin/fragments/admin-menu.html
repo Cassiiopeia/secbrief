@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!-- 사이드바 메뉴 1줄 (admin-layout 이 씀): 지금 화면이면 강조 + aria-current -->
+<body>
+<ul>
+  <li th:fragment="menuItem(activeMenu, menuKey, path, iconName, label)">
+    <a th:href="@{${path}}" th:classappend="${activeMenu == menuKey} ? 'menu-active font-semibold'"
+       th:attr="aria-current=${activeMenu == menuKey} ? 'page'">
+      <i th:attr="data-lucide=${iconName}" class="size-5"></i>
+      <span th:text="${label}">메뉴</span>
+    </a>
+  </li>
+</ul>
+</body>
+</html>

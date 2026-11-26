@@ -34,8 +34,8 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
             + "or a.imageState.status <> kr.suhsaechan.secbrief.advisory.constant.ImageStatus.NONE)")
     List<String> findSettledOriginalUrls(@Param("originalUrls") Collection<String> originalUrls);
 
-    // AI 처리 대기열: 오래된 항목부터 limit 건
-    List<Article> findByAiStatusOrderByIdAsc(AiStatus aiStatus, Limit limit);
+    // AI 처리 대기열: 게시일 최신순 (같으면 id 큰 것) limit 건 (새 소식이 오래된 대기 건에 밀리지 않게)
+    List<Article> findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus aiStatus, Limit limit);
 
     // 이미지 저장 대기열: 최신 항목부터 limit 건 (화면 위쪽에 보이는 기사 먼저)
     List<Article> findByImageState_StatusOrderByIdDesc(ImageStatus imageStatus, Limit limit);

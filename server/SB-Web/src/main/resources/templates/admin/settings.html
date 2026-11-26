@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{admin/fragments/admin-layout :: page('설정', 'settings', ~{::content})}">
+<body>
+
+<main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6">
+  <div th:replace="~{admin/fragments/admin-ui :: pageHeader('설정',
+       '서버를 다시 띄우지 않고 바꾸는 값이에요. 저장한 값은 30초 안에 반영되고, 바꾼 내용은 이력과 관리자 기록에 남아요.')}"></div>
+
+  <div role="alert" class="alert alert-warning" th:if="${!canStoreSecret}">
+    <i data-lucide="triangle-alert" class="size-5"></i>
+    <span>암호화 마스터 키가 없어 비밀값을 저장할 수 없어요. 운영 설정에 <code>secbrief.secret.master-key</code> 를 넣고 서버를 다시 띄워 주세요. (SECRET_MASTER_KEY_MISSING)</span>
+  </div>
+
+  <section class="card border border-base-300 bg-base-100" th:each="settingGroup : ${settingGroups}">
+    <div class="card-body gap-0 p-0">
+      <h3 class="border-b border-base-300 px-4 py-3 text-lg font-bold" th:text="${settingGroup.group.label}">묶음</h3>
+
+      <div class="grid gap-4 border-b border-base-300 px-4 py-4 last:border-b-0 lg:grid-cols-2"
+           th:each="configView : ${settingGroup.configViews}" th:with="configKey=${configView.key}">
+        <!--/* 왼쪽: 이름·설명·값의 출처 */-->
+        <div class="min-w-0 space-y-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="font-medium" th:text="${configKey.label}">설정 이름</span>
+            <span th:replace="~{admin/fragments/admin-ui :: toneBadge(
+                  ${configView.valueSource.name() == 'STORED'} ? 'info' : 'ghost',
+                  ${configView.valueSource.name() == 'STORED'} ? '저장한 값' : (${configView.valueSource.name() == 'DEPLOY_PROPERTY'} ? '운영 설정 값' : '기본값'))}"></span>
+          </div>
+          <p class="text-sm text-base-content/60" th:text="${configKey.description}">설명</p>
+          <p class="text-xs text-base-content/50">
+            <code th:text="${configKey.name()}">CONFIG_KEY</code>
+            <th:block th:if="${!configKey.isSecret()}">
+              · 기본값 <span class="admin-number" th:text="${configView.defaultValue}">0</span>
+            </th:block>
+            <th:block th:if="${configKey.valueRule.minimumValue != null}">
+              · 범위 <span class="admin-number" th:text="|${configKey.valueRule.minimumValue.toPlainString()} ~ ${configKey.valueRule.maximumValue.toPlainString()}|">1 ~ 10</span>
+            </th:block>
+            · <a class="link" th:href="@{/admin/settings/{configKeyName}/history(configKeyName=${configKey.name()})}">변경 이력</a>
+          </p>
+        </div>
+
+        <!--/* 오른쪽: 전용 화면에서 다루는 설정은 읽기 전용 */-->
+        <div class="flex flex-wrap items-center gap-2" th:if="${configKey.isManagedOnDedicatedScreen()}">
+          <th:block th:if="${configKey.isSecret()}">
+            <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${configView.hasSecretValue()} ? 'success' : 'ghost', ${configView.hasSecretValue()} ? '설정됨' : '없음')}"></span>
+            <span class="admin-number text-sm text-base-content/60" th:text="${configView.displayValue}">••••</span>
+            <span class="text-sm text-error" th:if="${configView.isStored() and !configView.hasSecretValue()}">저장된 값을 읽지 못했어요. 마스터 키를 확인해 주세요.</span>
+          </th:block>
+          <span class="admin-number text-sm" th:if="${!configKey.isSecret()}" th:text="${configView.displayValue}">값</span>
+          <a class="btn btn-sm" th:href="@{/admin/ai-keys}">AI 키 화면에서 바꾸기</a>
+        </div>
+
+        <!--/* 오른쪽: 값 입력 + 사유 + 저장, 기본값 복원 */-->
+        <div class="space-y-2" th:if="${!configKey.isManagedOnDedicatedScreen()}"
+             th:with="valueType=${configKey.valueType.name()}">
+          <form method="post" class="flex flex-wrap items-center gap-2"
+                th:action="@{/admin/settings/{configKeyName}(configKeyName=${configKey.name()})}">
+            <input type="number" name="value" class="input input-sm admin-number w-32" required
+                   th:if="${valueType == 'INT' or valueType == 'DECIMAL'}"
+                   th:value="${configView.displayValue}"
+                   th:attr="min=${configKey.valueRule.minimumValue.toPlainString()},max=${configKey.valueRule.maximumValue.toPlainString()},step=${valueType == 'INT'} ? '1' : 'any',aria-label=${configKey.label}"/>
+            <label class="label cursor-pointer gap-2" th:if="${valueType == 'BOOLEAN'}">
+              <input type="checkbox" name="value" value="true" class="toggle toggle-primary toggle-sm"
+                     th:checked="${configView.displayValue == 'true'}" th:attr="aria-label=${configKey.label}"/>
+              <span class="text-sm">켜기</span>
+            </label>
+            <select name="value" class="select select-sm w-40" th:if="${valueType == 'ENUM'}" th:attr="aria-label=${configKey.label}">
+              <option th:each="allowedValue : ${configKey.valueRule.allowedValues}" th:value="${allowedValue}"
+                      th:text="${allowedValue}" th:selected="${allowedValue == configView.displayValue}">값</option>
+            </select>
+            <input type="text" name="value" class="input input-sm w-56" required th:if="${valueType == 'STRING'}"
+                   th:value="${configView.displayValue}"
+                   th:attr="maxlength=${configKey.valueRule.maximumLength},aria-label=${configKey.label}"/>
+            <th:block th:if="${valueType == 'SECRET'}">
+              <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${configView.hasSecretValue()} ? 'success' : 'ghost', ${configView.hasSecretValue()} ? '설정됨' : '없음')}"></span>
+              <span class="admin-number text-sm text-base-content/60" th:text="${configView.displayValue}">••••</span>
+              <input type="password" name="value" class="input input-sm w-56" autocomplete="new-password"
+                     placeholder="새 값을 넣으면 바꿔요" th:disabled="${!canStoreSecret}"
+                     th:attr="maxlength=${configKey.valueRule.maximumLength},aria-label=${configKey.label} + ' 새 값'"/>
+            </th:block>
+            <input type="text" name="reason" class="input input-sm w-48" maxlength="500" placeholder="바꾸는 이유 (선택)"
+                   th:attr="aria-label=${configKey.label} + ' 바꾸는 이유'"/>
+            <button type="submit" class="btn btn-primary btn-sm">저장</button>
+          </form>
+          <form method="post" th:if="${configView.isStored()}"
+                th:action="@{/admin/settings/{configKeyName}/reset(configKeyName=${configKey.name()})}"
+                data-confirm-title="기본값으로 돌릴까요?" data-confirm-label="기본값 복원"
+                th:attr="data-confirm-message=${configKey.isSecret()} ? |「${configKey.label}」 저장한 값을 지워요.| : |「${configKey.label}」 저장한 값을 지우고 기본값(${configView.defaultValue})으로 돌려요.|">
+            <button type="submit" class="btn btn-ghost btn-xs">기본값 복원</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+</body>
+</html>

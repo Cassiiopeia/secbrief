@@ -1,0 +1,11 @@
+/* 관리자 화면 공통 보정 (컴포넌트 모양은 daisyUI, 간격·배치는 Tailwind 클래스가 담당) */
+
+/* hidden 속성이 Tailwind 의 display 클래스에 밀리지 않게 */
+[hidden] {
+    display: none !important;
+}
+
+/* 숫자 열·카드 숫자: 자릿수가 달라도 폭이 흔들리지 않게 */
+.admin-number {
+    font-variant-numeric: tabular-nums;
+}

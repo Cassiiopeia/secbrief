@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{admin/fragments/admin-layout :: page('설정 변경 이력', 'settings', ~{::content})}">
+<body>
+
+<main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6">
+  <div th:replace="~{admin/fragments/admin-ui :: pageHeader(${configKey.label} + ' 변경 이력',
+       '최근 50건을 최신순으로 보여 줘요. 비밀값은 값 대신 있음·없음만 남아요.')}"></div>
+
+  <div>
+    <a class="btn btn-sm" th:href="@{/admin/settings}"><i data-lucide="arrow-left" class="size-4"></i>설정으로 돌아가기</a>
+    <code class="ml-2 text-xs text-base-content/50" th:text="${configKey.name()}">CONFIG_KEY</code>
+  </div>
+
+  <section class="card border border-base-300 bg-base-100">
+    <div class="card-body p-0">
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead>
+          <tr>
+            <th>시각</th>
+            <th>이전 값</th>
+            <th>새 값</th>
+            <th>바꾼 사람</th>
+            <th>이유</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="history : ${histories}">
+            <td class="admin-number whitespace-nowrap" th:text="${@adminDateTimeFormatter.format(history.createdAt)}">-</td>
+            <td class="admin-number max-w-xs break-words" th:text="${history.oldValue} ?: '-'">이전 값</td>
+            <td class="admin-number max-w-xs break-words font-medium" th:text="${history.newValue} ?: '-'">새 값</td>
+            <td th:text="${history.changedBy}">admin</td>
+            <td class="max-w-md break-words text-sm text-base-content/70" th:text="${history.reason} ?: '-'">이유</td>
+          </tr>
+          <th:block th:if="${#lists.isEmpty(histories)}">
+            <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(5, '아직 바꾼 적이 없어요')}"></tr>
+          </th:block>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+</body>
+</html>

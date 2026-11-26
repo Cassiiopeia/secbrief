@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{admin/fragments/admin-layout :: page('대시보드', 'dashboard', ~{::content})}">
+<body>
+
+<main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6">
+  <div th:replace="~{admin/fragments/admin-ui :: pageHeader('오늘 현황',
+       '서울 날짜 기준이에요. 숫자와 그래프는 1분마다 새 값으로 바뀌어요.')}"></div>
+
+  <!-- 숫자 카드 -->
+  <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="오늘 숫자">
+    <div th:replace="~{admin/fragments/admin-ui :: statCard('오늘 수집',
+         ${#numbers.formatInteger(summary.todayCollectedCount, 1, 'COMMA')} + '건',
+         '이번 주 ' + ${#numbers.formatInteger(summary.weekCollectedCount, 1, 'COMMA')} + '건', 'download')}"></div>
+    <div th:replace="~{admin/fragments/admin-ui :: statCard('AI 대기',
+         ${#numbers.formatInteger(summary.pendingTitleAnalysisCount + summary.pendingSummaryCount, 1, 'COMMA')} + '건',
+         '제목 분석 ' + ${#numbers.formatInteger(summary.pendingTitleAnalysisCount, 1, 'COMMA')}
+           + '건 · 요약 ' + ${#numbers.formatInteger(summary.pendingSummaryCount, 1, 'COMMA')} + '건', 'hourglass')}"></div>
+    <div th:replace="~{admin/fragments/admin-ui :: statCard('오늘 AI 호출',
+         ${#numbers.formatInteger(summary.todayAiCallCount, 1, 'COMMA')} + '회',
+         '실패 ' + ${#numbers.formatInteger(summary.todayAiFailureCount, 1, 'COMMA')}
+           + '회 · 추정 비용 $' + ${#numbers.formatDecimal(summary.todayAiEstimatedCostUsd, 1, 'COMMA', 4, 'POINT')}, 'sparkles')}"></div>
+    <div th:replace="~{admin/fragments/admin-ui :: statCard('오늘 앱 요청',
+         ${#numbers.formatInteger(summary.todayScreenRequestCount, 1, 'COMMA')} + '건',
+         '이미지 요청 ' + ${#numbers.formatInteger(summary.todayImageRequestCount, 1, 'COMMA')}
+           + '건 별도 · 알림 등록 기기 ' + ${#numbers.formatInteger(summary.pushDeviceCount, 1, 'COMMA')} + '대', 'smartphone')}"></div>
+  </section>
+
+  <!-- 추이 그래프 4종 -->
+  <section class="grid grid-cols-1 gap-4 xl:grid-cols-2" aria-label="추이 그래프">
+    <div th:replace="~{admin/fragments/admin-chart :: trendCard('수집 추이',
+         '수집한 시각 기준, 종류별 건수예요', '/admin/stats/api/collect', 'stacked', false)}"></div>
+    <div th:replace="~{admin/fragments/admin-chart :: trendCard('AI 사용 추이',
+         'AI 호출 성공·실패 횟수와 추정 비용(USD)이에요', '/admin/stats/api/ai-usage', 'stacked', true)}"></div>
+    <div th:replace="~{admin/fragments/admin-chart :: trendCard('이용 추이',
+         '앱 화면 묶음별 요청 수예요 (이미지 요청 제외)', '/admin/stats/api/api-usage', 'stacked', false)}"></div>
+    <div th:replace="~{admin/fragments/admin-chart :: trendCard('알림 기기 등록 추이',
+         '지금 알림을 켜 둔 기기의 등록일 기준이에요', '/admin/stats/api/push-devices', 'bar', false)}"></div>
+  </section>
+
+  <!-- 출처 상태 요약 -->
+  <section class="card border border-base-300 bg-base-100" aria-label="출처 상태">
+    <div class="card-body gap-3 p-4 lg:p-5">
+      <div class="flex items-center justify-between gap-2">
+        <h3 class="card-title text-base">출처 상태</h3>
+        <a th:href="@{/admin/sources}" class="btn btn-ghost btn-sm">출처 관리로 가기</a>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead>
+          <tr>
+            <th>출처</th>
+            <th>종류</th>
+            <th>마지막 수집</th>
+            <th>상태</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="sourceRow : ${sourceRows}">
+            <td>
+              <span class="font-medium" th:text="${sourceRow.displayName}">출처</span>
+              <span class="ml-1 text-xs text-base-content/50" th:text="${sourceRow.code}">CODE</span>
+            </td>
+            <td th:text="${sourceRow.kindLabel}">공지</td>
+            <td class="admin-number whitespace-nowrap" th:text="${@adminDateTimeFormatter.format(sourceRow.lastCollectedAt)}">-</td>
+            <td>
+              <th:block th:if="${!sourceRow.isEnabled()}">
+                <span th:replace="~{admin/fragments/admin-ui :: toneBadge('ghost', '꺼짐')}"></span>
+              </th:block>
+              <th:block th:if="${sourceRow.isEnabled()}">
+                <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${sourceRow.isLastCollectFailed()} ? 'error' : (${sourceRow.lastStatus == null} ? 'ghost' : 'success'), ${sourceRow.lastStatusLabel})}"></span>
+              </th:block>
+            </td>
+          </tr>
+          <th:block th:if="${#lists.isEmpty(sourceRows)}">
+            <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(4, '등록한 출처가 없어요')}"></tr>
+          </th:block>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <th:block th:replace="~{admin/fragments/admin-chart :: scripts}"></th:block>
+</main>
+
+</body>
+</html>

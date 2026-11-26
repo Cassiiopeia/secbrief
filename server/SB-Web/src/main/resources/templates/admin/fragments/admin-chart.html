@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  추이 그래프 카드 조각. 동작은 /admin/js/admin-charts.js 가 [data-trend-chart] 를 찾아 붙임
+  scripts: 화면 끝에 한 번
+  trendCard(title, description, endpoint, chartType, hasMetricToggle)
+    endpoint: /admin/stats/api/... · chartType: stacked, bar · hasMetricToggle: 호출 수·비용 전환 버튼
+-->
+<body>
+
+<th:block th:fragment="scripts">
+  <script th:src="@{/admin/vendor/chart.umd.min.js}" defer></script>
+  <script th:src="@{/admin/js/admin-chart-theme.js}" defer></script>
+  <script th:src="@{/admin/js/admin-charts.js}" defer></script>
+</th:block>
+
+<section th:fragment="trendCard(title, description, endpoint, chartType, hasMetricToggle)"
+         class="card border border-base-300 bg-base-100" data-trend-chart data-unit="day"
+         th:attr="data-endpoint=@{${endpoint}},data-type=${chartType},data-metric=${hasMetricToggle} ? 'count'">
+  <div class="card-body gap-3 p-4 lg:p-5">
+    <div class="flex flex-wrap items-start justify-between gap-2">
+      <div class="min-w-0">
+        <h3 class="card-title text-base" th:text="${title}">추이</h3>
+        <p class="text-sm text-base-content/60" th:text="${description}">설명</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="join" role="group" aria-label="지표" th:if="${hasMetricToggle}">
+          <button type="button" data-trend-metric="count" class="btn btn-xs join-item btn-active btn-primary" aria-pressed="true">호출 수</button>
+          <button type="button" data-trend-metric="cost" class="btn btn-xs join-item">비용</button>
+        </div>
+        <div class="join" role="group" aria-label="묶음 단위">
+          <button type="button" data-trend-unit="day" class="btn btn-xs join-item btn-active btn-primary" aria-pressed="true">일별 30일</button>
+          <button type="button" data-trend-unit="month" class="btn btn-xs join-item">월별 12개월</button>
+        </div>
+      </div>
+    </div>
+    <div class="relative h-64 w-full">
+      <canvas data-trend-canvas role="img" th:attr="aria-label=${title} + ' 그래프'"></canvas>
+      <!-- 불러오는 중 · 빈 상태 · 오류(에러 코드, 다시 시도) 덮개 -->
+      <div data-trend-overlay
+           class="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-box bg-base-100 text-sm text-base-content/70">
+        <span class="loading loading-spinner loading-md"></span>
+        <span>불러오는 중이에요</span>
+      </div>
+    </div>
+    <details class="text-sm">
+      <summary class="cursor-pointer text-base-content/60">표로 보기</summary>
+      <div data-trend-table class="mt-2 max-h-64 overflow-auto"></div>
+    </details>
+  </div>
+</section>
+
+</body>
+</html>
