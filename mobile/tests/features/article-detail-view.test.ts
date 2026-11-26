@@ -16,7 +16,7 @@ const fullBrief: ArticleBrief = {
 };
 const newsBrief: ArticleBrief = { oneLine: '예시 기관이 보안 점검 안내서를 냈어요', whatHappened: '안내서가 공개됐어요.', affectedTargets: [], actions: [] };
 
-const baseDetail: ArticleDetail = { article: nvdItem, keyPoints: [], isAiSummarized: false, facts: [], relatedItems: [] };
+const baseDetail: ArticleDetail = { article: nvdItem, keyPoints: [], isAiSummarized: false, facts: [], relatedItems: [], responseGuideSections: [] };
 
 describe('브리핑 표시 내용 (보일 구역 고르기)', () => {
   test('값이 다 있으면 구역 5개가 모두 보인다', () => {

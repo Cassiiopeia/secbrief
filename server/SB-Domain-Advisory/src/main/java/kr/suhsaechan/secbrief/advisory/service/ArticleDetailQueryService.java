@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 기사 상세(브리프): 기사 1건 > 관련 기사 ID(순위 조회 1회) > 관련 기사 묶음 조회 > 응답
+ * 기사 상세(브리프): 기사 1건 > 관련 기사 ID(순위 조회 1회) > 관련 기사 묶음 조회 > 대응 모아보기 > 응답
  * 없는 id 는 RESOURCE_NOT_FOUND, 요약 상태와 무관하게 열림 (요약이 없으면 제목·사실 값·원문 링크)
  */
 @Service
@@ -23,12 +23,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class ArticleDetailQueryService {
 
     private final ArticleRepository articleRepository;
+    private final ResponseGuideQueryService responseGuideQueryService;
     private final Clock clock;
 
     public ArticleDetailResponse findArticleDetail(Long articleId) {
         Article article = articleRepository.findById(articleId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
-        return ArticleDetailResponse.of(article, findRelatedArticles(article));
+        return ArticleDetailResponse.of(article, findRelatedArticles(article),
+                responseGuideQueryService.findResponseGuideSections(article));
     }
 
     // 관련 순위대로 ID 를 받은 뒤 한 번에 읽고, 받은 ID 순서로 다시 정렬 (IN 조회는 순서를 지키지 않음)

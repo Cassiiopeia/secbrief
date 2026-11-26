@@ -7,9 +7,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import kr.suhsaechan.secbrief.advisory.constant.ResponseGuideSection;
 import kr.suhsaechan.secbrief.advisory.dto.ArticleResponse;
+import kr.suhsaechan.secbrief.advisory.dto.ResponseGuideItemResponse;
+import kr.suhsaechan.secbrief.advisory.dto.ResponseGuideSectionResponse;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
+import kr.suhsaechan.secbrief.advisory.service.ResponseGuideQueryService;
 import kr.suhsaechan.secbrief.application.notification.UrgentAlertPolicy;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
@@ -24,7 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 알림함 조회: 종류별 목록(커서 페이지, 한 건 더 읽어 다음 판정), 종류별 최근 번호, 상세(종류별 기사 묶음)
+ * 알림함 조회: 종류별 목록(커서 페이지, 한 건 더 읽어 다음 판정), 종류별 최근 번호, 상세(종류별 기사 묶음 + 기사별 대응 안내 요약)
  */
 @Service
 @RequiredArgsConstructor
@@ -35,9 +39,12 @@ public class NotificationQueryService {
     public static final int MAXIMUM_PAGE_SIZE = 50;
     // 목록에 싣는 공지 본문 앞부분 길이
     static final int NOTICE_PREVIEW_LENGTH = 120;
+    // 대응 안내 요약을 붙이는 기사 수 (기사마다 모아보기 조회 1회, 한 알림에 최대 200건이라 앞쪽만)
+    static final int MAXIMUM_GUIDED_ARTICLE_COUNT = 20;
 
     private final NotificationRepository notificationRepository;
     private final ArticleRepository articleRepository;
+    private final ResponseGuideQueryService responseGuideQueryService;
 
     /**
      * 목록 1페이지: 커서 해석 > 한 건 더 조회 > 대표 기사 제목 붙이기 > 다음 커서
@@ -81,7 +88,8 @@ public class NotificationQueryService {
                 summary.alertCategories(), summary.title(), notification.getBody(), notification.getLinkUrl(),
                 summary.leadArticleId(), summary.leadArticleTitle(), summary.articleCount(), summary.isPinned(),
                 summary.createdAt(), summary.updatedAt(), summary.pushedAt(),
-                toArticleSections(notification.getArticles(), articleById));
+                toArticleSections(notification.getArticles(), articleById),
+                toArticleGuides(notification.getArticles(), articleById));
     }
 
     private List<Notification> findPageAfter(NotificationKind kind, NotificationCursor cursor, int limit) {
@@ -116,6 +124,40 @@ public class NotificationQueryService {
             }
         }
         return articleSections;
+    }
+
+    // 알림 순서대로 앞 20건: 브리핑 대응 + 구역별 건수 + 첫 공식 대응
+    private List<NotificationArticleGuideResponse> toArticleGuides(List<NotificationArticle> notificationArticles,
+                                                                  Map<Long, Article> articleById) {
+        return notificationArticles.stream()
+                .map(notificationArticle -> articleById.get(notificationArticle.getArticleId()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .limit(MAXIMUM_GUIDED_ARTICLE_COUNT)
+                .map(this::toArticleGuide)
+                .toList();
+    }
+
+    private NotificationArticleGuideResponse toArticleGuide(Article article) {
+        List<ResponseGuideSectionResponse> sections = responseGuideQueryService.findResponseGuideSections(article);
+        ResponseGuideItemResponse leadOfficialItem = sections.stream()
+                .filter(section -> section.section() == ResponseGuideSection.OFFICIAL)
+                .flatMap(section -> section.items().stream())
+                .findFirst()
+                .orElse(null);
+        List<String> actions = article.getSummaryState().hasBrief()
+                ? article.getSummaryState().getBrief().actions()
+                : List.of();
+        return new NotificationArticleGuideResponse(article.getId(), actions,
+                countSection(sections, ResponseGuideSection.OFFICIAL), countSection(sections, ResponseGuideSection.FACT),
+                countSection(sections, ResponseGuideSection.NEWS), leadOfficialItem);
+    }
+
+    private static int countSection(List<ResponseGuideSectionResponse> sections, ResponseGuideSection section) {
+        return sections.stream()
+                .filter(sectionResponse -> sectionResponse.section() == section)
+                .mapToInt(ResponseGuideSectionResponse::totalCount)
+                .sum();
     }
 
     private static NotificationSummaryResponse toSummaryResponse(Notification notification,

@@ -18,6 +18,8 @@ import kr.suhsaechan.secbrief.advisory.entity.Source;
 import kr.suhsaechan.secbrief.advisory.policy.ArticleDraft;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
 import kr.suhsaechan.secbrief.advisory.repository.SourceRepository;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleBrief;
+import kr.suhsaechan.secbrief.application.notification.inbox.NotificationArticleGuideResponse;
 import kr.suhsaechan.secbrief.application.notification.inbox.NotificationArticleSectionResponse;
 import kr.suhsaechan.secbrief.application.notification.inbox.NotificationDetailResponse;
 import kr.suhsaechan.secbrief.application.notification.inbox.NotificationPageResponse;
@@ -37,7 +39,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * 알림함 조회 (DB): 커서로 끝까지(빠짐·겹침 없음), 공지는 고정 먼저, 대표 기사 제목, 상세의 종류별 묶음(지운 기사 뺌), 최근 번호
+ * 알림함 조회 (DB): 커서로 끝까지(빠짐·겹침 없음), 공지는 고정 먼저, 대표 기사 제목, 상세의 종류별 묶음(지운 기사 뺌), 기사별 대응 안내 요약, 최근 번호
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -124,6 +126,44 @@ class NotificationQueryTest extends PostgresContainerTestSupport {
         assertThat(detail.leadArticleId()).isEqualTo(kevArticle.getId());
         assertThatThrownBy(() -> notificationQueryService.findNotification(alert.getId() + 1000))
                 .isInstanceOf(CustomException.class);
+    }
+
+    @Test
+    void attachesResponseGuideSummaryWithBriefActionsPerAlertedArticle() {
+        Article alertedArticle = saveArticle("CVE-2026-8401: Example Gateway flaw");
+        alertedArticle.getSummaryState().applyBrief(new ArticleBrief("Example Gateway 취약점이 공개됐어요.",
+                "Example Gateway에 원격 코드 실행 취약점이 있어요.", null, List.of(), List.of("3.2.1로 올리세요.")));
+        articleRepository.save(alertedArticle);
+        Article articleWithoutGuide = saveArticle("CVE-2026-8402: Unrelated flaw");
+        Source kisaVulnerabilitySource = sourceRepository.findByCode(SourceCode.KISA_VULNERABILITY).orElseThrow();
+        Article kisaNotice = articleRepository.save(Article.create(kisaVulnerabilitySource, new ArticleDraft(
+                ArticleKind.ADVISORY, ArticleRegion.DOMESTIC, "CVE-2026-8401 | Example Gateway 원격 코드 실행",
+                "https://example.test/kisa/8401", "KISA", Instant.now(), false, null, null, null, false, false), Instant.now()));
+        Notification alert = notificationRepository.save(Notification.createAlert(AlertCategory.CRITICAL_CVE,
+                "고위험 취약점 2건이 공개됐어요", "CVE-2026-8401: Example Gateway flaw 외 1건", List.of(
+                        new NotificationArticle(0, alertedArticle.getId(), AlertCategory.CRITICAL_CVE),
+                        new NotificationArticle(1, articleWithoutGuide.getId(), AlertCategory.CRITICAL_CVE)), BASE_TIME));
+
+        NotificationDetailResponse detail = notificationQueryService.findNotification(alert.getId());
+
+        assertThat(detail.articleGuides()).extracting(NotificationArticleGuideResponse::articleId)
+                .containsExactly(alertedArticle.getId(), articleWithoutGuide.getId());
+        NotificationArticleGuideResponse guide = detail.articleGuides().get(0);
+        assertThat(guide.actions()).containsExactly("3.2.1로 올리세요.");
+        assertThat(guide.officialCount()).isEqualTo(1);
+        assertThat(guide.factCount()).isZero();
+        assertThat(guide.leadOfficialItem().article().id()).isEqualTo(kisaNotice.getId());
+        NotificationArticleGuideResponse emptyGuide = detail.articleGuides().get(1);
+        assertThat(emptyGuide.actions()).isEmpty();
+        assertThat(emptyGuide.officialCount() + emptyGuide.factCount() + emptyGuide.newsCount()).isZero();
+        assertThat(emptyGuide.leadOfficialItem()).isNull();
+    }
+
+    @Test
+    void returnsNoGuidesForNotice() {
+        Notification notice = saveNotice("서비스 점검 안내", false, BASE_TIME);
+
+        assertThat(notificationQueryService.findNotification(notice.getId()).articleGuides()).isEmpty();
     }
 
     @Test
