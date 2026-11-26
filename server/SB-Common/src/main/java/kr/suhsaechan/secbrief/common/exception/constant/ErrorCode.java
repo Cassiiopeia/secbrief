@@ -29,7 +29,10 @@ public enum ErrorCode {
     // 외부 연동 (보안 공지 출처, AI 제공자)
     EXTERNAL_API_ERROR(HttpStatus.BAD_GATEWAY, "외부 서비스 응답에 문제가 있어요."),
     FEED_PARSE_ERROR(HttpStatus.BAD_GATEWAY, "외부 소식 형식을 읽지 못했어요."),
-    AI_API_ERROR(HttpStatus.BAD_GATEWAY, "AI 처리에 문제가 있어요.");
+    AI_API_ERROR(HttpStatus.BAD_GATEWAY, "AI 처리에 문제가 있어요."),
+
+    // 자체 저장소 (기사 대표 이미지)
+    IMAGE_STORAGE_ERROR(HttpStatus.BAD_GATEWAY, "이미지를 불러오지 못했어요.");
 
     private final HttpStatus status;
     private final String message;

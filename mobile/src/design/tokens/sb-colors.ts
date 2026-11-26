@@ -11,7 +11,13 @@ export interface SbColors {
   label: string;
   secondaryLabel: string;
   tertiaryLabel: string;
+  /** 읽은 소식 제목 (본문보다 흐리되 다크에서도 읽히는 밝기) */
+  readLabel: string;
   separator: string;
+  /** 로딩 뼈대 블록 (바탕과 구분되는 밝기) */
+  skeleton: string;
+  /** 먹색 커버 그림 바탕 (다크에서는 화면 바탕과 구분되게 한 단 밝게) */
+  coverInk: string;
   /** 민트 강조 (긴급 타일, 채움 버튼) 와 그 위 글자 */
   accent: string;
   onAccent: string;
@@ -34,7 +40,10 @@ export const sbLightColors: SbColors = {
   label: '#131313',
   secondaryLabel: '#2D2D2D',
   tertiaryLabel: '#6B6B6B',
+  readLabel: '#6B6B6B',
   separator: '#D6D6D0',
+  skeleton: '#DFDFD9',
+  coverInk: '#131313',
   accent: '#3CFFD0',
   onAccent: '#131313',
   feature: '#5200FF',
@@ -53,7 +62,10 @@ export const sbDarkColors: SbColors = {
   label: '#FFFFFF',
   secondaryLabel: '#E9E9E9',
   tertiaryLabel: '#949494',
+  readLabel: '#B4B4B4',
   separator: '#2D2D2D',
+  skeleton: '#3A3A3A',
+  coverInk: '#2D2D2D',
   accent: '#3CFFD0',
   onAccent: '#131313',
   feature: '#5200FF',
@@ -64,3 +76,25 @@ export const sbDarkColors: SbColors = {
   severityMedium: '#F2CF4A',
   severityLow: '#8FA3C2',
 };
+
+/** 심각도 색조 4단계 (CVSS 구간) */
+export type SbSeverityTone = 'critical' | 'high' | 'medium' | 'low';
+
+/** 심각도 색조 > 색 토큰 값 */
+export function toSbSeverityColor(colors: SbColors, tone: SbSeverityTone): string {
+  switch (tone) {
+    case 'critical':
+      return colors.severityCritical;
+    case 'high':
+      return colors.severityHigh;
+    case 'medium':
+      return colors.severityMedium;
+    case 'low':
+      return colors.severityLow;
+  }
+}
+
+/** 소식 제목 글자색: 읽은 소식은 흐리게 */
+export function toSbArticleTitleColor(colors: SbColors, isRead: boolean): string {
+  return isRead ? colors.readLabel : colors.label;
+}

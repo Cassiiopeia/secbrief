@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import kr.suhsaechan.secbrief.advisory.collector.CollectedArticle;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
@@ -15,16 +16,45 @@ import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.FeedFormat;
 import kr.suhsaechan.secbrief.advisory.constant.SourceCode;
 import kr.suhsaechan.secbrief.advisory.entity.Source;
+import kr.suhsaechan.secbrief.advisory.fact.SourceFact;
 import org.junit.jupiter.api.Test;
 
 /**
- * 정규화: 제목·링크 정리, 게시일 보정(없음·미래), 출처 값 적용, 오류 메시지 정리
+ * 정규화: 제목·링크 정리, 게시일 보정(없음·미래), 출처 값 적용, 오류 메시지 정리, 이미지 주소 정리(불량이면 이미지 없이)
  */
 class ArticleNormalizerTest {
 
     private static final Instant NOW = Instant.parse("2026-11-23T03:00:00Z");
 
     private final Source kisaSource = createSource(SourceCode.KISA, ArticleKind.ADVISORY, ArticleRegion.DOMESTIC, FeedFormat.RSS, null);
+
+    @Test
+    void cleansSourceTextAndFactsIntoDraft() {
+        CollectedArticle collected = new CollectedArticle("Example VPN flaw exploited", "https://a.kr/1", null, NOW,
+                null, null, null, false, null,
+                "<p>Attackers are exploiting a flaw in <b>Example VPN</b> &amp; Example Gateway to steal session tokens.</p>",
+                List.of(new SourceFact(" 조치 기한 ", " 2026-12-11\n"), new SourceFact("조치 요구", " ")));
+
+        ArticleDraft draft = normalize(collected, kisaSource, NOW).orElseThrow();
+
+        assertThat(draft.sourceText())
+                .isEqualTo("Attackers are exploiting a flaw in Example VPN & Example Gateway to steal session tokens.");
+        assertThat(draft.sourceFacts()).containsExactly(new SourceFact("조치 기한", "2026-12-11"));
+    }
+
+    @Test
+    void leavesSourceTextNullWhenItAddsNothingToTitle() {
+        String title = "CVE-2026-0002: Example Library 4.0 deserialization flaw in the request parser.";
+        CollectedArticle sameAsTitle = new CollectedArticle(title, "https://a.kr/1", null, NOW, null, null, null, false,
+                null, "Example Library 4.0 deserialization flaw in the request parser.", List.of());
+        CollectedArticle tooShort = new CollectedArticle("제목", "https://a.kr/2", null, NOW, null, null, null, false,
+                null, "<p>짧은 요약</p>", List.of());
+
+        assertThat(normalize(sameAsTitle, kisaSource, NOW).orElseThrow().sourceText()).isNull();
+        assertThat(normalize(tooShort, kisaSource, NOW).orElseThrow().sourceText()).isNull();
+        assertThat(normalize(createCollectedArticle("제목", "https://a.kr/3", NOW), kisaSource, NOW).orElseThrow().sourceText())
+                .isNull();
+    }
 
     @Test
     void usesCollectedAtWhenPublishedAtMissing() {
@@ -67,6 +97,15 @@ class ArticleNormalizerTest {
         Optional<ArticleDraft> draft = normalize(createCollectedArticle("  <b>Ivanti</b>\n  긴급 패치 ", "https://a.kr/1", NOW), kisaSource, NOW);
 
         assertThat(draft.orElseThrow().title()).isEqualTo("Ivanti 긴급 패치");
+    }
+
+    @Test
+    void unescapesHtmlCharacterReferencesInTitle() {
+        // KISA 피드는 따옴표·기호를 문자 참조로 줌
+        Optional<ArticleDraft> draft = normalize(createCollectedArticle(
+                "사이버위기 경보 단계 &#39;관심&#39; → &#39;주의&#39; 상향 조정 &amp; 안내", "https://a.kr/2", NOW), kisaSource, NOW);
+
+        assertThat(draft.orElseThrow().title()).isEqualTo("사이버위기 경보 단계 '관심' → '주의' 상향 조정 & 안내");
     }
 
     @Test
@@ -171,6 +210,45 @@ class ArticleNormalizerTest {
 
     private static CollectedArticle createCollectedArticle(String title, String originalUrl, Instant publishedAt) {
         return new CollectedArticle(title, originalUrl, "게시자", publishedAt, null, null, null, false);
+    }
+
+    @Test
+    void keepsHttpImageUrlTrimmed() {
+        ArticleDraft draft = normalize(createCollectedArticleWithImage(" https://images.example.test/a.jpg?w=600 "), kisaSource, NOW).orElseThrow();
+
+        assertThat(draft.imageSourceUrl()).isEqualTo("https://images.example.test/a.jpg?w=600");
+    }
+
+    @Test
+    void dropsOnlyImageWhenImageUrlIsNotHttp() {
+        for (String badImageUrl : new String[] {"data:image/png;base64,AAAA", "file:///etc/passwd", "//images.example.test/a.jpg",
+                "/relative/a.jpg", "javascript:alert(1)", "https://", "https://images.example.test/a b.jpg", ""}) {
+            Optional<ArticleDraft> draft = normalize(createCollectedArticleWithImage(badImageUrl), kisaSource, NOW);
+
+            assertThat(draft).as(badImageUrl).isPresent();
+            assertThat(draft.get().imageSourceUrl()).as(badImageUrl).isNull();
+        }
+    }
+
+    @Test
+    void dropsImageUrlLongerThanColumn() {
+        String prefix = "https://images.example.test/";
+        String longestImageUrl = prefix + "a".repeat(1000 - prefix.length());
+
+        assertThat(normalize(createCollectedArticleWithImage(longestImageUrl), kisaSource, NOW).orElseThrow().imageSourceUrl())
+                .isEqualTo(longestImageUrl);
+        assertThat(normalize(createCollectedArticleWithImage(longestImageUrl + "a"), kisaSource, NOW).orElseThrow().imageSourceUrl())
+                .isNull();
+    }
+
+    @Test
+    void hasNoImageWhenSourceGivesNone() {
+        assertThat(normalize(createCollectedArticle("제목", "https://a.kr/1", NOW), kisaSource, NOW).orElseThrow().imageSourceUrl())
+                .isNull();
+    }
+
+    private static CollectedArticle createCollectedArticleWithImage(String imageSourceUrl) {
+        return new CollectedArticle("제목", "https://a.kr/1", "게시자", NOW, null, null, null, false, imageSourceUrl);
     }
 
     private static CollectedArticle createCollectedArticleWithPublisher(String publisherName, String title) {

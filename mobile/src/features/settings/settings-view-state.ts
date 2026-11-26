@@ -1,4 +1,4 @@
-import { toArticleDateLabel } from '@/core/format/briefing-date-formatter';
+import { toDateTimeLabel } from '@/core/format/briefing-date-formatter';
 import type { CollectSourceStatus } from '@/data/models/collect-source-status';
 
 import { toKindLabel, toRegionLabel } from '../articles/article-row-view';
@@ -16,7 +16,7 @@ export function toSourceStatusRowView(status: CollectSourceStatus, now: Date): S
   if (status.lastCollectedAt === undefined) {
     return { code: status.code, title: status.displayName, detail: `${prefix} · 아직 모으는 중이에요` };
   }
-  const lastCollectedLabel = `마지막 갱신 ${toArticleDateLabel(status.lastCollectedAt, now)}`;
+  const lastCollectedLabel = `마지막 갱신 ${toDateTimeLabel(status.lastCollectedAt, now)}`;
   const failureSuffix = status.isLastCollectSucceeded ? '' : ' · 다음 주기에 다시 모아요';
   return { code: status.code, title: status.displayName, detail: `${prefix} · ${lastCollectedLabel}${failureSuffix}` };
 }

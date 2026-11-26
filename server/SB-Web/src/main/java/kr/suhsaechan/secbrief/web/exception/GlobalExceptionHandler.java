@@ -7,6 +7,7 @@ import kr.suhsaechan.secbrief.common.exception.ErrorResponse;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -88,8 +89,10 @@ public class GlobalExceptionHandler {
         return toResponse(ErrorCode.INTERNAL_SERVER_ERROR);
     }
 
-    /** ErrorCode > 상태 코드 + 표준 에러 응답 */
+    /** ErrorCode > 상태 코드 + 표준 에러 응답 (JSON 고정: 이미지만 받겠다는 요청에도 오류 본문을 쓸 수 있게) */
     private ResponseEntity<ErrorResponse> toResponse(ErrorCode errorCode) {
-        return ResponseEntity.status(errorCode.getStatus()).body(ErrorResponse.of(errorCode));
+        return ResponseEntity.status(errorCode.getStatus())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ErrorResponse.of(errorCode));
     }
 }

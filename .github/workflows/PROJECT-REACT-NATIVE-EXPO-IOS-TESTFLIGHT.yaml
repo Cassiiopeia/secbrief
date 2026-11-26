@@ -52,6 +52,8 @@ concurrency:
 # ============================================
 env:
   EXPO_PUBLIC_API_BASE_URL: "https://api.secbrief.suhsaechan.kr"   # 앱 번들에 박히는 운영 API 주소 (3개 워크플로 같은 값, mobile/tests/config 가 확인)
+  EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}   # Expo 푸시 토큰 발급용 프로젝트 ID (Variable, 없으면 앱이 알림 스위치를 잠금)
+  IOS_PUSH_APS_ENVIRONMENT: ${{ vars.IOS_PUSH_APS_ENVIRONMENT }}   # production 으로 두면 푸시 권한(aps-environment)을 넣음. 프로파일에 Push Notifications 가 있어야 함 (없으면 비움, mobile/app.config.js 가 읽음)
   APP_ROOT: "mobile"                              # Expo 앱 폴더 (레포 루트 기준), ios_release.py 도 이 값을 읽음
   IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID || vars.IOS_BUNDLE_ID || 'kr.suhsaechan.secbrief' }}  # Flutter 와 같은 우선순위 (비밀값 > 변수 > 기본값), app.json 의 ios.bundleIdentifier 와 같아야 함
   # prebuild 가 만드는 Xcode 이름: app.json 의 name 이 한글이라 "app" 으로 생성됨

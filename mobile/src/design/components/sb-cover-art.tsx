@@ -3,25 +3,28 @@ import Svg from 'react-native-svg';
 
 import type { SbColors } from '../tokens';
 import {
+  CalendarShape,
   COVER_VIEW_BOX,
   CylinderShape,
   FingerprintShape,
   LockShape,
+  NetworkShape,
   type SbCoverPalette,
+  ShieldShape,
+  SignalShape,
   TargetShape,
   TerminalShape,
 } from './sb-cover-shapes';
 import { useSbPulse } from './use-sb-pulse';
 
 /**
- * 주제별 커버 그림 5종 (사진 대신 쓰는 자체 도형 그림)
- * target 과녁(취약점), lock 자물쇠(랜섬웨어), fingerprint 지문(개인정보),
- * terminal 터미널(원격 접속), cylinder 원통(데이터베이스)
+ * 커버 그림 9종 (사진 대신 쓰는 자체 도형): target 과녁, lock 자물쇠, fingerprint 지문, terminal 터미널, cylinder 원통,
+ * calendar 달력, shield 방패, network 연결망, signal 전파
  */
-export type SbCoverKind = 'target' | 'lock' | 'fingerprint' | 'terminal' | 'cylinder';
+export type SbCoverKind = 'target' | 'lock' | 'fingerprint' | 'terminal' | 'cylinder' | 'calendar' | 'shield' | 'network' | 'signal';
 
-/** 커버 색 조합 3종: feature 보라 바탕, accent 민트 바탕, neutral 회색 바탕 */
-export type SbCoverTone = 'feature' | 'accent' | 'neutral';
+/** 커버 색 조합 4종: feature 보라 바탕, accent 민트 바탕, neutral 회색 바탕, ink 먹색 바탕 */
+export type SbCoverTone = 'feature' | 'accent' | 'neutral' | 'ink';
 
 export type { SbCoverPalette };
 
@@ -34,6 +37,8 @@ export function toSbCoverPalette(colors: SbColors, tone: SbCoverTone): SbCoverPa
       return { back: colors.accent, front: colors.onAccent, mark: colors.feature };
     case 'neutral':
       return { back: colors.surfaceRaised, front: colors.label, mark: colors.accent };
+    case 'ink':
+      return { back: colors.coverInk, front: colors.accent, mark: colors.onFeature };
   }
 }
 
@@ -54,6 +59,10 @@ export function SbCoverArt({ kind, palette, isPulsing = false }: SbCoverArtProps
       {kind === 'fingerprint' && <FingerprintShape palette={palette} />}
       {kind === 'terminal' && <TerminalShape palette={palette} />}
       {kind === 'cylinder' && <CylinderShape palette={palette} />}
+      {kind === 'calendar' && <CalendarShape palette={palette} />}
+      {kind === 'shield' && <ShieldShape palette={palette} />}
+      {kind === 'network' && <NetworkShape palette={palette} />}
+      {kind === 'signal' && <SignalShape palette={palette} />}
     </Svg>
   );
 }

@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.concurrent.atomic.AtomicReference;
+import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
@@ -75,8 +76,26 @@ class TodayAndTrendQueryServiceTest extends PostgresContainerTestSupport {
 
         TodayResponse today = todayQueryService.findToday();
 
+        // 72시간이 지난 일반(ROUTINE) 취약점: 긴급 자리에도, 홈 최신 목록에도 없음 (취약점 탭에서 봄)
         assertThat(today.urgentItem()).isNull();
-        assertThat(today.streamItems()).extracting(ArticleResponse::id).contains(oldUrgent.getId());
+        assertThat(today.streamItems()).extracting(ArticleResponse::id).doesNotContain(oldUrgent.getId());
+    }
+
+    @Test
+    void streamShowsNewsDomesticAdvisoriesAndNotableItemsOnly() {
+        Article news = articleTestWriter.saveNews(NOW.get().minus(Duration.ofHours(1)), ArticleTopic.GENERAL);
+        Article kisaAdvisory = articleTestWriter.saveArticle(NOW.get().minus(Duration.ofHours(2)),
+                ArticleKind.ADVISORY, ArticleRegion.DOMESTIC, ArticleTopic.GENERAL, false);
+        Article routineVulnerability = articleTestWriter.saveArticle(NOW.get().minus(Duration.ofHours(3)),
+                ArticleKind.VULNERABILITY, ArticleRegion.OVERSEAS, ArticleTopic.GENERAL, false);
+        Article notableVulnerability = articleTestWriter.saveArticle(NOW.get().minus(Duration.ofHours(4)),
+                ArticleKind.VULNERABILITY, ArticleRegion.OVERSEAS, ArticleTopic.GENERAL, false);
+        notableVulnerability.applyAiAnalysis(ArticleTopic.VULNERABILITY, null, ArticleImportance.NOTABLE, null);
+        articleRepository.save(notableVulnerability);
+
+        assertThat(todayQueryService.findToday().streamItems()).extracting(ArticleResponse::id)
+                .containsExactly(news.getId(), kisaAdvisory.getId(), notableVulnerability.getId())
+                .doesNotContain(routineVulnerability.getId());
     }
 
     @Test
@@ -129,10 +148,10 @@ class TodayAndTrendQueryServiceTest extends PostgresContainerTestSupport {
     }
 
     @Test
-    void weeklyTrendListsAllEightTopics() {
+    void weeklyTrendListsAllNineTopics() {
         WeeklyTrendResponse trend = weeklyTrendQueryService.findWeeklyTrend();
 
-        assertThat(trend.topics()).hasSize(8).allSatisfy(topic -> {
+        assertThat(trend.topics()).hasSize(ArticleTopic.values().length).hasSize(9).allSatisfy(topic -> {
             assertThat(topic.weeklyCount()).isZero();
             assertThat(topic.changePercent()).isNull();
         });

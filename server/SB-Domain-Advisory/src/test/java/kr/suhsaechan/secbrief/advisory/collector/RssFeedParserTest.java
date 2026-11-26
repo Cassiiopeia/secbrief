@@ -16,7 +16,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * RSS 파싱: 실제 피드 4종(앞 2건만 남긴 fixture)의 제목·링크·게시자·게시일 매핑, 인코딩, 깨진 XML
+ * RSS 파싱: 실제 피드 4종(앞 2건만 남긴 fixture)의 제목·링크·게시자·게시일 매핑, 인코딩, 깨진 XML, 대표 이미지 주소(첨부 > Media RSS > 요약 img)
+ * 요약 입력: 요약문(description) 우선 > 본문 칸(content), 요약문을 안 주는 피드(KISA)는 없음, 사실 값은 항상 없음
  */
 class RssFeedParserTest {
 
@@ -32,6 +33,24 @@ class RssFeedParserTest {
             assertThat(article.cveId()).isNull();
             assertThat(article.isKev()).isFalse();
         });
+    }
+
+    @Test
+    void takesSourceTextFromDescriptionThenContent() {
+        List<CollectedArticle> articles = parse(openFixture("summary-variants"), "게시자");
+
+        // HTML 은 그대로 넘김 (태그·문자 표기 정리는 정규화 단계)
+        assertThat(articles.get(0).sourceText()).contains("exploiting a flaw in <b>Example VPN</b>")
+                .doesNotContain("Full body");
+        assertThat(articles.get(1).sourceText()).contains("Example Corp confirmed that an intruder");
+        assertThat(articles.get(2).sourceText()).isNull();
+        assertThat(articles).allSatisfy(article -> assertThat(article.sourceFacts()).isEmpty());
+    }
+
+    @Test
+    void leavesSourceTextNullWhenFeedGivesNoSummary() {
+        assertThat(parse(openFixture("kisa-notice"), "KISA"))
+                .allSatisfy(article -> assertThat(article.sourceText()).isNull());
     }
 
     @Test
@@ -90,6 +109,39 @@ class RssFeedParserTest {
         assertThatThrownBy(() -> parse(new ByteArrayInputStream("<rss><".getBytes(UTF_8)), "x"))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.FEED_PARSE_ERROR);
+    }
+
+    @Test
+    void prefersEnclosureImageOverMediaAndSummaryImage() {
+        assertThat(parseImageVariants().get(0).imageSourceUrl()).isEqualTo("https://images.example.test/enclosure.jpg");
+    }
+
+    @Test
+    void readsMediaThumbnailWhenEnclosureIsNotImage() {
+        assertThat(parseImageVariants().get(1).imageSourceUrl()).isEqualTo("https://images.example.test/thumbnail.jpg");
+    }
+
+    @Test
+    void readsImageMediaContentSkippingVideo() {
+        assertThat(parseImageVariants().get(2).imageSourceUrl()).isEqualTo("https://images.example.test/content.png");
+    }
+
+    @Test
+    void readsFirstImageTagInSummaryAndUnescapesAmpersand() {
+        assertThat(parseImageVariants().get(3).imageSourceUrl())
+                .isEqualTo("https://images.example.test/summary.jpg?w=600&h=400");
+    }
+
+    @Test
+    void returnsNullImageWhenItemHasNoImage() {
+        assertThat(parseImageVariants().get(4).imageSourceUrl()).isNull();
+        // 실제 피드 fixture 는 이미지 요소를 지운 것이라 전부 없음
+        assertThat(parse(openFixture("kisa-notice"), "KISA")).allSatisfy(
+                article -> assertThat(article.imageSourceUrl()).isNull());
+    }
+
+    private static List<CollectedArticle> parseImageVariants() {
+        return parse(openFixture("image-variants"), "게시자");
     }
 
     private static InputStream openFixture(String fixtureName) {

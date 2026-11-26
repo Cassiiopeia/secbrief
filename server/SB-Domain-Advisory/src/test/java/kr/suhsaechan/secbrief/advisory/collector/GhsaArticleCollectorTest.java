@@ -10,7 +10,6 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
@@ -34,9 +33,11 @@ class GhsaArticleCollectorTest {
         String expectedUrl = source.getFeedUrl() + "&per_page=100&sort=published&direction=desc";
         when(feedHttpClient.fetch(eq(expectedUrl), anyMap())).thenReturn(responseBytes);
 
-        List<CollectedArticle> articles = collector.collect(source, Instant.parse("2026-11-21T00:00:00Z"));
+        CollectOutcome outcome = collector.collect(source, Instant.parse("2026-11-21T00:00:00Z"));
 
-        assertThat(articles).extracting(CollectedArticle::cveId).containsExactly("CVE-2026-5555");
+        assertThat(outcome.isNotModified()).isFalse();
+        assertThat(outcome.feedValidators()).isEqualTo(FeedValidators.NONE);
+        assertThat(outcome.articles()).extracting(CollectedArticle::cveId).containsExactly("CVE-2026-5555");
         verify(feedHttpClient).fetch(expectedUrl, Map.of(
                 "Accept", "application/vnd.github+json",
                 "X-GitHub-Api-Version", "2022-11-28"));

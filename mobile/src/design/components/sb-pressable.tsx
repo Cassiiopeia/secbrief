@@ -1,31 +1,59 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { type AccessibilityRole, type AccessibilityState, type Insets, Pressable, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { sbMotion } from '../tokens';
 
+/** 누름 반응 2종: scale 살짝 줄어듦(타일·버튼), dim 흐려짐(목록 행·탭) */
+export type SbPressFeedback = 'scale' | 'dim';
+
 interface SbPressableProps {
   children: ReactNode;
   accessibilityLabel: string;
+  /** 없으면 누름 없음 (반응·버튼 역할 모두 끔) */
   onPress?: () => void;
+  feedback?: SbPressFeedback;
+  /** 기본 button (탭은 tab) */
+  accessibilityRole?: AccessibilityRole;
+  accessibilityState?: AccessibilityState;
+  /** 보이는 크기가 최소 터치 영역보다 작을 때 넓히는 여유 */
+  hitSlop?: Insets;
   /** 부모가 준 자리를 가득 채울지 (나란히 놓인 타일의 높이를 맞출 때) */
   isFilling?: boolean;
 }
 
-/** 누름 공통 래퍼: 누르는 동안 살짝 줄어듦. 동작 줄이기가 켜져 있으면 바로 바뀜(Reanimated 기본) */
-export function SbPressable({ children, accessibilityLabel, onPress, isFilling = false }: SbPressableProps) {
-  const scale = useSharedValue(1);
-  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const animateTo = (targetScale: number) => {
-    scale.set(withTiming(targetScale, { duration: sbMotion.pressMilliseconds, easing: sbMotion.pressEasing }));
+/** 누름 공통 래퍼: 누르는 동안 줄어들거나 흐려짐. 동작 줄이기가 켜져 있으면 바로 바뀜(Reanimated 기본) */
+export function SbPressable({
+  children,
+  accessibilityLabel,
+  onPress,
+  feedback = 'scale',
+  accessibilityRole = 'button',
+  accessibilityState,
+  hitSlop,
+  isFilling = false,
+}: SbPressableProps) {
+  const isPressable = onPress !== undefined;
+  // 누름 진행도 (0 뗌 ~ 1 누름)
+  const pressProgress = useSharedValue(0);
+  const animatedStyle = useAnimatedStyle(() =>
+    feedback === 'scale'
+      ? { transform: [{ scale: 1 - (1 - sbMotion.pressScale) * pressProgress.value }] }
+      : { opacity: 1 - (1 - sbMotion.pressOpacity) * pressProgress.value },
+  );
+  const animateTo = (targetProgress: number) => {
+    pressProgress.set(withTiming(targetProgress, { duration: sbMotion.pressMilliseconds, easing: sbMotion.pressEasing }));
   };
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={isPressable ? accessibilityRole : 'text'}
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={accessibilityState}
+      disabled={!isPressable}
+      hitSlop={hitSlop}
       onPress={onPress}
-      onPressIn={() => animateTo(sbMotion.pressScale)}
-      onPressOut={() => animateTo(1)}
+      onPressIn={() => animateTo(1)}
+      onPressOut={() => animateTo(0)}
       style={isFilling && styles.fill}>
       <Animated.View style={[isFilling && styles.fillContent, animatedStyle]}>{children}</Animated.View>
     </Pressable>

@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -13,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
@@ -24,6 +27,7 @@ import kr.suhsaechan.secbrief.advisory.dto.SourceStatusResponse;
 import kr.suhsaechan.secbrief.advisory.dto.TodayResponse;
 import kr.suhsaechan.secbrief.advisory.dto.TrendTopicResponse;
 import kr.suhsaechan.secbrief.advisory.dto.WeeklyTrendResponse;
+import kr.suhsaechan.secbrief.advisory.service.ArticleImageQueryService;
 import kr.suhsaechan.secbrief.advisory.service.ArticleQueryService;
 import kr.suhsaechan.secbrief.advisory.service.SourceQueryService;
 import kr.suhsaechan.secbrief.advisory.service.TodayQueryService;
@@ -39,6 +43,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * 읽기 API 4개: {data} 감싸기, boolean 이름(is 접두사), 날짜 ISO, enum 이름, 오류 코드
+ * 기사 대표 이미지: 응답의 imagePath, 이미지 응답 헤더(image/jpeg, 1년 캐시), 없음 404, 저장소 장애 502
  */
 @WebMvcTest({TodayController.class, ArticleController.class, TrendController.class, SourceController.class})
 class AdvisoryApiControllerTest {
@@ -49,6 +54,8 @@ class AdvisoryApiControllerTest {
     private TodayQueryService todayQueryService;
     @MockitoBean
     private ArticleQueryService articleQueryService;
+    @MockitoBean
+    private ArticleImageQueryService articleImageQueryService;
     @MockitoBean
     private WeeklyTrendQueryService weeklyTrendQueryService;
     @MockitoBean
@@ -68,8 +75,15 @@ class AdvisoryApiControllerTest {
                 .andExpect(jsonPath("$.data.items[0].isPublishedAtEstimated").value(false))
                 .andExpect(jsonPath("$.data.items[0].publishedAt").value("2026-11-23T00:00:00Z"))
                 .andExpect(jsonPath("$.data.items[0].cvssScore").value(9.8))
+                .andExpect(jsonPath("$.data.items[0].importance").value("HEADLINE"))
+                .andExpect(jsonPath("$.data.items[0].subjectName").value("Example"))
+                .andExpect(jsonPath("$.data.items[0].sourceCode").value("NVD"))
+                .andExpect(jsonPath("$.data.items[0].keywords[0]").value("Example"))
+                .andExpect(jsonPath("$.data.items[0].keywords[1]").value("원격 코드 실행"))
                 .andExpect(jsonPath("$.data.items[0].aiStatus").doesNotExist())
                 .andExpect(jsonPath("$.data.items[0].kev").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].imagePath").value("/api/v1/articles/1/image"))
+                .andExpect(jsonPath("$.data.items[0].imageStatus").doesNotExist())
                 .andExpect(jsonPath("$.data.nextCursor").value("c1"));
     }
 
@@ -77,7 +91,8 @@ class AdvisoryApiControllerTest {
     void returnsPendingArticleWithOriginalTitle() throws Exception {
         ArticleResponse pending = new ArticleResponse(2L, ArticleKind.NEWS, ArticleRegion.OVERSEAS, ArticleTopic.GENERAL,
                 "Example breach report", null, "https://example.test/news/2", "The Hacker News",
-                Instant.parse("2026-11-23T00:00:00Z"), false, null, null, null, false, false);
+                Instant.parse("2026-11-23T00:00:00Z"), false, null, null, null, false, false, null,
+                ArticleImportance.ROUTINE, null, "THE_HACKER_NEWS", List.of());
         given(articleQueryService.findArticles(any())).willReturn(new ArticlePageResponse(List.of(pending), null));
 
         mockMvc.perform(get("/api/v1/articles"))
@@ -85,6 +100,8 @@ class AdvisoryApiControllerTest {
                 .andExpect(jsonPath("$.data.items[0].title").value("Example breach report"))
                 .andExpect(jsonPath("$.data.items[0].translatedTitle").value(nullValue()))
                 .andExpect(jsonPath("$.data.items[0].topic").value("GENERAL"))
+                .andExpect(jsonPath("$.data.items[0].keywords").isEmpty())
+                .andExpect(jsonPath("$.data.items[0].imagePath").value(nullValue()))
                 .andExpect(jsonPath("$.data.nextCursor").value(nullValue()));
     }
 
@@ -94,13 +111,15 @@ class AdvisoryApiControllerTest {
 
         mockMvc.perform(get("/api/v1/articles")
                         .param("kind", "NEWS").param("region", "DOMESTIC").param("topic", "SUPPLY_CHAIN")
+                        .param("minimumImportance", "NOTABLE").param("sourceCode", "KISA_REPORT").param("keyword", "랜섬웨어")
                         .param("cursor", "abc").param("size", "5"))
                 .andExpect(status().isOk());
 
         ArgumentCaptor<ArticleSearchCondition> captor = ArgumentCaptor.forClass(ArticleSearchCondition.class);
         verify(articleQueryService).findArticles(captor.capture());
         assertThat(captor.getValue()).isEqualTo(new ArticleSearchCondition(
-                ArticleKind.NEWS, ArticleRegion.DOMESTIC, ArticleTopic.SUPPLY_CHAIN, "abc", 5));
+                ArticleKind.NEWS, ArticleRegion.DOMESTIC, ArticleTopic.SUPPLY_CHAIN,
+                ArticleImportance.NOTABLE, "KISA_REPORT", "랜섬웨어", "abc", 5));
     }
 
     @Test
@@ -120,8 +139,57 @@ class AdvisoryApiControllerTest {
     }
 
     @Test
+    void returnsStoredImageAsJpegWithYearLongCache() throws Exception {
+        byte[] jpegBytes = {(byte) 0xff, (byte) 0xd8, 1, 2, 3};
+        given(articleImageQueryService.findStoredImage(1L)).willReturn(jpegBytes);
+
+        // 기사 응답이 알려 주는 경로 그대로 호출
+        mockMvc.perform(get(ArticleResponse.toImagePath(1L)).accept("image/*"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("image/jpeg"))
+                .andExpect(header().string("Cache-Control", "public, max-age=31536000, immutable"))
+                .andExpect(content().bytes(jpegBytes));
+    }
+
+    @Test
+    void returnsNotFoundWhenArticleHasNoStoredImage() throws Exception {
+        given(articleImageQueryService.findStoredImage(2L)).willThrow(new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        mockMvc.perform(get("/api/v1/articles/2/image"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"))
+                .andExpect(header().doesNotExist("Cache-Control"));
+    }
+
+    @Test
+    void returnsJsonErrorEvenWhenClientAcceptsOnlyImages() throws Exception {
+        given(articleImageQueryService.findStoredImage(2L)).willThrow(new CustomException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        mockMvc.perform(get("/api/v1/articles/2/image").accept("image/*"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"));
+    }
+
+    @Test
+    void returnsImageStorageErrorWhenStorageFails() throws Exception {
+        given(articleImageQueryService.findStoredImage(3L))
+                .willThrow(new CustomException(ErrorCode.IMAGE_STORAGE_ERROR, "read failed : SocketTimeoutException"));
+
+        mockMvc.perform(get("/api/v1/articles/3/image"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.errorCode").value("IMAGE_STORAGE_ERROR"));
+    }
+
+    @Test
+    void rejectsNonNumericArticleIdWithTypeMismatch() throws Exception {
+        mockMvc.perform(get("/api/v1/articles/abc/image"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("TYPE_MISMATCH"));
+    }
+
+    @Test
     void returnsTodayWithNullUrgentItem() throws Exception {
-        given(todayQueryService.findToday()).willReturn(new TodayResponse(LocalDate.parse("2026-11-23"), null, 12, 40, null, List.of()));
+        given(todayQueryService.findToday()).willReturn(new TodayResponse(LocalDate.parse("2026-11-23"), null, 12, 40, null, List.of(), List.of()));
 
         mockMvc.perform(get("/api/v1/today"))
                 .andExpect(status().isOk())
@@ -158,6 +226,7 @@ class AdvisoryApiControllerTest {
         return new ArticleResponse(1L, ArticleKind.VULNERABILITY, ArticleRegion.OVERSEAS, ArticleTopic.REMOTE_ACCESS,
                 "CVE-2026-1111: Example remote code execution", "CVE-2026-1111: 원격 코드 실행 예시",
                 "https://nvd.nist.gov/vuln/detail/CVE-2026-1111", "NVD", Instant.parse("2026-11-23T00:00:00Z"), false,
-                "CVE-2026-1111", new BigDecimal("9.8"), "3.1", true, true);
+                "CVE-2026-1111", new BigDecimal("9.8"), "3.1", true, true, ArticleResponse.toImagePath(1L),
+                ArticleImportance.HEADLINE, "Example", "NVD", List.of("Example", "원격 코드 실행"));
     }
 }

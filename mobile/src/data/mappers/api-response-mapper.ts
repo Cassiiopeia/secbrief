@@ -1,7 +1,10 @@
-import type { ArticleKind, ArticleRegion, BriefingItem, BriefingTopic } from '../models/briefing-item';
+import type { ArticleImportance, ArticleKind, ArticleRegion, BriefingItem, BriefingTopic } from '../models/briefing-item';
 import type { ArticlePage } from '../models/article-page';
+import type { ArticleDetail } from '../models/article-detail';
+import type { ArticleSearchMode, ArticleSearchResult } from '../models/article-search-result';
 import type { CollectSourceStatus } from '../models/collect-source-status';
 import type { TodayBriefing } from '../models/today-briefing';
+import type { TrendingKeyword } from '../models/trending-keyword';
 import type { TrendTopic, WeeklyTrend } from '../models/trend-topic';
 
 /** 서버 기사 응답 (enum 은 대문자 이름) */
@@ -10,9 +13,16 @@ export interface ArticleApiResponse {
   kind: string;
   region: string;
   topic: string;
+  /** 아래 4개는 나중에 생긴 필드: 이전 서버는 아예 안 줌 */
+  keywords?: string[] | null;
+  importance?: string | null;
+  subjectName?: string | null;
+  sourceCode?: string | null;
   title: string;
   translatedTitle: string | null;
   originalUrl: string;
+  /** 대표 이미지 경로. 이미지가 없으면 null, 이 필드가 생기기 전 서버는 아예 안 줌 */
+  imagePath?: string | null;
   publisherName: string;
   publishedAt: string;
   isPublishedAtEstimated: boolean;
@@ -36,6 +46,8 @@ export interface TodayApiResponse {
   todayCount: number;
   weeklyCount: number;
   topTrend: TrendTopicApiResponse | null;
+  /** 나중에 생긴 필드: 이전 서버는 아예 안 줌 */
+  headlineItems?: ArticleApiResponse[] | null;
   streamItems: ArticleApiResponse[];
 }
 
@@ -47,6 +59,34 @@ export interface WeeklyTrendApiResponse {
 export interface ArticlePageApiResponse {
   items: ArticleApiResponse[];
   nextCursor: string | null;
+}
+
+export interface TrendingKeywordApiResponse {
+  keyword: string;
+  articleCount: number;
+  /** 아래 3개는 나중에 생긴 필드. rankChange: 양수 상승, 음수 하락, 0 유지, null 신규 */
+  previousArticleCount?: number | null;
+  rank?: number | null;
+  rankChange?: number | null;
+}
+
+export interface TrendingKeywordsApiResponse {
+  keywords: TrendingKeywordApiResponse[];
+}
+
+export interface ArticleDetailApiResponse {
+  article: ArticleApiResponse;
+  summary?: string | null;
+  keyPoints?: string[] | null;
+  actionGuide?: string | null;
+  isAiSummarized?: boolean | null;
+  facts?: { label: string; value: string }[] | null;
+  relatedItems?: ArticleApiResponse[] | null;
+}
+
+export interface ArticleSearchApiResponse {
+  items: ArticleApiResponse[];
+  searchMode: string;
 }
 
 export interface SourceStatusApiResponse {
@@ -67,6 +107,7 @@ const TOPIC_BY_API_NAME: Record<string, BriefingTopic> = {
   DATABASE: 'database',
   SUPPLY_CHAIN: 'supplyChain',
   POLICY: 'policy',
+  EVENT: 'event',
   GENERAL: 'general',
 };
 const KIND_BY_API_NAME: Record<string, ArticleKind> = {
@@ -78,19 +119,31 @@ const REGION_BY_API_NAME: Record<string, ArticleRegion> = {
   DOMESTIC: 'domestic',
   OVERSEAS: 'overseas',
 };
+const IMPORTANCE_BY_API_NAME: Record<string, ArticleImportance> = {
+  HEADLINE: 'headline',
+  NOTABLE: 'notable',
+  ROUTINE: 'routine',
+};
+// 서버 SearchMode.SEMANTIC (그 밖·모르는 값은 글자 일치 검색으로 봄)
+const SEMANTIC_SEARCH_MODE = 'SEMANTIC';
 // 수집 성공 상태 이름 (서버 CollectStatus.SUCCESS)
 const COLLECT_SUCCESS_STATUS = 'SUCCESS';
 
-/** 기사 응답 > 소식 (모르는 주제 general, 모르는 종류 news, 모르는 지역 overseas, null > undefined) */
+/** 기사 응답 > 소식 (모르는 주제 general, 모르는 종류 news, 모르는 지역 overseas, 모르는·없는 중요도 routine, null > undefined) */
 export function toBriefingItem(response: ArticleApiResponse): BriefingItem {
   return {
     id: String(response.id),
     kind: KIND_BY_API_NAME[response.kind] ?? 'news',
     region: REGION_BY_API_NAME[response.region] ?? 'overseas',
     topic: TOPIC_BY_API_NAME[response.topic] ?? 'general',
+    importance: IMPORTANCE_BY_API_NAME[response.importance ?? ''] ?? 'routine',
+    subjectName: response.subjectName ? response.subjectName : undefined,
+    sourceCode: response.sourceCode ? response.sourceCode : undefined,
+    keywords: response.keywords ?? [],
     title: response.title,
     translatedTitle: response.translatedTitle ? response.translatedTitle : undefined,
     originalUrl: response.originalUrl,
+    imagePath: response.imagePath ? response.imagePath : undefined,
     publisherName: response.publisherName,
     publishedAt: new Date(response.publishedAt),
     isPublishedAtEstimated: response.isPublishedAtEstimated,
@@ -118,6 +171,7 @@ export function toTodayBriefing(response: TodayApiResponse): TodayBriefing {
     weeklyCount: response.weeklyCount,
     urgentItem: response.urgentItem ? toBriefingItem(response.urgentItem) : undefined,
     topTrend: response.topTrend ? toTrendTopic(response.topTrend) : undefined,
+    headlineItems: (response.headlineItems ?? []).map(toBriefingItem),
     streamItems: response.streamItems.map(toBriefingItem),
   };
 }
@@ -128,6 +182,35 @@ export function toWeeklyTrend(response: WeeklyTrendApiResponse): WeeklyTrend {
 
 export function toArticlePage(response: ArticlePageApiResponse): ArticlePage {
   return { items: response.items.map(toBriefingItem), nextCursor: response.nextCursor ?? undefined };
+}
+
+/** 키워드 순위 응답 > 키워드 (순위가 없으면 받은 순서, rankChange 가 null 이면 신규, 필드가 없으면 변화 모름) */
+export function toTrendingKeywords(response: TrendingKeywordsApiResponse): TrendingKeyword[] {
+  return response.keywords.map((keywordResponse, keywordIndex) => ({
+    keyword: keywordResponse.keyword,
+    articleCount: keywordResponse.articleCount,
+    rank: keywordResponse.rank ?? keywordIndex + 1,
+    isNew: keywordResponse.rankChange === null,
+    rankChange: keywordResponse.rankChange ?? undefined,
+  }));
+}
+
+/** 기사 상세 응답 > 상세 (요약이 아직 없으면 summary 없음·keyPoints 빈 배열, 없는 목록은 빈 배열) */
+export function toArticleDetail(response: ArticleDetailApiResponse): ArticleDetail {
+  return {
+    article: toBriefingItem(response.article),
+    summary: response.summary ? response.summary : undefined,
+    keyPoints: response.keyPoints ?? [],
+    actionGuide: response.actionGuide ? response.actionGuide : undefined,
+    isAiSummarized: response.isAiSummarized === true,
+    facts: (response.facts ?? []).map(({ label, value }) => ({ label, value })),
+    relatedItems: (response.relatedItems ?? []).map(toBriefingItem),
+  };
+}
+
+export function toArticleSearchResult(response: ArticleSearchApiResponse): ArticleSearchResult {
+  const searchMode: ArticleSearchMode = response.searchMode === SEMANTIC_SEARCH_MODE ? 'semantic' : 'keyword';
+  return { items: response.items.map(toBriefingItem), searchMode };
 }
 
 export function toCollectSourceStatus(response: SourceStatusApiResponse): CollectSourceStatus {
@@ -152,6 +235,10 @@ export function toApiKind(kind: ArticleKind): string {
 
 export function toApiRegion(region: ArticleRegion): string {
   return toApiName(REGION_BY_API_NAME, region);
+}
+
+export function toApiImportance(importance: ArticleImportance): string {
+  return toApiName(IMPORTANCE_BY_API_NAME, importance);
 }
 
 function toApiName<Value extends string>(valueByApiName: Record<string, Value>, value: Value): string {

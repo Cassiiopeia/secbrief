@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 주간 동향: 이번 주 [월요일 00시, 지금) <-> 지난주 같은 경과 구간, 주제 8종 (0건 포함)
+ * 주간 동향: 이번 주 [월요일 00시, 지금) <-> 지난주 같은 경과 구간, 주제 9종 (0건 포함)
  */
 @Service
 @RequiredArgsConstructor

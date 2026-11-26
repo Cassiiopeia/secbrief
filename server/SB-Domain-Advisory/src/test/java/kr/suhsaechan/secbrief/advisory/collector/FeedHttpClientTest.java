@@ -19,9 +19,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * 출처 호출: 본문 바이트·헤더, 2xx 아님·연결 실패 > EXTERNAL_API_ERROR (로컬 서버, 외부 호출 없음)
+ * 출처 호출: 본문 바이트·헤더, 2xx 아님·연결 실패 > EXTERNAL_API_ERROR, 조건부 GET 의 304·새 검증값 (로컬 서버, 외부 호출 없음)
  */
 class FeedHttpClientTest {
+
+    private static final String FEED_ETAG = "\"feed-v1\"";
+    private static final String FEED_LAST_MODIFIED = "Wed, 25 Nov 2026 00:00:00 GMT";
 
     private final FeedHttpClient feedHttpClient = new FeedHttpClient();
     private final AtomicReference<Headers> receivedHeaders = new AtomicReference<>();
@@ -41,6 +44,16 @@ class FeedHttpClientTest {
             exchange.getResponseHeaders().add("Location", "/ok");
             respond(exchange, 302, "");
         });
+        // 검증값이 맞으면 304, 아니면 본문 + 검증값
+        server.createContext("/conditional", exchange -> {
+            receivedHeaders.set(exchange.getRequestHeaders());
+            exchange.getResponseHeaders().add("ETag", FEED_ETAG);
+            exchange.getResponseHeaders().add("Last-Modified", FEED_LAST_MODIFIED);
+            boolean isSameEtag = FEED_ETAG.equals(exchange.getRequestHeaders().getFirst("If-None-Match"));
+            respond(exchange, isSameEtag ? 304 : 200, isSameEtag ? "" : "피드 본문");
+        });
+        // 검증값 헤더 없이 304 만 주는 출처
+        server.createContext("/not-modified-without-validators", exchange -> respond(exchange, 304, ""));
         server.start();
     }
 
@@ -99,6 +112,56 @@ class FeedHttpClientTest {
         assertThatThrownBy(() -> feedHttpClient.fetch(closedPortUrl))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.EXTERNAL_API_ERROR);
+    }
+
+    @Test
+    void conditionalFetchWithoutPreviousValidatorsReturnsBodyAndNewValidators() {
+        FeedFetchResult result = feedHttpClient.fetchIfChanged(toLocalUrl("/conditional"), FeedValidators.NONE);
+
+        assertThat(result.isNotModified()).isFalse();
+        assertThat(new String(result.body(), UTF_8)).isEqualTo("피드 본문");
+        assertThat(result.validators()).isEqualTo(new FeedValidators(FEED_ETAG, FEED_LAST_MODIFIED));
+        assertThat(receivedHeaders.get().containsKey("If-None-Match")).isFalse();
+        assertThat(receivedHeaders.get().containsKey("If-Modified-Since")).isFalse();
+    }
+
+    @Test
+    void conditionalFetchSendsPreviousValidatorsAndReturnsNotModifiedOn304() {
+        FeedFetchResult result = feedHttpClient.fetchIfChanged(toLocalUrl("/conditional"),
+                new FeedValidators(FEED_ETAG, FEED_LAST_MODIFIED));
+
+        assertThat(result.isNotModified()).isTrue();
+        assertThat(result.body()).isNull();
+        assertThat(result.validators()).isEqualTo(new FeedValidators(FEED_ETAG, FEED_LAST_MODIFIED));
+        assertThat(receivedHeaders.get().getFirst("If-None-Match")).isEqualTo(FEED_ETAG);
+        assertThat(receivedHeaders.get().getFirst("If-Modified-Since")).isEqualTo(FEED_LAST_MODIFIED);
+    }
+
+    @Test
+    void conditionalFetchReturnsBodyWhenValidatorIsStale() {
+        FeedFetchResult result = feedHttpClient.fetchIfChanged(toLocalUrl("/conditional"),
+                new FeedValidators("\"feed-v0\"", null));
+
+        assertThat(result.isNotModified()).isFalse();
+        assertThat(result.validators().etag()).isEqualTo(FEED_ETAG);
+        assertThat(receivedHeaders.get().containsKey("If-Modified-Since")).isFalse();
+    }
+
+    @Test
+    void notModifiedWithoutResponseValidatorsKeepsPreviousValidators() {
+        FeedValidators previousValidators = new FeedValidators(null, FEED_LAST_MODIFIED);
+
+        FeedFetchResult result = feedHttpClient.fetchIfChanged(toLocalUrl("/not-modified-without-validators"), previousValidators);
+
+        assertThat(result.isNotModified()).isTrue();
+        assertThat(result.validators()).isEqualTo(previousValidators);
+    }
+
+    @Test
+    void plainFetchTreats304AsError() {
+        assertThatThrownBy(() -> feedHttpClient.fetch(toLocalUrl("/not-modified-without-validators")))
+                .isInstanceOf(CustomException.class)
+                .hasMessageContaining("status=304");
     }
 
     private String toLocalUrl(String path) {

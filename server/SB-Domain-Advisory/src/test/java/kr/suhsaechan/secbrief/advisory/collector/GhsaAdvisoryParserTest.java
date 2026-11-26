@@ -8,6 +8,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.List;
+import kr.suhsaechan.secbrief.advisory.fact.SourceFact;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,45 @@ class GhsaAdvisoryParserTest {
         assertThat(article.cvssVersion()).isEqualTo("3.1");
         assertThat(article.publishedAt()).isEqualTo(Instant.parse("2026-11-21T10:00:00Z"));
         assertThat(article.isKev()).isFalse();
+    }
+
+    @Test
+    void takesSourceTextFromSummaryAndDescription() {
+        List<CollectedArticle> articles = parse(openFixture(), SINCE);
+
+        assertThat(articles.get(0).sourceText())
+                .startsWith("Example Web Framework: remote code execution in request parser\n### Impact")
+                .contains("Upgrade to version 2.4.1.");
+        // 설명이 없으면 제목과 같은 글이라 요약 입력 없음
+        assertThat(articles.get(1).sourceText()).isNull();
+    }
+
+    @Test
+    void takesPackageVersionFactsExactlyAsWrittenInAdvisory() {
+        List<CollectedArticle> articles = parse(openFixture(), SINCE);
+
+        assertThat(articles.get(0).sourceFacts()).containsExactly(
+                new SourceFact("영향 패키지", "example-web-framework (npm)"),
+                new SourceFact("영향 버전", ">= 2.0.0, < 2.4.1"),
+                new SourceFact("조치 버전", "2.4.1"),
+                new SourceFact("심각도", "CRITICAL"));
+    }
+
+    @Test
+    void marksPatchedVersionAbsentInsteadOfInventingOne() {
+        CollectedArticle article = parse(openFixture(), SINCE).get(1);
+
+        assertThat(article.sourceFacts()).containsExactly(
+                new SourceFact("영향 패키지", "example-package (pip)"),
+                new SourceFact("영향 버전", "= 1.0.3"),
+                new SourceFact("조치 버전", "원문에 없음"),
+                new SourceFact("심각도", "CRITICAL"));
+    }
+
+    @Test
+    void keepsOnlySeverityFactWhenAdvisoryListsNoPackage() {
+        assertThat(parse(openFixture(), null).get(2).sourceFacts())
+                .containsExactly(new SourceFact("심각도", "CRITICAL"));
     }
 
     @Test

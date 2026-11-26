@@ -5,6 +5,7 @@
     "url": "https://api.github.com/advisories/GHSA-aaaa-bbbb-cccc",
     "html_url": "https://github.com/advisories/GHSA-aaaa-bbbb-cccc",
     "summary": "Example Web Framework: remote code execution in request parser",
+    "description": "### Impact\nThe request parser of Example Web Framework evaluates untrusted header values, so a remote attacker can run arbitrary code without authentication.\n\n### Patches\nUpgrade to version 2.4.1.",
     "type": "reviewed",
     "severity": "critical",
     "published_at": "2026-11-21T10:00:00Z",
@@ -18,7 +19,18 @@
         "vector_string": null,
         "score": 0.0
       }
-    }
+    },
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "example-web-framework"
+        },
+        "vulnerable_version_range": ">= 2.0.0, < 2.4.1",
+        "first_patched_version": "2.4.1",
+        "vulnerable_functions": []
+      }
+    ]
   },
   {
     "ghsa_id": "GHSA-dddd-eeee-ffff",
@@ -39,7 +51,18 @@
         "vector_string": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
         "score": 9.3
       }
-    }
+    },
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "pip",
+          "name": "example-package"
+        },
+        "vulnerable_version_range": "= 1.0.3",
+        "first_patched_version": null,
+        "vulnerable_functions": []
+      }
+    ]
   },
   {
     "ghsa_id": "GHSA-gggg-hhhh-iiii",

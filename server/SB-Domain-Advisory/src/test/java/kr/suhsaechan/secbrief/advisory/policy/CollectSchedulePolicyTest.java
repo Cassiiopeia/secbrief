@@ -2,6 +2,7 @@ package kr.suhsaechan.secbrief.advisory.policy;
 
 import static kr.suhsaechan.secbrief.advisory.policy.CollectSchedulePolicy.isCollectDue;
 import static kr.suhsaechan.secbrief.advisory.policy.CollectSchedulePolicy.toCollectSince;
+import static kr.suhsaechan.secbrief.advisory.policy.CollectSchedulePolicy.toEarliestStoredPublishedAt;
 import static kr.suhsaechan.secbrief.advisory.support.SourceFixtures.createSource;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,7 +16,7 @@ import kr.suhsaechan.secbrief.advisory.entity.Source;
 import org.junit.jupiter.api.Test;
 
 /**
- * 수집 주기 판정: 마지막 시도 기준 주기 확인, 출처별 수집 시작 시각 계산
+ * 수집 주기 판정: 마지막 시도 기준 주기 확인, 출처별 수집 시작 시각 계산, RSS 저장 범위(30일)
  */
 class CollectSchedulePolicyTest {
 
@@ -93,6 +94,23 @@ class CollectSchedulePolicyTest {
                 FeedFormat.RSS, NOW.minus(Duration.ofHours(1)));
 
         assertThat(toCollectSince(collectedKisaSource, NOW)).isNull();
+    }
+
+    @Test
+    void rssStoresOnlyArticlesPublishedWithinThirtyDays() {
+        Source redHatSource = createSource(SourceCode.REDHAT_RHSA, ArticleKind.ADVISORY, ArticleRegion.OVERSEAS, FeedFormat.RSS, null);
+
+        assertThat(toEarliestStoredPublishedAt(redHatSource, NOW)).isEqualTo(NOW.minus(Duration.ofDays(30)));
+        // KISA 보호나라는 자르지 않음 (경보단계·보고서는 드물게 올라옴)
+        assertThat(toEarliestStoredPublishedAt(kisaSource, NOW)).isNull();
+    }
+
+    @Test
+    void apiSourcesHaveNoStoredPublishedAtLimit() {
+        // KEV·NVD·GHSA 는 수집기가 since 로 이미 거름 (NVD 는 수정분도 받으므로 게시일로 자르면 병합이 빠짐)
+        assertThat(toEarliestStoredPublishedAt(kevSourceNeverCollected, NOW)).isNull();
+        assertThat(toEarliestStoredPublishedAt(nvdSourceNeverCollected, NOW)).isNull();
+        assertThat(toEarliestStoredPublishedAt(ghsaSourceNeverCollected, NOW)).isNull();
     }
 
     private static Source createVulnerabilitySource(String code, FeedFormat feedFormat, Instant lastCollectedAt) {

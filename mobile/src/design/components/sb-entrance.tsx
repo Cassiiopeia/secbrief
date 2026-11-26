@@ -26,3 +26,15 @@ export function SbEntrance({ order, children }: SbEntranceProps) {
   }));
   return <Animated.View style={animatedStyle}>{children}</Animated.View>;
 }
+
+interface SbListEntranceProps {
+  /** 목록 안 순번 (0 부터) */
+  itemIndex: number;
+  children: ReactNode;
+}
+
+/** 목록 항목 등장: 앞쪽 몇 건만 순차 등장, 그 뒤는 바로 보임 (스크롤로 뒤늦게 붙는 행이 늦게 뜨지 않게) */
+export function SbListEntrance({ itemIndex, children }: SbListEntranceProps) {
+  if (itemIndex >= sbMotion.entranceListItemCount) return children;
+  return <SbEntrance order={itemIndex}>{children}</SbEntrance>;
+}

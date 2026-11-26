@@ -28,6 +28,28 @@ class ArticleUrgencyPolicyTest {
     }
 
     @Test
+    void ghsaHighSeverityScoreIsNotUrgent() {
+        // high 등급(7.0~8.9)은 등급이 아니라 점수 규칙으로 판정: 긴급 아님
+        assertThat(isUrgent(SourceCode.GHSA_HIGH, "x", new BigDecimal("8.8"), false)).isFalse();
+        assertThat(isUrgent(SourceCode.GHSA_HIGH, "x", null, false)).isFalse();
+    }
+
+    @Test
+    void ghsaHighBecomesUrgentOnlyByExistingRules() {
+        assertThat(isUrgent(SourceCode.GHSA_HIGH, "x", new BigDecimal("9.0"), false)).isTrue();
+        assertThat(isUrgent(SourceCode.GHSA_HIGH, "x", new BigDecimal("7.5"), true)).isTrue();
+    }
+
+    @Test
+    void overseasDistributionAdvisoryIsNeverUrgentByTitle() {
+        // 리눅스 배포판 권고 제목의 Critical·긴급은 KISA 공지가 아니라 긴급으로 보지 않음
+        assertThat(isUrgent(SourceCode.REDHAT_RHSA, "RHSA-2026:103537: Critical: Satellite 6.16 EUS security update", null, false)).isFalse();
+        assertThat(isUrgent(SourceCode.UBUNTU_USN, "USN-9203-1: libpcap vulnerabilities 긴급", null, false)).isFalse();
+        assertThat(SourceCode.isKisa(SourceCode.DEBIAN_DSA)).isFalse();
+        assertThat(SourceCode.isKisa(SourceCode.NODEJS_SECURITY)).isFalse();
+    }
+
+    @Test
     void kevIsUrgentWithoutScore() {
         assertThat(isUrgent(SourceCode.CISA_KEV, "x", null, true)).isTrue();
     }

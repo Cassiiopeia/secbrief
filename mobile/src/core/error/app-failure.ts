@@ -2,7 +2,7 @@
  * 화면에 보여 줄 수 있는 실패 한 건: 에러 코드(제보 추적용) + 사용자 문구
  */
 export class AppFailure extends Error {
-  /** 서버 ErrorCode 이름 또는 앱 자체 코드 (APP_NETWORK, APP_TIMEOUT, APP_INVALID_RESPONSE, APP_UNKNOWN) */
+  /** 서버 ErrorCode 이름 또는 앱 자체 코드 (아래 APP_ 상수) */
   readonly errorCode: string;
   readonly userMessage: string;
 
@@ -22,6 +22,12 @@ export const NETWORK_ERROR_CODE = 'APP_NETWORK';
 export const TIMEOUT_ERROR_CODE = 'APP_TIMEOUT';
 // 앱 자체 코드: 서버 응답을 읽지 못함 (JSON 아님, data 없음)
 export const INVALID_RESPONSE_ERROR_CODE = 'APP_INVALID_RESPONSE';
+// 앱 자체 코드: OS 알림 권한이 꺼져 있음
+export const PUSH_PERMISSION_DENIED_ERROR_CODE = 'APP_PUSH_PERMISSION_DENIED';
+// 앱 자체 코드: 푸시 토큰을 받지 못함 (네트워크, FCM·APNs 설정 누락)
+export const PUSH_TOKEN_ERROR_CODE = 'APP_PUSH_TOKEN';
+// 앱 자체 코드: 알림을 쓸 수 없는 환경 (웹, 실기기 아님, 프로젝트 ID 없음)
+export const PUSH_UNAVAILABLE_ERROR_CODE = 'APP_PUSH_UNAVAILABLE';
 
 /**
  * 임의의 예외 > AppFailure (이미 AppFailure 면 그대로, 아니면 알 수 없는 실패)
