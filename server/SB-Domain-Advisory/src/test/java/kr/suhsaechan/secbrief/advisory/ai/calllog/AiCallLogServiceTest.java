@@ -85,6 +85,33 @@ class AiCallLogServiceTest {
     }
 
     @Test
+    void estimatesCostOfOpenAiAndGoogleCallsFromTheirOwnPrices() {
+        when(systemConfigService.getDecimal(ConfigKey.PRICE_OPENAI_INPUT_PER_1M)).thenReturn(new BigDecimal("0.10"));
+        when(systemConfigService.getDecimal(ConfigKey.PRICE_OPENAI_OUTPUT_PER_1M)).thenReturn(new BigDecimal("0.50"));
+        when(systemConfigService.getDecimal(ConfigKey.PRICE_GOOGLE_INPUT_PER_1M)).thenReturn(new BigDecimal("0.30"));
+        when(systemConfigService.getDecimal(ConfigKey.PRICE_GOOGLE_OUTPUT_PER_1M)).thenReturn(new BigDecimal("2.50"));
+
+        service.recordSuccess(new AiCallAttempt(AiCallType.SUMMARY, "openai", "gpt-6-luna", "오픈 1", 900),
+                new AiTokenUsage(10_000, 2_000));
+        service.recordSuccess(new AiCallAttempt(AiCallType.SUMMARY, "google", "gemini-3.5-flash-lite", "구글 1", 700),
+                new AiTokenUsage(10_000, 2_000));
+
+        ArgumentCaptor<AiCallLog> savedCallLogs = ArgumentCaptor.forClass(AiCallLog.class);
+        verify(aiCallLogRepository, org.mockito.Mockito.times(2)).save(savedCallLogs.capture());
+        AiCallLog openAiCallLog = savedCallLogs.getAllValues().get(0);
+        AiCallLog googleCallLog = savedCallLogs.getAllValues().get(1);
+        // 제공자·모델·키 별명이 Anthropic 과 같은 칸에 남음
+        assertThat(openAiCallLog.getProvider()).isEqualTo("openai");
+        assertThat(openAiCallLog.getModel()).isEqualTo("gpt-6-luna");
+        assertThat(openAiCallLog.getKeyLabel()).isEqualTo("오픈 1");
+        assertThat(openAiCallLog.getEstimatedCostUsd()).isEqualByComparingTo("0.002000");
+        assertThat(googleCallLog.getProvider()).isEqualTo("google");
+        assertThat(googleCallLog.getModel()).isEqualTo("gemini-3.5-flash-lite");
+        assertThat(googleCallLog.getKeyLabel()).isEqualTo("구글 1");
+        assertThat(googleCallLog.getEstimatedCostUsd()).isEqualByComparingTo("0.008000");
+    }
+
+    @Test
     void recordsSuccessWithoutTokensWhenUsageIsUnknown() {
         service.recordSuccess(ANTHROPIC_ATTEMPT, null);
 

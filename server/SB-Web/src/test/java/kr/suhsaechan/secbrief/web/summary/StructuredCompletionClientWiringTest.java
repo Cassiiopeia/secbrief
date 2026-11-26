@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Map;
+import kr.suhsaechan.secbrief.advisory.ai.AiProviderPriorityService;
+import kr.suhsaechan.secbrief.advisory.ai.AiProviderView;
 import kr.suhsaechan.secbrief.advisory.ai.ArticleTitleAnalyzer;
 import kr.suhsaechan.secbrief.advisory.ai.SelectedStructuredCompletionClient;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletionClient;
@@ -30,6 +32,8 @@ class StructuredCompletionClientWiringTest extends PostgresContainerTestSupport 
     private ArticleTitleAnalyzer articleTitleAnalyzer;
     @Autowired
     private ArticleSummarizer articleSummarizer;
+    @Autowired
+    private AiProviderPriorityService aiProviderPriorityService;
 
     @Test
     void titleAnalysisAndSummaryShareSelectedProvider() {
@@ -39,6 +43,15 @@ class StructuredCompletionClientWiringTest extends PostgresContainerTestSupport 
         // 테스트 설정은 키가 비어 있음: 호출하지 않고 건너뜀
         assertThat(articleTitleAnalyzer.isAvailable()).isFalse();
         assertThat(articleSummarizer.isAvailable()).isFalse();
+    }
+
+    @Test
+    void registersEveryProviderClientForPriorityScreen() {
+        // 제공자 빈 4개 (키가 없어 전부 준비 안 됨), 기본 우선순위는 anthropic 1개
+        assertThat(aiProviderPriorityService.findProviderViews()).extracting(AiProviderView::providerCode)
+                .containsExactlyInAnyOrder("anthropic", "openai", "google", "ollama");
+        assertThat(aiProviderPriorityService.findProviderViews()).noneMatch(AiProviderView::isAvailable);
+        assertThat(aiProviderPriorityService.findPriorityCodes()).containsExactly("anthropic");
     }
 
     @Test

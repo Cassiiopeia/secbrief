@@ -6,7 +6,7 @@ package kr.suhsaechan.secbrief.advisory.ai;
  */
 public interface StructuredCompletionClient {
 
-    /** 제공자 설정값 (secbrief.ai.provider: anthropic, ollama) */
+    /** 제공자 설정값 (AiProviderCode: anthropic, openai, google, ollama) */
     String getProviderCode();
 
     /** 호출 가능 여부 (키·주소가 없으면 false: 호출하지 않고 건너뜀) */

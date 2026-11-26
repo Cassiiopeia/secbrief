@@ -137,12 +137,8 @@ public class OllamaStructuredCompletionClient implements StructuredCompletionCli
         if (responseBody == null) {
             return AiTokenUsage.UNKNOWN;
         }
-        return new AiTokenUsage(toTokenCount(responseBody.path(INPUT_TOKENS_FIELD)),
-                toTokenCount(responseBody.path(OUTPUT_TOKENS_FIELD)));
-    }
-
-    private static Integer toTokenCount(JsonNode tokenCountNode) {
-        return tokenCountNode.isIntegralNumber() ? tokenCountNode.asInt() : null;
+        return new AiTokenUsage(ProviderHttpClient.toTokenCount(responseBody.path(INPUT_TOKENS_FIELD)),
+                ProviderHttpClient.toTokenCount(responseBody.path(OUTPUT_TOKENS_FIELD)));
     }
 
     // 인증 헤더: 키가 있을 때만 (인증 프록시 뒤의 Ollama)
