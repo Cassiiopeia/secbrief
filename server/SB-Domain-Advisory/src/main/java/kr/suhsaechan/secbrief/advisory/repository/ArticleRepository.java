@@ -108,4 +108,44 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
     List<Long> findRelatedArticleIds(@Param("articleId") Long articleId, @Param("cveIdPattern") String cveIdPattern,
                                      @Param("subjectName") String subjectName, @Param("topic") String topic,
                                      @Param("since") Instant since, @Param("maximumCount") int maximumCount);
+
+    // 대응 모아보기 후보 (자기 제외, ResponseGuidePolicy 가 기간·이름을 만듦): 같은 CVE(0) > 같은 제품 이름(1) > 같은 제조사 공지(2),
+    // 같은 순위 안에서는 KEV 등재 > CVSS 높은 순 > 최신순. 이름 비교는 소문자 + 공백·문장부호를 공백 하나로 바꾼 값
+    // 0: cveIdPattern 이 cve_id·제목에 맞고 cveSince 이후 게시 (cveIdPattern 이 빈 문자열이면 건너뜀)
+    // 1: 이름이 같고 어느 쪽도 제조사 공지가 아님, 2: 한쪽이 제조사 공지(vendorNoticeSourceCode)이고 그 이름 = 상대 이름 또는 상대 이름의 앞 낱말
+    // 1·2 공통: productName 이 빈 문자열이 아니고, 후보 게시일이 [productFrom, productTo], 후보 주제가 excludedTopics 밖
+    @Query(nativeQuery = true, value = """
+            select ranked.id as "articleId", ranked.match_rank as "matchRank"
+              from (select a.id, a.is_kev, a.cvss_score, a.published_at,
+                           case when :cveIdPattern <> '' and a.published_at >= :cveSince
+                                     and (a.cve_id ~* :cveIdPattern or a.title ~* :cveIdPattern) then 0
+                                when viewed.name = '' or names.name is null or names.name = ''
+                                     or a.topic in (:excludedTopics)
+                                     or a.published_at < :productFrom or a.published_at > :productTo then null
+                                when s.code <> :vendorNoticeSourceCode and not :isViewedVendorNotice
+                                     and names.name = viewed.name then 1
+                                when s.code = :vendorNoticeSourceCode
+                                     and (viewed.name = names.name or viewed.name like names.name || ' %') then 2
+                                when :isViewedVendorNotice
+                                     and (names.name = viewed.name or names.name like viewed.name || ' %') then 2
+                            end as match_rank
+                      from article a
+                      join source s on s.id = a.source_id
+                      cross join (select btrim(regexp_replace(lower(:productName), '[[:space:][:punct:]]+', ' ', 'g')) as name) viewed
+                      cross join lateral (select btrim(regexp_replace(lower(a.subject_name), '[[:space:][:punct:]]+', ' ', 'g')) as name) names
+                     where a.id <> :articleId) ranked
+             where ranked.match_rank is not null
+             order by ranked.match_rank, ranked.is_kev desc, ranked.cvss_score desc nulls last, ranked.published_at desc, ranked.id desc
+             limit :maximumCount
+            """)
+    List<ResponseGuideCandidate> findResponseGuideCandidates(@Param("articleId") Long articleId,
+                                                             @Param("cveIdPattern") String cveIdPattern,
+                                                             @Param("cveSince") Instant cveSince,
+                                                             @Param("productName") String productName,
+                                                             @Param("productFrom") Instant productFrom,
+                                                             @Param("productTo") Instant productTo,
+                                                             @Param("excludedTopics") Collection<String> excludedTopics,
+                                                             @Param("vendorNoticeSourceCode") String vendorNoticeSourceCode,
+                                                             @Param("isViewedVendorNotice") boolean isViewedVendorNotice,
+                                                             @Param("maximumCount") int maximumCount);
 }

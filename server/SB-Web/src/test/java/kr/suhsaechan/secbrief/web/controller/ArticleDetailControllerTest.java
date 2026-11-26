@@ -14,8 +14,12 @@ import java.util.List;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.FeedFormat;
+import kr.suhsaechan.secbrief.advisory.constant.ResponseGuideMatchReason;
+import kr.suhsaechan.secbrief.advisory.constant.ResponseGuideSection;
 import kr.suhsaechan.secbrief.advisory.constant.SourceCode;
 import kr.suhsaechan.secbrief.advisory.dto.ArticleDetailResponse;
+import kr.suhsaechan.secbrief.advisory.dto.ResponseGuideItemResponse;
+import kr.suhsaechan.secbrief.advisory.dto.ResponseGuideSectionResponse;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.fact.SourceFact;
 import kr.suhsaechan.secbrief.advisory.policy.ArticleDraft;
@@ -36,7 +40,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * 기사 상세 API: {data} 감싸기, 브리핑 있음(brief + 브리핑에서 옮긴 이전 구조 3개)·이전 요약만 있음(brief null)·요약 없음 응답 모양,
- * 사실 값·관련 기사, 없는 id 404, 숫자 아닌 id 400
+ * 사실 값·관련 기사·대응 모아보기, 없는 id 404, 숫자 아닌 id 400
  */
 @WebMvcTest(ArticleDetailController.class)
 @Import(WebSecurityTestConfig.class)
@@ -58,8 +62,10 @@ class ArticleDetailControllerTest {
                 List.of(new AffectedTarget("Example VPN", "2.4.0 이전 버전"), new AffectedTarget("Example Hub", null)),
                 List.of("2.4.1로 올리세요.", "관리 포트를 닫으세요.")));
         Article relatedArticle = createArticle(2L, "Example VPN ships emergency update", List.of());
+        ResponseGuideSectionResponse officialSection = new ResponseGuideSectionResponse(ResponseGuideSection.OFFICIAL, 1,
+                List.of(ResponseGuideItemResponse.of(relatedArticle, ResponseGuideMatchReason.SAME_CVE, "CVE-2026-1111")));
         given(articleDetailQueryService.findArticleDetail(1L))
-                .willReturn(ArticleDetailResponse.of(article, List.of(relatedArticle)));
+                .willReturn(ArticleDetailResponse.of(article, List.of(relatedArticle), List.of(officialSection)));
 
         mockMvc.perform(get("/api/v1/articles/1"))
                 .andExpect(status().isOk())
@@ -95,6 +101,18 @@ class ArticleDetailControllerTest {
                 .andExpect(jsonPath("$.data.facts[0].value").value("2026-12-11"))
                 .andExpect(jsonPath("$.data.relatedItems", hasSize(1)))
                 .andExpect(jsonPath("$.data.relatedItems[0].id").value(2))
+                // 대응 모아보기 (#71): 구역 + 전체 건수 + 항목 (기사 + 출처 이름·묶인 이유·겹친 CVE·조치 기한)
+                .andExpect(jsonPath("$.data.responseGuideSections", hasSize(1)))
+                .andExpect(jsonPath("$.data.responseGuideSections[0].section").value("OFFICIAL"))
+                .andExpect(jsonPath("$.data.responseGuideSections[0].totalCount").value(1))
+                .andExpect(jsonPath("$.data.responseGuideSections[0].items[0].*", hasSize(5)))
+                .andExpect(jsonPath("$.data.responseGuideSections[0].items[0].article.id").value(2))
+                .andExpect(jsonPath("$.data.responseGuideSections[0].items[0].article.originalUrl").value("https://example.test/articles/2"))
+                .andExpect(jsonPath("$.data.responseGuideSections[0].items[0].article.sourceCode").value(SourceCode.THE_HACKER_NEWS))
+                .andExpect(jsonPath("$.data.responseGuideSections[0].items[0].sourceName").isNotEmpty())
+                .andExpect(jsonPath("$.data.responseGuideSections[0].items[0].matchReason").value("SAME_CVE"))
+                .andExpect(jsonPath("$.data.responseGuideSections[0].items[0].matchedCveId").value("CVE-2026-1111"))
+                .andExpect(jsonPath("$.data.responseGuideSections[0].items[0].actionDueDate").value(nullValue()))
                 // 요약 입력·상태는 내보내지 않음
                 .andExpect(jsonPath("$.data.sourceText").doesNotExist())
                 .andExpect(jsonPath("$.data.article.summaryState").doesNotExist());
@@ -105,7 +123,7 @@ class ArticleDetailControllerTest {
         Article article = createArticle(5L, "Example VPN flaw", List.of());
         article.getSummaryState().applyBrief(new ArticleBrief("Example VPN 결함이 공개됐어요.", "Example VPN에 결함이 있어요.",
                 null, List.of(), List.of()));
-        given(articleDetailQueryService.findArticleDetail(5L)).willReturn(ArticleDetailResponse.of(article, List.of()));
+        given(articleDetailQueryService.findArticleDetail(5L)).willReturn(ArticleDetailResponse.of(article, List.of(), List.of()));
 
         mockMvc.perform(get("/api/v1/articles/5"))
                 .andExpect(status().isOk())
@@ -126,7 +144,7 @@ class ArticleDetailControllerTest {
         Article article = createArticle(4L, "Example VPN flaw exploited", List.of());
         LegacySummaryFixtures.applyLegacySummary(article.getSummaryState(), "Example VPN 에서 인증을 건너뛸 수 있어요.",
                 List.of("첫째예요.", "둘째예요."), "패치를 적용하세요.");
-        given(articleDetailQueryService.findArticleDetail(4L)).willReturn(ArticleDetailResponse.of(article, List.of()));
+        given(articleDetailQueryService.findArticleDetail(4L)).willReturn(ArticleDetailResponse.of(article, List.of(), List.of()));
 
         mockMvc.perform(get("/api/v1/articles/4"))
                 .andExpect(status().isOk())
@@ -145,7 +163,7 @@ class ArticleDetailControllerTest {
         // 앱은 한 줄 결론이 없는 브리핑을 통째로 무시하므로 서버가 brief 를 null 로 내보냄 (이전 구조 3개는 그대로)
         Article article = createArticle(6L, "Example VPN flaw", List.of());
         article.getSummaryState().applyBrief(new ArticleBrief("", "Example VPN에 결함이 있어요.", null, List.of(), List.of()));
-        given(articleDetailQueryService.findArticleDetail(6L)).willReturn(ArticleDetailResponse.of(article, List.of()));
+        given(articleDetailQueryService.findArticleDetail(6L)).willReturn(ArticleDetailResponse.of(article, List.of(), List.of()));
 
         mockMvc.perform(get("/api/v1/articles/6"))
                 .andExpect(status().isOk())
@@ -157,7 +175,7 @@ class ArticleDetailControllerTest {
     @Test
     void returnsNullSummaryAndEmptyListsWhenNotSummarized() throws Exception {
         given(articleDetailQueryService.findArticleDetail(3L))
-                .willReturn(ArticleDetailResponse.of(createArticle(3L, "Pending article", List.of()), List.of()));
+                .willReturn(ArticleDetailResponse.of(createArticle(3L, "Pending article", List.of()), List.of(), List.of()));
 
         mockMvc.perform(get("/api/v1/articles/3"))
                 .andExpect(status().isOk())
@@ -167,7 +185,8 @@ class ArticleDetailControllerTest {
                 .andExpect(jsonPath("$.data.actionGuide").value(nullValue()))
                 .andExpect(jsonPath("$.data.isAiSummarized").value(false))
                 .andExpect(jsonPath("$.data.facts", hasSize(0)))
-                .andExpect(jsonPath("$.data.relatedItems", hasSize(0)));
+                .andExpect(jsonPath("$.data.relatedItems", hasSize(0)))
+                .andExpect(jsonPath("$.data.responseGuideSections", hasSize(0)));
     }
 
     @Test

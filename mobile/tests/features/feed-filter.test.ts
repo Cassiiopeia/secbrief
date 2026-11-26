@@ -120,6 +120,7 @@ describe('기사 상세', () => {
     isAiSummarized: true,
     facts: [{ label: '영향 버전', value: '원문에 없음' }, { label: ' ', value: '값' }],
     relatedItems: [nvdItem, kisaItem],
+    responseGuideSections: [],
   };
   test('요약·핵심·확인된 정보는 받은 값 그대로, AI 가 썼으면 표시, 자기 자신은 함께 볼 소식에서 뺌', () => {
     const view = toArticleDetailView(detail, NOW);
