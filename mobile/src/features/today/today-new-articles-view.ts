@@ -20,38 +20,50 @@ export interface TodayNewArticleTileView {
   href: Href;
 }
 
-/** 오늘 새 소식 띠 표시 내용: 머리 설명 + 타일들 */
+/** 오늘 새 소식 띠 표시 내용: 머리 설명 + 타일들(건수 있는 것만) + 0건인 악용 중·KISA 한 줄 안내 (없으면 undefined) */
 export interface TodayNewArticlesView {
   caption: string;
   tiles: TodayNewArticleTileView[];
+  emptyNote?: string;
 }
 
-const NONE_LABEL = '없음';
 const SAMPLE_NAME_SEPARATOR = ', ';
-
-/** 건수 > 큰 값 (+N, 0 이면 없음) */
-function toCountValueLabel(count: number): string {
-  return count > 0 ? `+${count}` : NONE_LABEL;
-}
+const EXPLOITED_TITLE = '악용 중';
+const KISA_TITLE = 'KISA 공지';
+const EMPTY_TITLE_SEPARATOR = '·';
 
 /**
- * 오늘 새 소식 건수 > 띠 (#93 시안 F): 악용 중·KISA 공지(0건도 늘 "없음") > 분야(많은 순) > 생태계(많은 순) > 기사
- * 분야·생태계 이름은 카탈로그 (모르는 code 는 뺌), 누르면 취약점 탭이 그 분류·오늘로 걸러짐
+ * 오늘 새 소식 건수 > 띠 (#93 시안 F): 건수 있는 타일만 (악용 중 > KISA 공지 > 분야 많은 순 > 생태계 많은 순 > 기사)
+ * 0건인 악용 중·KISA 공지는 타일 대신 끝에 작은 한 줄 ("악용 중·KISA 공지 새 소식 없음"), 분야·생태계 이름은 카탈로그 (모르는 code 는 뺌)
  */
 export function toTodayNewArticlesView(counts: NewArticleCounts, catalogIndex: TagCatalogIndex): TodayNewArticlesView {
-  const tiles: TodayNewArticleTileView[] = [
-    toTile('exploited', counts.exploitedCount, '악용 중', undefined, counts.exploitedCount > 0 ? 'feature' : 'muted', toVulnerabilityHref({ segment: 'exploited' })),
-    toTile('kisa', counts.kisaCount, 'KISA 공지', undefined, counts.kisaCount > 0 ? 'neutral' : 'muted', toVulnerabilityHref({ sourceGroup: 'kisa', segment: 'all' })),
+  const tiles: TodayNewArticleTileView[] = [];
+  const emptyTitles: string[] = [];
+  if (counts.exploitedCount > 0) {
+    tiles.push(toTile('exploited', counts.exploitedCount, EXPLOITED_TITLE, undefined, 'feature', toVulnerabilityHref({ segment: 'exploited' })));
+  } else {
+    emptyTitles.push(EXPLOITED_TITLE);
+  }
+  if (counts.kisaCount > 0) {
+    tiles.push(toTile('kisa', counts.kisaCount, KISA_TITLE, undefined, 'neutral', toVulnerabilityHref({ sourceGroup: 'kisa', segment: 'all' })));
+  } else {
+    emptyTitles.push(KISA_TITLE);
+  }
+  tiles.push(
     ...toTagTiles(counts.fieldCounts, (code) => catalogIndex.findTag('FIELD', code)?.shortName, (code) =>
       toVulnerabilityHref({ sourceGroup: 'all', segment: 'all', fieldCode: code }),
     ),
     ...toTagTiles(counts.ecosystemCounts, (code) => catalogIndex.findTag('ECOSYSTEM', code)?.shortName, (code) =>
       toVulnerabilityHref({ sourceGroup: 'openSource', segment: 'all', ecosystemCode: code }),
     ),
-  ];
+  );
   if (counts.newsCount > 0) tiles.push(toTile('news', counts.newsCount, '기사', undefined, 'neutral', toNewsHref('all')));
   const collectedUntil = counts.lastCollectedAt === undefined ? '' : `${toClockTime(counts.lastCollectedAt)} 까지 `;
-  return { caption: `${collectedUntil}모은 공개 소식 · 눌러서 봐요`, tiles };
+  return {
+    caption: `${collectedUntil}모은 공개 소식 · 눌러서 봐요`,
+    tiles,
+    emptyNote: emptyTitles.length > 0 ? `${emptyTitles.join(EMPTY_TITLE_SEPARATOR)} 새 소식 없음` : undefined,
+  };
 }
 
 function toTagTiles(tagCounts: TagCount[], toName: (code: string) => string | undefined, toHref: (code: string) => Href): TodayNewArticleTileView[] {
@@ -67,14 +79,13 @@ function toTagTiles(tagCounts: TagCount[], toName: (code: string) => string | un
 }
 
 function toTile(key: string, count: number, title: string, detail: string | undefined, tone: SbCountTileTone, href: Href): TodayNewArticleTileView {
-  const valueLabel = toCountValueLabel(count);
   return {
     key,
-    valueLabel,
+    valueLabel: `+${count}`,
     title,
     detail,
     tone,
-    accessibilityLabel: [title, count > 0 ? `오늘 ${count}건` : '오늘 없음', detail].filter((part) => part !== undefined).join(', '),
+    accessibilityLabel: [title, `오늘 ${count}건`, detail].filter((part) => part !== undefined).join(', '),
     href,
   };
 }

@@ -127,17 +127,23 @@ describe('관심 기술', () => {
 });
 
 describe('오늘 새 소식 띠', () => {
-  test('악용 중·KISA 는 늘 (0건은 없음), 분야·생태계는 카탈로그에 있는 것만, 기사, 누르면 취약점 탭 + 오늘', () => {
+  test('건수 있는 타일만 (악용 중 먼저), 0건인 KISA 는 끝 한 줄, 분야·생태계는 카탈로그에 있는 것만, 누르면 취약점 탭 + 오늘', () => {
     const view = toTodayNewArticlesView(counts, index);
     expect(view.tiles.map((tile) => [tile.title, tile.valueLabel, tile.tone])).toEqual([
       ['악용 중', '+1', 'feature'],
-      ['KISA 공지', '없음', 'muted'],
       ['분야 A', '+11', 'neutral'],
       ['A', '+5', 'neutral'],
       ['기사', '+8', 'neutral'],
     ]);
-    expect(view.tiles[2].detail).toBe('Budibase, ToolJet');
-    expect(view.tiles[2].href).toEqual({ pathname: '/vulnerability', params: expect.objectContaining({ fieldCode: 'field-a', today: '1' }) });
+    expect(view.emptyNote).toBe('KISA 공지 새 소식 없음');
+    expect(view.tiles[1].detail).toBe('Budibase, ToolJet');
+    expect(view.tiles[1].href).toEqual({ pathname: '/vulnerability', params: expect.objectContaining({ fieldCode: 'field-a', today: '1' }) });
+  });
+
+  test('악용 중·KISA 가 둘 다 0건이면 타일 없이 한 줄로 묶음', () => {
+    const view = toTodayNewArticlesView({ ...counts, exploitedCount: 0, kisaCount: 0 }, index);
+    expect(view.tiles[0].title).toBe('분야 A');
+    expect(view.emptyNote).toBe('악용 중·KISA 공지 새 소식 없음');
   });
 });
 
