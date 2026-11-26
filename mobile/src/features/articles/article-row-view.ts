@@ -4,7 +4,15 @@ import type { SbArticleSecondaryLine, SbBadgeContent, SbCvssGaugeValue, SbHashta
 import { toCardHashtags } from '../keywords/keyword-view-state';
 import { toArticleBadges, toCvssGaugeValue } from './article-badges';
 import { toArticleImageUrl } from './article-cover';
-import { toCompactMetaLabel, toCvssLabel, toDisplayTitle, toKindLabel, toMetaLabel, toOneLineAccessibilityLabel } from './article-labels';
+import {
+  toCompactMetaLabel,
+  toCvssLabel,
+  toDisplayTitle,
+  toKindLabel,
+  toMetaLabel,
+  toOneLineAccessibilityLabel,
+  toTranslatedMarkLabel,
+} from './article-labels';
 
 export * from './article-badges';
 export * from './article-labels';
@@ -19,8 +27,10 @@ export interface ArticleRowView {
   secondaryLine?: SbArticleSecondaryLine;
   /** 게시자 · 절대 날짜 · 상대 표기 (읽기 도우미용 전체 표기) */
   metaLabel: string;
-  /** 게시자 · 짧은 날짜 (· AI 번역) (목록에 보이는 줄) */
+  /** 게시자 · 짧은 날짜 (목록에 보이는 줄) */
   compactMetaLabel: string;
+  /** 번역 항목의 번역 아이콘 읽기 도우미 문구 (번역 아니면 없음: 아이콘 없음) */
+  translatedMarkLabel?: string;
   /** 배지 전체 (목록은 toFeedBadges 로 골라 보여 줌) */
   badges: SbBadgeContent[];
   cvss?: SbCvssGaugeValue;
@@ -51,6 +61,7 @@ export function toArticleRowView(item: BriefingItem, now: Date): ArticleRowView 
     secondaryLine: toArticleSecondaryLine(item.oneLine, originalTitle),
     metaLabel,
     compactMetaLabel: toCompactMetaLabel(item, now),
+    translatedMarkLabel: toTranslatedMarkLabel(item),
     badges: toArticleBadges(item),
     cvss: toCvssGaugeValue(item),
     hashtags: toCardHashtags(item.keywords),
@@ -59,7 +70,7 @@ export function toArticleRowView(item: BriefingItem, now: Date): ArticleRowView 
     publisherName: item.publisherName,
     kindLabel: toKindLabel(item.kind),
     publishedAt: item.publishedAt,
-    accessibilityLabel: [toDisplayTitle(item), toOneLineAccessibilityLabel(item), metaLabel, cvssLabel, '자세히 보기']
+    accessibilityLabel: [toDisplayTitle(item), toTranslatedMarkLabel(item), toOneLineAccessibilityLabel(item), metaLabel, cvssLabel, '자세히 보기']
       .filter((part) => part !== undefined)
       .join(', '),
     originalUrl: item.originalUrl,

@@ -1,27 +1,29 @@
 /**
- * 목록 행 표시: 게시자(KEV 등재), 번역 제목·원문 제목·AI 번역, 제목 아래 줄(한 줄 결론 우선), 메타(추정 게시일), 배지(색조), 썸네일, 주제 이름
+ * 목록 행 표시: 게시자 이름만, 번역 제목·원문 제목·번역 아이콘, 제목 아래 줄(한 줄 결론 우선), 메타(추정 게시일), 배지(색조), 썸네일, 주제 이름
  */
 import { apiConfig } from '@/core/config/api-config';
-import { toArticleRowView, toArticleSecondaryLine, toCvssSeverityTone, toPublisherLabel, toTopicLabel } from '@/features/articles/article-row-view';
+import { toArticleRowView, toArticleSecondaryLine, toCvssSeverityTone, toTopicLabel } from '@/features/articles/article-row-view';
 
-import { NOW, kevOnlyItem, kisaItem, nvdItem, overseasNewsItem } from './briefing-item-fixtures';
+import { NOW, kisaItem, nvdItem, overseasNewsItem } from './briefing-item-fixtures';
 
-test('KEV 등재 NVD 항목은 게시자 옆에 등재 표시', () => {
-  expect(toPublisherLabel({ ...nvdItem, isKev: true })).toBe('NVD · CISA KEV 등재');
-  // KEV 가 직접 올린 항목은 출처 코드로 알아봄 (게시자 이름과 무관)
-  expect(toPublisherLabel({ ...kevOnlyItem, sourceCode: 'CISA_KEV', isKev: true })).toBe('CISA KEV');
+test('KEV 등재 항목도 메타는 게시자 이름만 (등재는 악용 중 배지로)', () => {
+  const view = toArticleRowView({ ...nvdItem, isKev: true }, NOW);
+  expect(view.metaLabel).toBe('NVD · 2026.11.23 09:12 · 2시간 전');
+  expect(view.badges.map((badge) => badge.label)).toContain('악용 중');
 });
-test('번역 항목은 한국어 제목 + 원문 제목 + AI 번역 표시', () => {
+test('번역 항목은 한국어 제목 + 원문 제목 + 번역 아이콘 (배지·글자 표시 없음)', () => {
   const view = toArticleRowView({ ...overseasNewsItem, title: 'Critical flaw in Next.js', translatedTitle: 'Next.js 심각 취약점' }, NOW);
   expect(view.title).toBe('Next.js 심각 취약점');
   expect(view.originalTitle).toBe('Critical flaw in Next.js');
-  expect(view.badges).toContainEqual({ label: 'AI 번역', tone: 'notice' });
+  expect(view.translatedMarkLabel).toBe('AI가 번역한 제목이에요');
+  expect(view.badges.map((badge) => badge.label)).not.toContain('AI 번역');
+  expect(view.accessibilityLabel).toContain('AI가 번역한 제목이에요');
 });
 test('번역 없으면 원문 제목만', () => {
   const view = toArticleRowView({ ...overseasNewsItem, translatedTitle: undefined }, NOW);
   expect(view.title).toBe(overseasNewsItem.title);
   expect(view.originalTitle).toBeUndefined();
-  expect(view.badges.some((badge) => badge.tone === 'notice')).toBe(false);
+  expect(view.translatedMarkLabel).toBeUndefined();
 });
 test('행 메타에 게시자와 절대·상대 날짜', () => {
   expect(toArticleRowView(kisaItem, NOW).metaLabel).toBe('KISA 보호나라 · 2026.11.23 09:12 · 2시간 전');
@@ -31,9 +33,9 @@ test('추정 게시일은 수집 표시', () => {
     'KISA 보호나라 · 수집 2026.11.23 09:12 · 2시간 전',
   );
 });
-test('배지 순서: 긴급 > 악용 중 > AI 번역 > 회사·제품 > 주제 > 종류 (일반 주제는 뺌, CVSS 는 게이지로)', () => {
+test('배지 순서: 긴급 > 악용 중 > 회사·제품 > 주제 > 종류 (일반 주제는 뺌, CVSS 는 게이지로, 번역은 아이콘으로)', () => {
   const view = toArticleRowView({ ...nvdItem, isKev: true, translatedTitle: '원격 코드 실행', subjectName: 'Example VPN' }, NOW);
-  expect(view.badges.map((badge) => badge.label)).toEqual(['긴급', '악용 중', 'AI 번역', 'Example VPN', '원격 접속', '취약점']);
+  expect(view.badges.map((badge) => badge.label)).toEqual(['긴급', '악용 중', 'Example VPN', '원격 접속', '취약점']);
   expect(toArticleRowView(overseasNewsItem, NOW).badges.map((badge) => badge.label)).toEqual(['뉴스']);
 });
 test('CVSS 게이지: 점수는 원문 값, 버전 표기, 10점 대비 비율, 심각도 색조', () => {
@@ -47,8 +49,8 @@ test('화면에 보이는 메타는 게시자와 짧은 날짜', () => {
   expect(toArticleRowView(kisaItem, NOW).compactMetaLabel).toBe('KISA 보호나라 · 2시간 전');
   expect(toArticleRowView({ ...kisaItem, isPublishedAtEstimated: true }, NOW).compactMetaLabel).toBe('KISA 보호나라 · 수집 2시간 전');
 });
-test('번역 항목은 보이는 메타 끝에 AI 번역 표시', () => {
-  expect(toArticleRowView({ ...overseasNewsItem, translatedTitle: '번역 제목' }, NOW).compactMetaLabel).toBe('BleepingComputer · 2시간 전 · AI 번역');
+test('번역 항목도 보이는 메타는 게시자와 짧은 날짜만 (AI 번역 글자 없음)', () => {
+  expect(toArticleRowView({ ...overseasNewsItem, translatedTitle: '번역 제목' }, NOW).compactMetaLabel).toBe('BleepingComputer · 2시간 전');
 });
 test('해시태그는 3개까지 (빈 값·중복 제외)', () => {
   const view = toArticleRowView({ ...overseasNewsItem, keywords: ['랜섬웨어', ' ', 'VPN', '랜섬웨어', '제로데이', '패치'] }, NOW);

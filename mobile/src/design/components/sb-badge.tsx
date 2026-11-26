@@ -5,7 +5,7 @@ import { type SbColors, type SbSeverityTone, sbMaximumLines, sbRadius, sbSpacing
 import { SbText } from './sb-text';
 
 /**
- * 배지 색조 5종: neutral 분류(회색), notice AI 안내(민트), urgent 긴급(보라 채움), exploited 악용 중(본문색 채움), subject 회사·제품(테두리만)
+ * 배지 색조 5종: neutral 분류(회색), notice 새로 등장(민트), urgent 긴급(보라 채움), exploited 악용 중(본문색 채움), subject 회사·제품(테두리만)
  * + 심각도 4단계: critical, high, medium, low (심각도 색 테두리와 글자)
  */
 export type SbBadgeTone = 'neutral' | 'notice' | 'urgent' | 'exploited' | 'subject' | SbSeverityTone;

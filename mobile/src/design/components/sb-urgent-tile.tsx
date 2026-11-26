@@ -7,6 +7,7 @@ import { SbArticleImage, useSbArticleImageState } from './sb-article-image';
 import { toSbArticleTitleMaximumLines } from './sb-article-image-layout';
 import { SbPressable } from './sb-pressable';
 import { SbText } from './sb-text';
+import { SbTranslatedMark } from './sb-translated-mark';
 
 interface SbUrgentTileProps {
   /** 예: '긴급 / CVSS 9.8' */
@@ -14,6 +15,8 @@ interface SbUrgentTileProps {
   title: string;
   /** 예: 'NVD · 2026.11.23 09:12 · 2시간 전' */
   footerLabel: string;
+  /** 번역 표시 읽기 도우미 문구 (있으면 아래 줄 끝에 번역 아이콘) */
+  translatedMarkLabel?: string;
   /** 소식 대표 이미지 주소 (없거나 못 불러오면 그림 자리 없이 글만, 제목 전체) */
   coverImageUrl?: string;
   onPress?: () => void;
@@ -28,12 +31,12 @@ const FOOTER_TOP_GAP = 10;
 const TITLE_MAXIMUM_LINES = 4;
 
 /** 긴급 타일: (실제 이미지) + 민트 바탕 위 라벨·제목·아래 한 줄 */
-export function SbUrgentTile({ capsLabel, title, footerLabel, coverImageUrl, onPress }: SbUrgentTileProps) {
+export function SbUrgentTile({ capsLabel, title, footerLabel, translatedMarkLabel, coverImageUrl, onPress }: SbUrgentTileProps) {
   const { colors } = useSbTheme();
   const styles = useSbStyles(createStyles);
   const { shownImageUrl, onImageFailed } = useSbArticleImageState(coverImageUrl);
   return (
-    <SbPressable accessibilityLabel={`${capsLabel}, ${title}, ${footerLabel}`} onPress={onPress}>
+    <SbPressable accessibilityLabel={[capsLabel, title, translatedMarkLabel, footerLabel].filter((part) => part !== undefined).join(', ')} onPress={onPress}>
       <View style={styles.tile}>
         {shownImageUrl !== undefined && (
           <View style={styles.cover}>
@@ -51,6 +54,7 @@ export function SbUrgentTile({ capsLabel, title, footerLabel, coverImageUrl, onP
             <View style={styles.footerLabel}>
               <SbCapsLabel text={footerLabel} color={colors.onAccent} />
             </View>
+            {translatedMarkLabel !== undefined && <SbTranslatedMark accessibilityLabel={translatedMarkLabel} color={colors.onAccent} />}
             <SbCapsLabel text="→" color={colors.onAccent} />
           </View>
         </View>
@@ -67,6 +71,8 @@ const createStyles = (colors: SbColors) =>
     title: { marginTop: TITLE_TOP_GAP, marginBottom: TITLE_BOTTOM_GAP },
     footer: {
       flexDirection: 'row',
+      alignItems: 'center',
+      gap: sbSpacing.small,
       paddingTop: FOOTER_TOP_GAP,
       borderTopWidth: StyleSheet.hairlineWidth * 2,
       borderTopColor: colors.onAccent,

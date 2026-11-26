@@ -17,6 +17,7 @@ import {
   SbScreen,
   SbScreenHeader,
   SbText,
+  SbTranslatedMark,
   sbRadius,
   sbSize,
   sbSpacing,
@@ -124,7 +125,7 @@ function useFocusScroll(focus: ArticleDetailFocus | undefined) {
 }
 
 /**
- * 상세 머리: (대표 이미지 + CVSS 게이지) > 배지(종류는 화면 제목에 있어 생략) > 제목 > (원문 제목) > 출처·게시일 > 해시태그
+ * 상세 머리: (대표 이미지 + CVSS 게이지) > 배지(종류는 화면 제목에 있어 생략) > 제목 > (번역 아이콘 + 원문 제목) > 출처·게시일 > 해시태그
  * 이미지가 없거나 못 불러오면 그림 자리 없이 배지부터 (CVSS 게이지는 배지 위)
  */
 function ArticleDetailHeading({ article }: { article: ArticleRowView }) {
@@ -151,9 +152,14 @@ function ArticleDetailHeading({ article }: { article: ArticleRowView }) {
           </SbText>
         </View>
         {article.originalTitle !== undefined && (
-          <SbText variant="caption" color={colors.tertiaryLabel}>
-            {article.originalTitle}
-          </SbText>
+          <View style={styles.originalTitle}>
+            {article.translatedMarkLabel !== undefined && <SbTranslatedMark accessibilityLabel={article.translatedMarkLabel} />}
+            <View style={styles.originalTitleText}>
+              <SbText variant="caption" color={colors.tertiaryLabel}>
+                {article.originalTitle}
+              </SbText>
+            </View>
+          </View>
         )}
         <SbText variant="timeLabel" color={colors.tertiaryLabel}>
           {article.metaLabel}
@@ -174,5 +180,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   gauge: { position: 'absolute', left: sbSpacing.compact, bottom: sbSpacing.compact },
+  // 번역 아이콘 + 원문 제목 (아이콘은 첫 줄 높이에 맞춤)
+  originalTitle: { flexDirection: 'row', alignItems: 'flex-start', gap: sbSpacing.extraSmall },
+  originalTitleText: { flex: 1 },
   heading: { gap: sbSpacing.small, paddingHorizontal: sbSpacing.pageHorizontal, paddingVertical: sbSpacing.medium },
 });

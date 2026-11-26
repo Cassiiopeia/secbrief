@@ -11,6 +11,7 @@ import { SbCvssGauge, type SbCvssGaugeValue } from './sb-cvss-gauge';
 import { SbHashtagChips } from './sb-hashtag-chips';
 import { SbPressable } from './sb-pressable';
 import { SbText } from './sb-text';
+import { SbArticleMetaLine } from './sb-translated-mark';
 
 interface SbHeadlineCardProps {
   /** rail 가로 레일 안 카드(고정 너비), wide 화면 너비 카드(목록 대표 자리) */
@@ -18,8 +19,10 @@ interface SbHeadlineCardProps {
   title: string;
   /** 제목 아래 작은 줄 (한 줄 결론 또는 번역 항목의 원문 제목) */
   secondaryLine?: SbArticleSecondaryLine;
-  /** 게시자 · 짧은 날짜 (· AI 번역) 줄 */
+  /** 게시자 · 짧은 날짜 줄 */
   metaLabel: string;
+  /** 번역 표시 읽기 도우미 문구 (있으면 메타 줄 끝에 번역 아이콘) */
+  translatedMarkLabel?: string;
   badges: SbBadgeContent[];
   /** 위쪽 대표 이미지 주소 (없거나 못 불러오면 그림 자리 없이 글만 있는 카드, 제목 전체) */
   imageUrl?: string;
@@ -41,6 +44,7 @@ export function SbHeadlineCard({
   title,
   secondaryLine,
   metaLabel,
+  translatedMarkLabel,
   badges,
   imageUrl,
   cvss,
@@ -78,9 +82,7 @@ export function SbHeadlineCard({
             {title}
           </SbText>
           {secondaryLine !== undefined && <SbArticleSecondaryLineText secondaryLine={secondaryLine} />}
-          <SbText variant="timeLabel" color={colors.tertiaryLabel} numberOfLines={sbMaximumLines.singleLine}>
-            {metaLabel}
-          </SbText>
+          <SbArticleMetaLine metaLabel={metaLabel} translatedMarkLabel={translatedMarkLabel} />
         </View>
       </SbPressable>
       {hashtags !== undefined && (

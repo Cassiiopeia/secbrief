@@ -7,12 +7,12 @@ import type { SbCoverKind, SbShortcut } from '@/design';
 import { toArticleImageUrl, toTopicCoverKind } from '../articles/article-cover';
 import {
   type ArticleRowView,
+  EXPLOITED_BADGE_LABEL,
   toArticleRowView,
   toCompactMetaLabel,
   toDisplayTitle,
-  toPublisherLabel,
   toTopicLabel,
-  toTranslationSuffix,
+  toTranslatedMarkLabel,
 } from '../articles/article-row-view';
 import { BROWSABLE_TOPICS, toTopicBrowseKey } from '../browse/browse-target';
 import { toTrendTopicView } from '../trend/trend-view-state';
@@ -23,6 +23,8 @@ export interface TodayUrgentView {
   capsLabel: string;
   title: string;
   footerLabel: string;
+  /** 번역 아이콘 읽기 도우미 문구 (번역 아니면 없음) */
+  translatedMarkLabel?: string;
   /** 대표 이미지 주소 (없으면 글만) */
   coverImageUrl?: string;
   /** 누르면 열 기사 (상세 화면이 먼저 그릴 표시 내용) */
@@ -42,6 +44,8 @@ export interface TodayStreamItemView {
   id: string;
   timeLabel: string;
   title: string;
+  /** 번역 아이콘 읽기 도우미 문구 (번역 아니면 없음) */
+  translatedMarkLabel?: string;
   /** 대표 이미지 주소 (없으면 글만) */
   thumbnailImageUrl?: string;
   /** 누르면 열 기사 (상세 화면이 먼저 그릴 표시 내용) */
@@ -101,12 +105,13 @@ export function toTodayViewState(briefing: TodayBriefing, now: Date = new Date()
   };
 }
 
-/** 긴급 소식 > 타일 문구 (라벨: 긴급 / CVSS 점수 또는 KEV 등재, 아래 줄: 게시자 · 날짜 (· AI 번역)) */
+/** 긴급 소식 > 타일 문구 (라벨: 긴급 / CVSS 점수 또는 악용 중, 아래 줄: 게시자 · 날짜, 번역이면 번역 아이콘) */
 function toUrgentView(item: BriefingItem, now: Date): TodayUrgentView {
   return {
     capsLabel: toUrgentCapsLabel(item),
     title: toDisplayTitle(item),
-    footerLabel: `${toPublisherLabel(item)} · ${toArticleDateLabel(item.publishedAt, now)}${toTranslationSuffix(item)}`,
+    footerLabel: `${item.publisherName} · ${toArticleDateLabel(item.publishedAt, now)}`,
+    translatedMarkLabel: toTranslatedMarkLabel(item),
     coverImageUrl: toArticleImageUrl(item),
     article: toArticleRowView(item, now),
   };
@@ -124,7 +129,7 @@ export function toTopicShortcuts(): SbShortcut[] {
 
 function toUrgentCapsLabel(item: BriefingItem): string {
   if (item.cvssScore !== undefined) return `긴급 / CVSS ${item.cvssScore.toFixed(1)}`;
-  if (item.isKev) return '긴급 / KEV 등재';
+  if (item.isKev) return `긴급 / ${EXPLOITED_BADGE_LABEL}`;
   return '긴급';
 }
 
@@ -134,11 +139,12 @@ function toTrendView(trend: TrendTopic): TodayTrendView {
   return { topicName: trendView.topicLabel, detail: trendView.detail, coverKind: toTopicCoverKind(trend.topic) };
 }
 
-/** 소식 > 스트림 항목 (게시자 · 짧은 날짜 (· AI 번역), 대표 이미지 있을 때만 썸네일) */
+/** 소식 > 스트림 항목 (게시자 · 짧은 날짜, 번역이면 번역 아이콘, 대표 이미지 있을 때만 썸네일) */
 function toStreamItemView(item: BriefingItem, now: Date): TodayStreamItemView {
   return {
     id: item.id,
     timeLabel: toCompactMetaLabel(item, now),
+    translatedMarkLabel: toTranslatedMarkLabel(item),
     title: toDisplayTitle(item),
     thumbnailImageUrl: toArticleImageUrl(item),
     article: toArticleRowView(item, now),

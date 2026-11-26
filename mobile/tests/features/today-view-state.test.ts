@@ -20,21 +20,22 @@ function createBriefing(overrides: Partial<TodayBriefing> = {}): TodayBriefing {
 test('머리 라벨은 날짜와 오늘 건수', () => {
   expect(toTodayViewState(createBriefing({ todayCount: 12 }), NOW).mastheadTrailingLines).toEqual(['11.23 MON', '오늘 12건']);
 });
-test('KEV 만 있는 긴급 항목 라벨', () => {
-  expect(toTodayViewState(createBriefing({ urgentItem: kevOnlyItem }), NOW).urgent?.capsLabel).toBe('긴급 / KEV 등재');
+test('KEV 만 있는 긴급 항목 라벨은 악용 중 (배지와 같은 말)', () => {
+  expect(toTodayViewState(createBriefing({ urgentItem: kevOnlyItem }), NOW).urgent?.capsLabel).toBe('긴급 / 악용 중');
 });
 test('점수가 있으면 CVSS 라벨', () => {
   expect(toTodayViewState(createBriefing({ urgentItem: nvdItem }), NOW).urgent?.capsLabel).toBe('긴급 / CVSS 9.8');
 });
-test('긴급 아래 줄에 게시자와 날짜', () => {
+test('긴급 아래 줄에 게시자와 날짜 (KEV 등재 글자 없음)', () => {
   expect(toTodayViewState(createBriefing({ urgentItem: nvdKevItem }), NOW).urgent?.footerLabel).toBe(
-    'NVD · CISA KEV 등재 · 2026.11.23 09:12 · 2시간 전',
+    'NVD · 2026.11.23 09:12 · 2시간 전',
   );
 });
-test('번역된 긴급 항목은 한국어 제목과 AI 번역 표시', () => {
+test('번역된 긴급 항목은 한국어 제목과 번역 아이콘 (아래 줄에 AI 번역 글자 없음)', () => {
   const urgent = toTodayViewState(createBriefing({ urgentItem: { ...nvdKevItem, translatedTitle: '원격 코드 실행 취약점' } }), NOW).urgent;
   expect(urgent?.title).toBe('원격 코드 실행 취약점');
-  expect(urgent?.footerLabel).toMatch(/ · AI 번역$/);
+  expect(urgent?.footerLabel).not.toMatch(/AI 번역/);
+  expect(urgent?.translatedMarkLabel).toBe('AI가 번역한 제목이에요');
 });
 test('스트림 항목은 대표 이미지가 없으면 주제와 상관없이 썸네일 없음 (대신 보일 그림 없음)', () => {
   for (const topic of ['supplyChain', 'policy', 'general'] as const) {

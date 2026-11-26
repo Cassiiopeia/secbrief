@@ -10,6 +10,7 @@ import { SbCvssGauge, type SbCvssGaugeValue } from './sb-cvss-gauge';
 import { type SbHashtag, SbHashtagChips } from './sb-hashtag-chips';
 import { SbPressable } from './sb-pressable';
 import { SbText } from './sb-text';
+import { SbArticleMetaLine } from './sb-translated-mark';
 
 /** 해시태그 칩 묶음 (칩 + 읽기 도우미 문구 + 누름) */
 export interface SbArticleHashtags {
@@ -25,8 +26,10 @@ interface SbArticleRowProps {
   title: string;
   /** 제목 아래 작은 줄 (한 줄 결론 또는 번역 항목의 원문 제목) */
   secondaryLine?: SbArticleSecondaryLine;
-  /** 게시자 · 짧은 날짜 (· AI 번역) 줄 */
+  /** 게시자 · 짧은 날짜 줄 */
   metaLabel: string;
+  /** 번역 표시 읽기 도우미 문구 (있으면 메타 줄 끝에 번역 아이콘) */
+  translatedMarkLabel?: string;
   badges: SbBadgeContent[];
   /** 왼쪽 CVSS 게이지 (점수가 있을 때) */
   cvss?: SbCvssGaugeValue;
@@ -50,6 +53,7 @@ export function SbArticleRow({
   title,
   secondaryLine,
   metaLabel,
+  translatedMarkLabel,
   badges,
   cvss,
   imageUrl,
@@ -81,9 +85,7 @@ export function SbArticleRow({
                 {title}
               </SbText>
               {secondaryLine !== undefined && <SbArticleSecondaryLineText secondaryLine={secondaryLine} />}
-              <SbText variant="timeLabel" color={colors.tertiaryLabel} numberOfLines={sbMaximumLines.singleLine}>
-                {metaLabel}
-              </SbText>
+              <SbArticleMetaLine metaLabel={metaLabel} translatedMarkLabel={translatedMarkLabel} />
               {!isCard && <SbBadgeRow badges={badges} />}
             </View>
             {shownImageUrl !== undefined && (

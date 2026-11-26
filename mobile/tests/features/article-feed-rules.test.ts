@@ -60,7 +60,7 @@ describe('표현 크기', () => {
 describe('목록 배지', () => {
   const urgentKevItem = { ...nvdItem, isKev: true, translatedTitle: '원격 코드 실행', subjectName: 'Example VPN' };
 
-  test('2개까지, 강한 것부터. AI 번역은 메타 줄에 표시하므로 뺀다', () => {
+  test('2개까지, 강한 것부터. 번역 항목도 AI 번역 배지 없음 (번역 아이콘으로)', () => {
     expect(toFeedBadges(toArticleBadges(urgentKevItem), false).map((badge) => badge.label)).toEqual(['긴급', '악용 중']);
     expect(toFeedBadges(toArticleBadges({ ...overseasNewsItem, translatedTitle: '번역 제목' }), false).map((badge) => badge.label)).toEqual(['뉴스']);
   });
