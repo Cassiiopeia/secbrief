@@ -17,3 +17,9 @@ dependencies {
     api 'org.flywaydb:flyway-core'
     api 'org.flywaydb:flyway-database-postgresql'
 }
+
+// 아키텍처 규칙 테스트(architecture.ArchitectureRulesTest)는 레포 전체 소스·docs/architecture/rules 를 읽음
+// > Gradle 입력에 안 잡히므로 매번 실행
+tasks.named('test') {
+    outputs.upToDateWhen { false }
+}
