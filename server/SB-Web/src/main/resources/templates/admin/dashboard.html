@@ -32,12 +32,12 @@
         <th:block th:if="${summary.failedSummaryCount > 0}">
           <li th:replace="~{admin/fragments/admin-ui :: attentionItem('warning', 'file-warning',
                |요약에 실패한 기사가 ${#numbers.formatInteger(summary.failedSummaryCount, 1, 'COMMA')}건 있어요. 앱은 제목과 원문 링크로 보여 줘요.|,
-               '/admin/ai-calls?callType=SUMMARY&result=failure', '실패한 호출 보기')}"></li>
+               '/admin/ai-calls?callType=SUMMARY&result=failure', '요약 실패 호출 기록 보기')}"></li>
         </th:block>
         <th:block th:if="${summary.todayAiFailureCount > 0}">
           <li th:replace="~{admin/fragments/admin-ui :: attentionItem('warning', 'sparkles',
                |오늘 AI 호출이 ${#numbers.formatInteger(summary.todayAiFailureCount, 1, 'COMMA')}회 실패했어요.|,
-               '/admin/ai-calls?result=failure', '실패한 호출 보기')}"></li>
+               '/admin/ai-calls?result=failure', '실패한 AI 호출 보기')}"></li>
         </th:block>
         <th:block th:if="${!hasAttention}">
           <li th:replace="~{admin/fragments/admin-ui :: attentionItem('success', 'circle-check',

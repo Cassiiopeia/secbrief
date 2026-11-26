@@ -74,3 +74,25 @@
     background-color: color-mix(in oklab, var(--color-error) 8%, transparent);
     box-shadow: inset 3px 0 0 var(--color-error);
 }
+
+/* 넓은 화면(lg, 사이드바 고정) 사이드바: 칸은 본문 높이만큼 흰 바탕·오른쪽 선, 메뉴는 화면 높이로 위에 붙어 따라옴 */
+/* daisyUI drawer-open 기본값(높이 100dvh, 내부 스크롤)을 덮음: 긴 화면에서 아래가 회색으로 비지 않게 */
+@media (min-width: 64rem) {
+    /* daisyUI 선택자(.drawer-open > .drawer-toggle ~ .drawer-side)보다 구체적이어야 덮임 */
+    .drawer > .drawer-toggle ~ .drawer-side.admin-sidebar {
+        align-self: stretch;
+        height: auto;
+        overflow: visible;
+        border-right: 1px solid var(--color-base-300);
+        background-color: var(--color-base-100);
+    }
+
+    .drawer > .drawer-toggle ~ .drawer-side.admin-sidebar > aside {
+        position: sticky;
+        top: 0;
+        height: 100dvh;
+        min-height: 0;
+        overflow-y: auto;
+        border-right: 0;
+    }
+}
