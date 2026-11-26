@@ -5,7 +5,7 @@ import type { ArticleFilter, ArticleImportance, BriefingItem } from '@/data/mode
 const IMPORTANCE_RANK: Record<ArticleImportance, number> = { routine: 0, notable: 1, headline: 2 };
 
 /**
- * 소식이 필터 조건 3개(중요도 하한, 출처, 키워드)에 맞는지
+ * 소식이 필터 조건 4개(중요도 하한, 출처, 키워드, 긴급만)에 맞는지
  * 서버가 이 조건을 모르는 이전 버전이면 조건을 무시하고 전부 돌려주므로, 엉뚱한 소식이 섞이지 않게 앱에서 한 번 더 거름
  */
 export function isArticleMatchingFilter(item: BriefingItem, filter: ArticleFilter): boolean {
@@ -14,6 +14,7 @@ export function isArticleMatchingFilter(item: BriefingItem, filter: ArticleFilte
   }
   if (filter.sourceCode !== undefined && !isFromSource(item, filter.sourceCode)) return false;
   if (filter.keyword !== undefined && !item.keywords.includes(filter.keyword)) return false;
+  if (filter.isUrgent === true && !item.isUrgent) return false;
   return true;
 }
 

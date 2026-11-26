@@ -71,4 +71,6 @@ export interface ArticleFilter {
   sourceCode?: string;
   /** 이 키워드가 붙은 소식만 (# 없이) */
   keyword?: string;
+  /** true 면 긴급 소식만 (경보단계 화면의 이번 주 긴급 건수에서 들어옴) */
+  isUrgent?: boolean;
 }

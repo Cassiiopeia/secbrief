@@ -7,6 +7,8 @@ export const APP_ROUTES = {
   search: '/search',
   notifications: '/notifications',
   settings: '/settings',
+  // 사이버위기 경보 화면 (app/alert-level.tsx, 탭 밖 스택)
+  alertLevel: '/alert-level',
 } as const;
 
 // 탭 밖 상세 경로 (app/articles/[articleId], app/notifications/[notificationId], app/notices/[noticeId] 와 같아야 함)

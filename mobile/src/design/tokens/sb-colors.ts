@@ -31,6 +31,12 @@ export interface SbColors {
   severityHigh: string;
   severityMedium: string;
   severityLow: string;
+  /** 경보 단계 색 5개 (사이버위기 경보 정상·관심·주의·경계·심각, 해외 지표 green·blue·yellow·orange·red 공용) */
+  alertLevelGreen: string;
+  alertLevelBlue: string;
+  alertLevelYellow: string;
+  alertLevelOrange: string;
+  alertLevelRed: string;
 }
 
 export const sbLightColors: SbColors = {
@@ -53,6 +59,11 @@ export const sbLightColors: SbColors = {
   severityHigh: '#C2570C',
   severityMedium: '#9A7500',
   severityLow: '#51627D',
+  alertLevelGreen: '#1F9D55',
+  alertLevelBlue: '#2F6FED',
+  alertLevelYellow: '#B98900',
+  alertLevelOrange: '#E0620B',
+  alertLevelRed: '#D92D20',
 };
 
 export const sbDarkColors: SbColors = {
@@ -75,6 +86,11 @@ export const sbDarkColors: SbColors = {
   severityHigh: '#FFA24A',
   severityMedium: '#F2CF4A',
   severityLow: '#8FA3C2',
+  alertLevelGreen: '#4ADE80',
+  alertLevelBlue: '#6EA8FF',
+  alertLevelYellow: '#F2CF4A',
+  alertLevelOrange: '#FFA24A',
+  alertLevelRed: '#FF6B5E',
 };
 
 /** 심각도 색조 4단계 (CVSS 구간) */
@@ -91,6 +107,25 @@ export function toSbSeverityColor(colors: SbColors, tone: SbSeverityTone): strin
       return colors.severityMedium;
     case 'low':
       return colors.severityLow;
+  }
+}
+
+/** 경보 단계 색조 5개 (낮은 단계부터) */
+export type SbAlertLevelTone = 'green' | 'blue' | 'yellow' | 'orange' | 'red';
+
+/** 경보 단계 색조 > 색 토큰 값 */
+export function toSbAlertLevelColor(colors: SbColors, tone: SbAlertLevelTone): string {
+  switch (tone) {
+    case 'green':
+      return colors.alertLevelGreen;
+    case 'blue':
+      return colors.alertLevelBlue;
+    case 'yellow':
+      return colors.alertLevelYellow;
+    case 'orange':
+      return colors.alertLevelOrange;
+    case 'red':
+      return colors.alertLevelRed;
   }
 }
 

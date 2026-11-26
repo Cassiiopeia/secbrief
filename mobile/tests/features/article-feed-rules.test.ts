@@ -1,8 +1,7 @@
 /**
  * 소식 목록 규칙: 필터 재확인(중요도·출처·키워드), 표현 크기(중요도·목록 쓰임·게시 후 지난 날), 목록 배지, 주제 대표 그림,
- * 읽은 기사 목록, 모아 보기 묶음, 경보단계 띠, 행사 타임라인
+ * 읽은 기사 목록, 모아 보기 묶음, 행사 타임라인 (경보단계 띠는 alert-level-dashboard.test.ts)
  */
-import { KISA_SOURCE_CODES } from '@/data/models/article-source-code';
 import { toArticleBadges, toFeedBadges } from '@/features/articles/article-badges';
 import { toTopicCoverKind } from '@/features/articles/article-cover';
 import { type ArticleFeedPlacement, toArticleFeedPresentation } from '@/features/articles/article-feed-layout';
@@ -10,7 +9,6 @@ import { isArticleMatchingFilter } from '@/features/articles/article-filter-guar
 import { READ_ARTICLE_MAXIMUM_COUNT, toReadArticleIdsWith } from '@/features/articles/read-article-ids';
 import { toBrowseHref, toBrowseTarget, toKeywordBrowseKey, toSourceBrowseKey, toTopicBrowseKey } from '@/features/browse/browse-target';
 import { toEventTimelineGroups } from '@/features/explore/event-timeline';
-import { toAlertLevelView } from '@/features/today/alert-level-view';
 
 import { NOW, kevOnlyItem, kisaItem, nvdItem, overseasNewsItem } from './briefing-item-fixtures';
 
@@ -27,6 +25,10 @@ describe('필터 재확인', () => {
     expect(isArticleMatchingFilter(kisaItem, { sourceCode: 'KISA_REPORT' })).toBe(false);
     expect(isArticleMatchingFilter(kevOnlyItem, { sourceCode: 'CISA_KEV' })).toBe(true);
     expect(isArticleMatchingFilter(nvdItem, { sourceCode: 'CISA_KEV' })).toBe(false);
+  });
+  test('긴급만: 긴급 소식만 (긴급 필터를 모르는 이전 서버 응답도 앱에서 거름)', () => {
+    expect(isArticleMatchingFilter({ ...overseasNewsItem, isUrgent: true }, { isUrgent: true })).toBe(true);
+    expect(isArticleMatchingFilter({ ...overseasNewsItem, isUrgent: false }, { isUrgent: true })).toBe(false);
   });
   test('키워드: 그 키워드가 붙은 소식만. 조건이 없으면 전부 통과', () => {
     expect(isArticleMatchingFilter({ ...overseasNewsItem, keywords: ['VPN'] }, { keyword: 'VPN' })).toBe(true);
@@ -101,6 +103,7 @@ describe('모아 보기 묶음', () => {
     expect(toBrowseTarget(toTopicBrowseKey('ransomware'))).toEqual({ title: '랜섬웨어', filter: { topic: 'ransomware' } });
     expect(toBrowseTarget(toSourceBrowseKey('KISA_REPORT'))).toEqual({ title: 'KISA 보고서·가이드', filter: { sourceCode: 'KISA_REPORT' } });
     expect(toBrowseTarget(toKeywordBrowseKey('제로데이'))).toEqual({ title: '#제로데이', filter: { keyword: '제로데이' } });
+    expect(toBrowseTarget('urgent')).toEqual({ title: '긴급 소식', filter: { isUrgent: true } });
     expect(toBrowseTarget('kisa-all')).toEqual({ title: 'KISA 소식', filter: { kind: 'advisory', region: 'domestic' } });
   });
   test('모르는 묶음은 없음', () => {
@@ -111,19 +114,6 @@ describe('모아 보기 묶음', () => {
   });
   test('경로는 한글 키워드를 인코딩한다', () => {
     expect(toBrowseHref(toKeywordBrowseKey('랜섬웨어'))).toBe(`/browse/${encodeURIComponent('keyword-랜섬웨어')}`);
-  });
-});
-
-describe('KISA 경보단계 띠', () => {
-  test('출처가 경보단계인 가장 새 소식의 제목을 그대로 쓴다', () => {
-    const alertLevelItem = { ...kisaItem, id: '9', sourceCode: KISA_SOURCE_CODES.alertLevel, title: '예시 경보 공지 제목' };
-    const view = toAlertLevelView([{ ...kisaItem, sourceCode: KISA_SOURCE_CODES.notice }, alertLevelItem], NOW);
-    expect(view).toMatchObject({ title: '예시 경보 공지 제목', capsLabel: 'KISA 경보단계 · 2시간 전' });
-    expect(view?.article.originalUrl).toBe(kisaItem.originalUrl);
-  });
-  test('출처 코드가 없거나 다른 출처뿐이면 띠를 만들지 않는다', () => {
-    expect(toAlertLevelView([kisaItem, nvdItem], NOW)).toBeUndefined();
-    expect(toAlertLevelView([], NOW)).toBeUndefined();
   });
 });
 

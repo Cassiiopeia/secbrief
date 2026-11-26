@@ -21,6 +21,8 @@ export const sbFontFamily = {
 export const sbTypography = {
   /** 마스트헤드 (SEC / BRIEF): 34 / 800 / -0.05em / 줄높이 0.9 */
   masthead: { fontFamily: sbFontFamily.sansExtraBold, fontSize: 34, lineHeight: 31, letterSpacing: -1.7 },
+  /** 경보단계 화면의 지금 단계 이름 (주의): 34 / 800, 받침이 잘리지 않게 줄높이 40 */
+  levelValue: { fontFamily: sbFontFamily.sansExtraBold, fontSize: 34, lineHeight: 40, letterSpacing: -1.2 },
   /** 긴급 타일 제목: 23 / 800 / -0.035em */
   tileTitle: { fontFamily: sbFontFamily.sansExtraBold, fontSize: 23, lineHeight: 28, letterSpacing: -0.8 },
   /** 통계 타일의 큰 값 (랜섬웨어, 12일): 26 / 800 / -0.04em. 한글 받침이 잘리지 않게 줄높이 30 */
