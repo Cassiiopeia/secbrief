@@ -45,8 +45,10 @@ function loadDynamicExpoConfig(environment: Record<string, string | undefined>):
   }
 }
 
-test.each(WORKFLOW_FILE_NAMES)('%s 는 Expo 프로젝트 ID 를 Variable 에서 넣는다', (fileName) => {
-  expect(readWorkflow(fileName)).toContain('EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}');
+test.each(WORKFLOW_FILE_NAMES)('%s 는 Expo 프로젝트 ID 를 워크플로 env 로 넣지 않는다 (.env 값이 가려지지 않게)', (fileName) => {
+  // 앱 설정은 mobile/.env (ENV_FILE Secret) 한 곳에서만: 워크플로 env 에 빈 값이 있으면 .env 값이 무시됨
+  expect(readWorkflow(fileName)).not.toContain('EXPO_PUBLIC_EAS_PROJECT_ID:');
+  expect(readWorkflow(fileName)).toContain("printf '%s' \"$ENV_FILE\"");
 });
 
 test.each(ANDROID_WORKFLOW_FILE_NAMES)('%s 는 Secret 이 있을 때만 prebuild 전에 google-services.json 을 만든다', (fileName) => {

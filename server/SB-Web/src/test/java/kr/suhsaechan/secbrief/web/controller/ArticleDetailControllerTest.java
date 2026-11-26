@@ -21,9 +21,11 @@ import kr.suhsaechan.secbrief.advisory.policy.ArticleDraft;
 import kr.suhsaechan.secbrief.advisory.service.ArticleDetailQueryService;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.web.support.WebSecurityTestConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
@@ -32,6 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * 기사 상세 API: {data} 감싸기, 요약 있음·없음 응답 모양(isAiSummarized, 빈 keyPoints), 사실 값·관련 기사, 없는 id 404, 숫자 아닌 id 400
  */
 @WebMvcTest(ArticleDetailController.class)
+@Import(WebSecurityTestConfig.class)
 class ArticleDetailControllerTest {
 
     private static final Instant NOW = Instant.parse("2026-11-23T00:00:00Z");

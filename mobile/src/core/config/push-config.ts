@@ -1,5 +1,5 @@
 /**
- * 푸시 알림 설정: Expo 프로젝트 ID 는 빌드 시 EXPO_PUBLIC_EAS_PROJECT_ID 로 주입
+ * 푸시 알림 설정: Expo 프로젝트 ID 는 mobile/.env 의 EXPO_PUBLIC_EAS_PROJECT_ID (빌드 워크플로는 ENV_FILE Secret 으로 .env 를 만듦)
  */
 export const pushConfig = {
   // Expo 푸시 토큰 발급에 필요한 프로젝트 ID (빈 값·미설정 > 없음 > 알림을 쓸 수 없는 상태)

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  관리자 화면 <head> 공통: CSRF meta, 동봉 라이브러리(daisyUI 5, Tailwind 4 브라우저 런타임, lucide), 공통 CSS·JS
+  전부 /admin/vendor 의 로컬 파일 (CDN 을 쓰지 않음: 관리자 화면이 외부에 의존하지 않게)
+  쓰는 쪽: <head><th:block th:replace="~{admin/fragments/admin-head :: assets('제목')}"></th:block></head>
+-->
+<head>
+<th:block th:fragment="assets(title)">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <!-- 검색 엔진에 관리자 화면을 싣지 않음 -->
+  <meta name="robots" content="noindex, nofollow"/>
+  <!-- fetch 변경 요청이 쓰는 CSRF 토큰 (admin-ui.js 가 헤더로 붙임) -->
+  <meta name="_csrf" th:if="${_csrf != null}" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:if="${_csrf != null}" th:content="${_csrf.headerName}"/>
+  <title th:text="${title} + ' · 시큐브리프 관리자'">시큐브리프 관리자</title>
+  <!-- 아이콘 파일 없음: 브라우저의 /favicon.ico 요청을 막음 -->
+  <link rel="icon" href="data:,"/>
+  <link rel="stylesheet" th:href="@{/admin/vendor/daisyui-5.css}"/>
+  <link rel="stylesheet" th:href="@{/admin/css/admin.css}"/>
+  <script th:src="@{/admin/vendor/tailwindcss-browser-4.js}"></script>
+  <script th:src="@{/admin/vendor/lucide-1.52.0.min.js}"></script>
+  <!-- 화면이 그려지기 전에 테마를 정함 (CSRF meta 뒤에 와야 토큰을 읽음) -->
+  <script th:src="@{/admin/js/admin-ui.js}"></script>
+</th:block>
+</head>
+</html>

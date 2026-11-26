@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<!--
+  관리자 화면 틀: 사이드바(drawer) + 상단바 + 본문. 화면은 본문만 씀
+  쓰는 쪽:
+    <html th:replace="~{admin/fragments/admin-layout :: page('제목', 'menu-key', ~{::content})}">
+    <main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6"> ... </main>
+  menu-key 7개: dashboard, sources, settings, ai-keys, ai-calls, audit, password
+  리다이렉트 뒤 토스트: flashMessage(성공), flashError(실패 문구 + 에러 코드) 모델·flash 속성
+-->
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:fragment="page(title, activeMenu, content)" data-theme="light">
+<head>
+  <th:block th:replace="~{admin/fragments/admin-head :: assets(${title})}"></th:block>
+</head>
+<body class="min-h-screen bg-base-200 text-base-content">
+<div class="drawer lg:drawer-open">
+  <input id="adminDrawerToggle" type="checkbox" class="drawer-toggle"/>
+
+  <div class="drawer-content flex min-h-screen min-w-0 flex-col">
+    <header class="navbar sticky top-0 z-30 border-b border-base-300 bg-base-100 px-2 lg:px-4">
+      <div class="flex-none lg:hidden">
+        <label for="adminDrawerToggle" class="btn btn-square btn-ghost" aria-label="메뉴 열기">
+          <i data-lucide="menu" class="size-5"></i>
+        </label>
+      </div>
+      <div class="min-w-0 flex-1">
+        <h1 class="truncate px-2 text-lg font-bold" th:text="${title}">제목</h1>
+      </div>
+      <div class="flex flex-none items-center gap-1">
+        <span class="hidden px-2 text-sm text-base-content/70 sm:inline" sec:authentication="name">admin</span>
+        <button type="button" class="btn btn-circle btn-ghost" data-theme-toggle aria-label="밝게·어둡게 바꾸기">
+          <i data-lucide="moon" class="size-5" data-theme-icon="light"></i>
+          <i data-lucide="sun" class="size-5" data-theme-icon="dark" hidden></i>
+        </button>
+        <form th:action="@{/admin/logout}" method="post">
+          <button type="submit" class="btn btn-ghost btn-sm gap-1">
+            <i data-lucide="log-out" class="size-4"></i>
+            <span class="hidden sm:inline">로그아웃</span>
+          </button>
+        </form>
+      </div>
+    </header>
+
+    <!-- flash 토스트 자리 (admin-ui.js 가 읽어 토스트로 보여 줌) -->
+    <div id="adminFlash" hidden th:if="${flashMessage != null or flashError != null}"
+         th:attr="data-message=${flashMessage},data-error=${flashError}"></div>
+
+    <th:block th:replace="${content}"></th:block>
+  </div>
+
+  <div class="drawer-side z-40">
+    <label for="adminDrawerToggle" class="drawer-overlay" aria-label="메뉴 닫기"></label>
+    <aside class="flex min-h-full w-64 flex-col border-r border-base-300 bg-base-100">
+      <a th:href="@{/admin}" class="flex items-center gap-2 border-b border-base-300 px-5 py-4">
+        <i data-lucide="shield-check" class="size-6 text-primary"></i>
+        <span class="text-lg font-bold">시큐브리프</span>
+        <span class="badge badge-primary badge-sm">관리자</span>
+      </a>
+      <ul class="menu w-full gap-0.5 p-3">
+        <li class="menu-title">현황</li>
+        <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'dashboard', '/admin', 'layout-dashboard', '대시보드')}"></li>
+        <li class="menu-title">수집</li>
+        <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'sources', '/admin/sources', 'rss', '출처 관리')}"></li>
+        <li class="menu-title">설정</li>
+        <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'settings', '/admin/settings', 'sliders-horizontal', '설정')}"></li>
+        <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'ai-keys', '/admin/ai-keys', 'key-round', 'AI 키')}"></li>
+        <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'ai-calls', '/admin/ai-calls', 'activity', 'AI 호출')}"></li>
+        <li class="menu-title">관리자</li>
+        <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'audit', '/admin/audit', 'scroll-text', '관리자 기록')}"></li>
+        <li th:replace="~{admin/fragments/admin-menu :: menuItem(${activeMenu}, 'password', '/admin/password', 'lock-keyhole', '비밀번호 변경')}"></li>
+      </ul>
+    </aside>
+  </div>
+</div>
+</body>
+</html>
+

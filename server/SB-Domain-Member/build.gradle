@@ -9,4 +9,7 @@ jar { enabled = true; archiveClassifier = '' }
 
 dependencies {
     api project(':SB-Common')
+
+    // 관리자 비밀번호 BCrypt (PasswordEncoder 만 필요, 버전은 Boot BOM)
+    api 'org.springframework.security:spring-security-crypto'
 }

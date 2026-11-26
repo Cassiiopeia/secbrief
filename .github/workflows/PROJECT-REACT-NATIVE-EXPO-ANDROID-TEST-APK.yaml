@@ -1,7 +1,7 @@
 # ===================================================================
-# React Native(Expo) Android 테스트 APK: 고른 브랜치를 빌드해 내려받을 파일로 올림
+# React Native(Expo) Android 테스트 APK: 브랜치를 빌드해 Firebase App Distribution 과 내려받을 파일로 올림
 # ===================================================================
-# 수동 실행 전용. 스토어에 올리지 않음
+# 실행 2가지: deploy 푸시(배포할 때 자동), 수동 실행(브랜치 지정). 스토어에는 올리지 않음
 #
 # 필요한 GitHub Secrets (없으면 디버그 키로 서명한 APK 를 만듦)
 #   RELEASE_KEYSTORE_BASE64, RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
@@ -15,6 +15,10 @@ name: PROJECT-REACT-NATIVE-EXPO-ANDROID-TEST-APK
 run-name: TEST APK ${{ inputs.branch || github.ref_name }}
 
 on:
+  # 배포할 때 테스터용 APK 도 함께 올림 (Play 내부·비공개 테스트, TestFlight 와 같은 시점)
+  push:
+    branches: ["deploy"]
+    paths: ["mobile/**", "version.yml", ".github/workflows/PROJECT-REACT-NATIVE-EXPO-ANDROID-TEST-APK.yaml"]
   workflow_dispatch:
     inputs:
       branch:
@@ -31,7 +35,6 @@ permissions:
 # ============================================
 env:
   EXPO_PUBLIC_API_BASE_URL: "https://api.secbrief.suhsaechan.kr"   # 앱 번들에 박히는 운영 API 주소 (3개 워크플로 같은 값, mobile/tests/config 가 확인)
-  EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}   # Expo 푸시 토큰 발급용 프로젝트 ID (Variable, 없으면 앱이 알림 스위치를 잠금)
   APP_DIRECTORY: "mobile"
   NODE_VERSION: ${{ vars.NODE_VERSION || '22' }}
   JAVA_VERSION: ${{ vars.JAVA_VERSION || '17' }}

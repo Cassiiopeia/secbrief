@@ -2,6 +2,8 @@ package kr.suhsaechan.secbrief.web.scheduler;
 
 import kr.suhsaechan.secbrief.application.notification.PushReceiptCheckService;
 import kr.suhsaechan.secbrief.application.notification.UrgentAlertDispatchService;
+import kr.suhsaechan.secbrief.common.config.ConfigKey;
+import kr.suhsaechan.secbrief.common.config.SystemConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -9,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 알림 틱 2개: 5분마다 긴급 알림 발송, 15분마다 접수증 확인 (무효 토큰 정리)
- * secbrief.push.enabled=false 면 빈을 만들지 않음 (테스트)
+ * secbrief.push.enabled=false 면 빈을 만들지 않음 (테스트), 설정 저장소 URGENT_ALERT_ENABLED 가 false 면 발송 틱만 쉼 (접수증 확인은 계속)
  */
 @Component
 @RequiredArgsConstructor
@@ -18,10 +20,14 @@ public class UrgentAlertScheduler {
 
     private final UrgentAlertDispatchService urgentAlertDispatchService;
     private final PushReceiptCheckService pushReceiptCheckService;
+    private final SystemConfigService systemConfigService;
 
     @Scheduled(fixedDelayString = "${secbrief.push.alert-tick-milliseconds}",
             initialDelayString = "${secbrief.push.alert-initial-delay-milliseconds}")
     public void dispatchPendingAlerts() {
+        if (!systemConfigService.getBoolean(ConfigKey.URGENT_ALERT_ENABLED)) {
+            return;
+        }
         urgentAlertDispatchService.dispatchPendingAlerts();
     }
 

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{admin/fragments/admin-layout :: page('출처 관리', 'sources', ~{::content})}">
+<body>
+
+<main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6">
+  <div th:replace="~{admin/fragments/admin-ui :: pageHeader('출처 관리',
+       '출처마다 수집을 켜고 끄거나 주기를 바꿔요. 바꾼 값은 다음 수집부터 쓰고, 바꾼 내용은 관리자 기록에 남아요.')}"></div>
+
+  <section class="card border border-base-300 bg-base-100">
+    <div class="card-body p-0">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>출처</th>
+            <th>종류</th>
+            <th>수집 켜기</th>
+            <th>주기 (분)</th>
+            <th>마지막 수집</th>
+            <th>최근 실패 사유</th>
+            <th class="text-right">저장</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="sourceRow : ${sourceRows}">
+            <td>
+              <div class="font-medium" th:text="${sourceRow.displayName}">출처</div>
+              <div class="text-xs text-base-content/50" th:text="${sourceRow.code}">CODE</div>
+            </td>
+            <td th:text="${sourceRow.kindLabel}">공지</td>
+            <td>
+              <input type="checkbox" name="enabled" value="true" class="toggle toggle-sm toggle-primary"
+                     th:attr="form='sourceForm' + ${sourceRow.id},aria-label=${sourceRow.displayName} + ' 수집 켜기'"
+                     th:checked="${sourceRow.isEnabled()}"/>
+            </td>
+            <td>
+              <input type="number" name="intervalMinutes" class="input input-sm admin-number w-24" min="5" max="1440" step="1" required
+                     th:value="${sourceRow.intervalMinutes}"
+                     th:attr="form='sourceForm' + ${sourceRow.id},aria-label=${sourceRow.displayName} + ' 수집 주기(분)'"/>
+            </td>
+            <td>
+              <div class="admin-number whitespace-nowrap text-sm" th:text="${@adminDateTimeFormatter.format(sourceRow.lastCollectedAt)}">-</div>
+              <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${sourceRow.isLastCollectFailed()} ? 'error' : (${sourceRow.lastStatus == null} ? 'ghost' : 'success'), ${sourceRow.lastStatusLabel})}"></span>
+            </td>
+            <td class="max-w-xs">
+              <th:block th:if="${sourceRow.lastFailureReason != null}">
+                <div class="break-words text-sm" th:classappend="${sourceRow.isLastCollectFailed()} ? 'text-error' : 'text-base-content/60'"
+                     th:text="${sourceRow.lastFailureReason}">사유</div>
+                <div class="admin-number text-xs text-base-content/50" th:text="${@adminDateTimeFormatter.format(sourceRow.lastFailedAt)}">-</div>
+              </th:block>
+              <span th:if="${sourceRow.lastFailureReason == null}" class="text-sm text-base-content/40">없어요</span>
+            </td>
+            <td class="text-right">
+              <!-- 칸이 나뉜 표라 입력은 form 속성으로 이 폼에 묶음. 제출 전 확인 모달 (admin-ui.js) -->
+              <form method="post" th:id="'sourceForm' + ${sourceRow.id}" th:action="@{/admin/sources/{sourceId}(sourceId=${sourceRow.id})}"
+                    data-confirm-title="수집 설정을 바꿀까요?" data-confirm-label="저장"
+                    th:attr="data-confirm-message=|「${sourceRow.displayName}」 수집 설정을 저장해요. 끈 출처는 다음 수집부터 건너뛰어요.|">
+                <button type="submit" class="btn btn-primary btn-sm">저장</button>
+              </form>
+            </td>
+          </tr>
+          <th:block th:if="${#lists.isEmpty(sourceRows)}">
+            <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(7, '등록한 출처가 없어요')}"></tr>
+          </th:block>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  <p class="text-sm text-base-content/60">주기는 5분에서 1440분(하루) 사이로 정할 수 있어요.</p>
+</main>
+
+</body>
+</html>
