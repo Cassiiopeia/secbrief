@@ -1,0 +1,13 @@
+{
+  "version": "a1b2c3",
+  "tags": [
+    { "kind": "FIELD", "code": "os", "name": "운영체제·시스템 패키지", "shortName": "운영체제",
+      "groupCode": null, "fieldCode": null, "displayOrder": 10, "isWidelyUsed": false },
+    { "kind": "ECOSYSTEM", "code": "npm", "name": "npm", "shortName": "npm",
+      "groupCode": null, "fieldCode": null, "displayOrder": 40, "isWidelyUsed": false },
+    { "kind": "PRODUCT_GROUP", "code": "server-network", "name": "서버·네트워크 장비", "shortName": "서버·네트워크 장비",
+      "groupCode": null, "fieldCode": null, "displayOrder": 30, "isWidelyUsed": false },
+    { "kind": "PRODUCT", "code": "fortinet", "name": "Fortinet", "shortName": "Fortinet",
+      "groupCode": "server-network", "fieldCode": "network", "displayOrder": 10, "isWidelyUsed": true }
+  ]
+}

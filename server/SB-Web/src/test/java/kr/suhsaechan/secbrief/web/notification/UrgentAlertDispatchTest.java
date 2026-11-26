@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import kr.suhsaechan.secbrief.advisory.classification.ArticleClassificationService;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
@@ -73,6 +74,8 @@ class UrgentAlertDispatchTest extends PostgresContainerTestSupport {
     private ArticleRepository articleRepository;
     @Autowired
     private SourceRepository sourceRepository;
+    @Autowired
+    private ArticleClassificationService articleClassificationService;
     @MockitoBean
     private PushSender pushSender;
 
@@ -102,7 +105,7 @@ class UrgentAlertDispatchTest extends PostgresContainerTestSupport {
         assertThat(pushDeviceService.register(new PushDeviceRegisterRequest(KEV_ONLY_TOKEN, PushPlatform.IOS,
                 Set.of(AlertCategory.CRITICAL_CVE))).enabledAlertCategories()).containsExactly(AlertCategory.CRITICAL_CVE);
 
-        List<PushDevice> pushDevices = pushDeviceRepository.findAllWithEnabledAlertCategories();
+        List<PushDevice> pushDevices = pushDeviceRepository.findAllWithAlertSettings();
         assertThat(pushDevices).hasSize(1);
         assertThat(pushDevices.get(0).getPlatform()).isEqualTo(PushPlatform.IOS);
         assertThat(pushDevices.get(0).getEnabledAlertCategories()).containsExactly(AlertCategory.CRITICAL_CVE);
@@ -152,8 +155,8 @@ class UrgentAlertDispatchTest extends PostgresContainerTestSupport {
         assertThat(urgentAlertDispatchService.dispatchPendingAlerts()).isEqualTo(UrgentAlertDispatchResult.nothingToSend());
         assertThat(findArticle(waitingArticle).getUrgentNotifiedAt()).isNull();
 
-        // AI 대기 중이어도 수집한 지 오래면 원문 제목으로 알림
-        saveUrgentArticle(nvdSource, "CVE-2026-2002", false, false, Instant.now().minus(Duration.ofMinutes(11)));
+        // AI 대기 기한(60분)을 넘기면 규칙만으로 판정: 처리 표시 (널리 쓰는 제품이 아니라 보내지는 않음, #97)
+        saveUrgentArticle(nvdSource, "CVE-2026-2002", false, false, Instant.now().minus(Duration.ofMinutes(61)));
         assertThat(urgentAlertDispatchService.dispatchPendingAlerts().articleCount()).isEqualTo(1);
     }
 
@@ -163,6 +166,7 @@ class UrgentAlertDispatchTest extends PostgresContainerTestSupport {
         // AI 가 일반으로 본 고위험 CVE: 알리지 않고 처리 표시만
         Article routineArticle = saveUrgentArticle(nvdSource, "CVE-2026-7001", false, false);
         routineArticle.applyAiAnalysis(ArticleTopic.VULNERABILITY, null, ArticleImportance.ROUTINE, null);
+        articleClassificationService.classify(routineArticle);
         articleRepository.save(routineArticle);
 
         assertThat(urgentAlertDispatchService.dispatchPendingAlerts())
@@ -173,6 +177,7 @@ class UrgentAlertDispatchTest extends PostgresContainerTestSupport {
         // KEV 는 AI 판단과 무관하게 알림 (등재되면 중요도 하한이 NOTABLE)
         Article kevArticle = saveUrgentArticle(kevSource, "CVE-2026-7002", true, false);
         kevArticle.applyAiAnalysis(ArticleTopic.VULNERABILITY, null, ArticleImportance.ROUTINE, null);
+        articleClassificationService.classify(kevArticle);
         articleRepository.save(kevArticle);
 
         assertThat(urgentAlertDispatchService.dispatchPendingAlerts().acceptedCount()).isEqualTo(1);
@@ -194,6 +199,7 @@ class UrgentAlertDispatchTest extends PostgresContainerTestSupport {
 
         // 나중에 KEV 에 오르면 새 소식이라 알림 (AI 처리는 끝난 상태)
         staleArticle.applyAiAnalysis(ArticleTopic.VULNERABILITY, null, ArticleImportance.ROUTINE, null);
+        articleClassificationService.classify(staleArticle);
         staleArticle.markKev();
         articleRepository.save(staleArticle);
         assertThat(urgentAlertDispatchService.dispatchPendingAlerts().acceptedCount()).isEqualTo(1);
@@ -307,6 +313,7 @@ class UrgentAlertDispatchTest extends PostgresContainerTestSupport {
                 false, cveId, isKev ? null : new BigDecimal("9.8"), isKev ? null : "3.1", isKev, true), collectedAt);
         if (isAiDone) {
             article.applyAiAnalysis(ArticleTopic.VULNERABILITY, null, ArticleImportance.NOTABLE, null);
+            articleClassificationService.classify(article);
         }
         return articleRepository.save(article);
     }

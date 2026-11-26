@@ -7,15 +7,19 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import kr.suhsaechan.secbrief.advisory.catalog.TagCatalog;
+import kr.suhsaechan.secbrief.advisory.classification.ArticleClassification;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
+import kr.suhsaechan.secbrief.advisory.constant.ClassificationSource;
 import kr.suhsaechan.secbrief.advisory.constant.FeedFormat;
 import kr.suhsaechan.secbrief.advisory.constant.SourceCode;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.entity.Source;
 import kr.suhsaechan.secbrief.advisory.policy.ArticleDraft;
+import kr.suhsaechan.secbrief.advisory.support.CatalogSeedFixtures;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
 import kr.suhsaechan.secbrief.member.constant.NotificationKind;
 import org.junit.jupiter.api.Test;
@@ -89,6 +93,43 @@ class UrgentAlertPolicyTest {
         UrgentAlertContent content = UrgentAlertPolicy.toContent(List.of(createArticle(nvdSource, "가".repeat(300), false, NOW)));
 
         assertThat(content.body()).hasSize(UrgentAlertPolicy.MAXIMUM_BODY_TITLE_LENGTH).endsWith("…");
+    }
+
+    @Test
+    void holdsCriticalCveForAiAndFallsBackToRulesOnlyWhenAiNeverJudged() {
+        // #97: AI 판단이 있으면 그 판단으로, 없으면(대기 기한 초과·실패) 널리 쓰는 제품일 때만 알림. KEV·KISA 는 항상
+        TagCatalog catalog = CatalogSeedFixtures.seedCatalog();
+        Article routinePlugin = createArticle(nvdSource, "CVE-2026-5: WordPress plugin file upload", false, NOW);
+        routinePlugin.applyAiAnalysis(ArticleTopic.VULNERABILITY, null, ArticleImportance.ROUTINE, null);
+        Article unjudgedNiche = createArticle(nvdSource, "CVE-2026-6: TOTOLINK N350RT command injection", false, NOW);
+        Article unjudgedVmware = createArticle(nvdSource, "CVE-2026-7: VMware vCenter authentication bypass", false, NOW);
+        unjudgedVmware.applyClassification(new ArticleClassification("cloud", null, "vmware", null,
+                ClassificationSource.PRODUCT), true, NOW);
+        Article unjudgedKisa = createArticle(kisaSource, "긴급 보안 업데이트 권고", false, NOW);
+
+        assertThat(UrgentAlertPolicy.isAlertWorthy(routinePlugin, catalog)).isFalse();
+        assertThat(UrgentAlertPolicy.isAlertWorthy(unjudgedNiche, catalog)).isFalse();
+        assertThat(UrgentAlertPolicy.isAlertWorthy(unjudgedVmware, catalog)).isTrue();
+        assertThat(UrgentAlertPolicy.isAlertWorthy(unjudgedKisa, catalog)).isTrue();
+    }
+
+    @Test
+    void writesInterestWordingWhenOnlyInterestArticlesAreAlerted() {
+        Article chrome = createArticle(nvdSource, "Chrome V8 memory corruption", false, NOW);
+        Article apache = createArticle(nvdSource, "Apache HTTP Server mod_proxy request forgery", false, NOW.minusSeconds(60));
+
+        UrgentAlertContent single = UrgentAlertPolicy.toContent(List.of(new AlertedArticle(chrome, AlertCategory.INTEREST)));
+        UrgentAlertContent several = UrgentAlertPolicy.toContent(List.of(new AlertedArticle(apache, AlertCategory.INTEREST),
+                new AlertedArticle(chrome, AlertCategory.INTEREST)));
+        UrgentAlertContent mixed = UrgentAlertPolicy.toContent(List.of(new AlertedArticle(apache, AlertCategory.INTEREST),
+                new AlertedArticle(chrome, AlertCategory.KEV)));
+
+        assertThat(single.title()).isEqualTo("관심 기술 소식이 들어왔어요");
+        assertThat(several.title()).isEqualTo("관심 기술 소식 2건이 들어왔어요");
+        assertThat(several.body()).isEqualTo("Chrome V8 memory corruption 외 1건");
+        // 악용 중이 섞이면 긴급 문구, 대표는 악용 중
+        assertThat(mixed.title()).isEqualTo("긴급 보안 소식 2건이 들어왔어요");
+        assertThat(mixed.body()).startsWith("Chrome V8");
     }
 
     private static Article createArticle(Source source, String title, boolean isKev, Instant publishedAt) {

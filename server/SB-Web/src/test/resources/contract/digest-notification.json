@@ -1,0 +1,27 @@
+{
+  "id": 51, "kind": "DIGEST", "alertCategory": "INTEREST", "alertCategories": ["INTEREST"],
+  "title": "오늘 아침 요약: 관심 분야 소식 2건", "body": "웹 앱·CMS 1 · 네트워크 장비 1", "linkUrl": null,
+  "leadArticleId": 101, "leadArticleTitle": "Budibase Server 인증 우회 취약점", "articleCount": 2, "isPinned": false,
+  "createdAt": "2026-11-26T23:00:00Z", "updatedAt": "2026-11-26T23:00:00Z", "pushedAt": "2026-11-26T23:00:00Z",
+  "articleSections": [], "articleGuides": [],
+  "digest": {
+    "articleCount": 2,
+    "notableArticles": [
+      { "id": 102, "kind": "VULNERABILITY", "region": "OVERSEAS", "topic": "VULNERABILITY", "title": "SEPPmail RCE", "translatedTitle": null,
+        "originalUrl": "https://nvd.nist.gov/vuln/detail/CVE-2026-0002", "publisherName": "NVD", "publishedAt": "2026-11-26T10:00:00Z",
+        "isPublishedAtEstimated": false, "cveId": "CVE-2026-0002", "cvssScore": 9.8, "cvssVersion": "3.1", "isKev": false, "isUrgent": true,
+        "imagePath": null, "importance": "NOTABLE", "subjectName": "SEPPmail", "sourceCode": "NVD", "keywords": [], "oneLine": null,
+        "fieldCode": "network", "ecosystemCode": null, "packageName": null, "productCode": "seppmail", "isNotable": true }
+    ],
+    "fieldSections": [
+      { "fieldCode": "web-app", "articles": [
+        { "id": 101, "kind": "VULNERABILITY", "region": "OVERSEAS", "topic": "VULNERABILITY", "title": "Budibase Server auth bypass", "translatedTitle": "Budibase Server 인증 우회 취약점",
+          "originalUrl": "https://github.com/advisories/GHSA-0000-0000-0001", "publisherName": "GitHub Advisory", "publishedAt": "2026-11-26T09:00:00Z",
+          "isPublishedAtEstimated": false, "cveId": null, "cvssScore": 8.1, "cvssVersion": "3.1", "isKev": false, "isUrgent": false,
+          "imagePath": null, "importance": "ROUTINE", "subjectName": "Budibase", "sourceCode": "GHSA_HIGH", "keywords": [], "oneLine": null,
+          "fieldCode": "web-app", "ecosystemCode": "npm", "packageName": "@budibase/server", "productCode": null, "isNotable": false }
+      ] },
+      { "fieldCode": "network", "articles": [] }
+    ]
+  }
+}
