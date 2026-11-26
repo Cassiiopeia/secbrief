@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--/*
+  공유 미리보기 404 (없는·잘못된 기사 번호): 미리보기와 같은 모양, 에러 코드, 앱 첫 화면 열기·스토어
+*/-->
+<head>
+  <th:block th:replace="~{share/fragments/share-page :: assets}"></th:block>
+  <title>소식을 찾지 못했어요 · 시큐브리프</title>
+  <meta name="robots" content="noindex"/>
+  <meta property="og:site_name" content="시큐브리프"/>
+  <meta property="og:title" content="시큐브리프"/>
+  <meta property="og:description" content="보안 뉴스·취약점 소식을 한국어로 모아 봐요."/>
+  <meta property="og:image" th:content="${links.appIconUrl}"/>
+</head>
+<body>
+<main>
+  <div th:replace="~{share/fragments/share-page :: brand}"></div>
+
+  <section class="card">
+    <h1>소식을 찾지 못했어요</h1>
+    <p class="muted">링크가 잘못됐거나 더 이상 볼 수 없는 소식이에요. 앱에서 최신 보안 소식을 확인해 주세요.</p>
+    <p class="meta muted">에러 코드: RESOURCE_NOT_FOUND</p>
+  </section>
+
+  <th:block th:replace="~{share/fragments/share-page :: appActions(${links.appHomeUrl}, ${links.androidHomeIntentUrl})}"></th:block>
+
+  <footer th:replace="~{share/fragments/share-page :: footer}"></footer>
+</main>
+</body>
+</html>

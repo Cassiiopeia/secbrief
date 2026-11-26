@@ -16,6 +16,7 @@ import kr.suhsaechan.secbrief.web.admin.security.AdminLoginFailureHandler;
 import kr.suhsaechan.secbrief.web.admin.security.AdminLoginSuccessHandler;
 import kr.suhsaechan.secbrief.web.admin.security.AdminSecurityPaths;
 import kr.suhsaechan.secbrief.web.filter.ApiUsageCountFilter;
+import kr.suhsaechan.secbrief.web.share.SharePaths;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -32,7 +33,7 @@ import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * 보안 체인 2개: 관리자(/admin/**, 세션 폼 로그인, CSRF 켬) > 공개 API(/api/**, 인증 없음, CSRF 끔, 세션 없음)
+ * 보안 체인 2개: 관리자(/admin/**, 세션 폼 로그인, CSRF 켬) > 공개 API(/api/**, 공유 링크 경로, 인증 없음, CSRF 끔, 세션 없음)
  * 그 밖의 경로는 공개 API 체인이 거부 (403)
  */
 @Configuration
@@ -40,7 +41,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     // 로그인 없이 여는 공개 경로 (앱이 부르는 API, 배포 헬스 체크)
-    private static final String[] PUBLIC_MATCHERS = {"/api/**", "/actuator/health", "/actuator/health/**"};
+    private static final String[] PUBLIC_API_MATCHERS = {"/api/**", "/actuator/health", "/actuator/health/**"};
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -91,7 +92,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         // 오류 응답 전달(/error)까지 막으면 원래 상태 코드 대신 403 이 나감
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-                        .requestMatchers(PUBLIC_MATCHERS).permitAll()
+                        .requestMatchers(PUBLIC_API_MATCHERS).permitAll()
+                        // 공유 미리보기·앱 링크 연결 파일 (SharePaths 한 곳)
+                        .requestMatchers(SharePaths.PUBLIC_MATCHERS).permitAll()
                         .anyRequest().denyAll())
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint((request, response, exception) -> writeAccessDenied(response))
