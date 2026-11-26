@@ -51,8 +51,8 @@ class ArticleBriefMigrationTest {
                 statement.execute(INSERT_LEGACY_ARTICLE.formatted("https://example.test/none", "null", "null", "null", "NONE"));
             }
 
-            // 나머지 마이그레이션 적용 (브리핑 열 추가)
-            String schemaVersion = migrate(postgres, null);
+            // 브리핑 열 추가 버전까지 적용 (이후 마이그레이션과 무관하게 이 버전만 확인)
+            String schemaVersion = migrate(postgres, BRIEF_SCHEMA_VERSION);
 
             assertThat(schemaVersion).isEqualTo(BRIEF_SCHEMA_VERSION);
             try (Connection connection = connect(postgres); Statement statement = connection.createStatement()) {
