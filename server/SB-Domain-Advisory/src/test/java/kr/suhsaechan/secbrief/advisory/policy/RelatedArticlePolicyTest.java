@@ -3,11 +3,12 @@ package kr.suhsaechan.secbrief.advisory.policy;
 import static kr.suhsaechan.secbrief.advisory.policy.RelatedArticlePolicy.toCveIdPattern;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 /**
- * 관련 기사용 CVE 정규식: 전용 열 + 제목의 CVE ID, 중복 제거, 없으면 빈 문자열, 뒤에 숫자가 이어지는 번호는 제외
+ * 관련 기사용 CVE 정규식: 전용 열 + 제목의 CVE ID, 중복 제거, 없으면 빈 문자열, 뒤에 숫자가 이어지는 번호는 제외, 겹친 CVE ID 찾기
  */
 class RelatedArticlePolicyTest {
 
@@ -29,5 +30,15 @@ class RelatedArticlePolicyTest {
 
         assertThat(cveIdPattern.matcher("Patch for cve-2026-1111 released").find()).isTrue();
         assertThat(cveIdPattern.matcher("Patch for CVE-2026-11112 released").find()).isFalse();
+    }
+
+    @Test
+    void findsSharedCveIdInColumnOrTitleButNotLongerNumber() {
+        List<String> cveIds = RelatedArticlePolicy.findCveIds("CVE-2026-1111", "CVE-2026-2222 and cve-2026-1111");
+
+        assertThat(cveIds).containsExactly("CVE-2026-1111", "CVE-2026-2222");
+        assertThat(RelatedArticlePolicy.findSharedCveId(cveIds, null, "KISA: cve-2026-2222 조치 안내")).isEqualTo("CVE-2026-2222");
+        assertThat(RelatedArticlePolicy.findSharedCveId(cveIds, "CVE-2026-1111", "제목")).isEqualTo("CVE-2026-1111");
+        assertThat(RelatedArticlePolicy.findSharedCveId(cveIds, null, "CVE-2026-11112 다른 번호")).isNull();
     }
 }
