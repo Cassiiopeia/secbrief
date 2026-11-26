@@ -29,7 +29,9 @@ export function NotificationInboxRow({ rowView, onPress }: { rowView: Notificati
   return (
     <SbPressable accessibilityLabel={rowView.accessibilityLabel} onPress={onPress} feedback="dim">
       <View style={styles.row}>
-        <View style={styles.dotColumn}>{rowView.isNew && <SbUnreadDot />}</View>
+        <View style={styles.dotColumn}>
+          <SbUnreadDot isVisible={rowView.isNew} />
+        </View>
         <View style={styles.content}>
           {!isNotice && renderMetaLine()}
           <SbText variant="rowTitle" color={toSbArticleTitleColor(colors, !rowView.isNew)} numberOfLines={sbMaximumLines.compactTitle}>

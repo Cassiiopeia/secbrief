@@ -61,7 +61,7 @@ export function TodayScreen() {
             trailingLines={briefingQuery.data.mastheadTrailingLines}
             actions={mastheadActions}
           />
-          <SbEmptyState title="오늘은 새 소식이 없어요" description="새 소식이 올라오면 여기에 보여 드릴게요." />
+          <SbEmptyState illustration="feedEmpty" title="오늘은 새 소식이 없어요" description="새 소식이 올라오면 여기에 보여 드릴게요." />
         </>
       );
     }

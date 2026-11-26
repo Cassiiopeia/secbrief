@@ -102,3 +102,18 @@ function toAlertDetail(summary: AppNotificationSummary): string {
 function toAlertTimeLabel(createdAt: Date, now: Date): string {
   return toLocalDayKey(createdAt) === toLocalDayKey(now) ? toRelativeTime(createdAt, now) : toClockTime(createdAt);
 }
+
+/** 알림함 빈 상태의 알림 켜기 안내 (긴급 알림 칸에서 알림 종류가 모두 꺼진 기기만: 알림을 쓸 수 없는 기기·공지사항 칸은 없음) */
+export interface NotificationInboxEnableAlertPrompt {
+  description: string;
+  actionLabel: string;
+}
+
+export function toNotificationInboxEnableAlertPrompt(
+  kind: AppNotificationKind,
+  hasEnabledAlertCategory: boolean,
+  isPushAvailable: boolean,
+): NotificationInboxEnableAlertPrompt | undefined {
+  if (kind !== 'ALERT' || hasEnabledAlertCategory || !isPushAvailable) return undefined;
+  return { description: '알림을 켜면 긴급 보안 소식을 바로 알려 드려요.', actionLabel: '알림 켜러 가기' };
+}

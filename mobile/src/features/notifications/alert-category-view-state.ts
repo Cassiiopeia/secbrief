@@ -43,3 +43,6 @@ export function toToggledAlertCategories(
 export function toPushUnavailableMessage(reason: PushUnavailableReason): string {
   return PUSH_UNAVAILABLE_MESSAGES[reason];
 }
+
+// 알림 종류 저장 확인 문구 (알림 막대)
+export const ALERT_CATEGORY_SAVED_MESSAGE = '알림 설정을 저장했어요';

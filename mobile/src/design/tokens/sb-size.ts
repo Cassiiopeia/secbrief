@@ -16,9 +16,8 @@ export const sbSize = {
   shortcutArt: 56,
   /** 오늘 탭 스트림 썸네일 */
   streamThumbnail: 68,
-  /** 빈 상태·오류 아이콘과 그 바탕 원 */
-  stateIcon: 28,
-  stateIconBackdrop: 64,
+  /** 빈 상태·오류 그림 (정사각, 원본은 3배 크기 WebP) */
+  stateIllustration: 136,
   /** 행·입력창 안 아이콘 (돋보기, 지우기, 오른쪽 화살표) */
   rowIcon: 20,
   /** 안 본 글 점 (알림 종, 알림함 칸·줄) */

@@ -6,6 +6,7 @@ export const APP_ROUTES = {
   explore: '/explore',
   search: '/search',
   notifications: '/notifications',
+  settings: '/settings',
 } as const;
 
 // 탭 밖 상세 경로 (app/articles/[articleId], app/notifications/[notificationId], app/notices/[noticeId] 와 같아야 함)
