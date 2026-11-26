@@ -68,3 +68,9 @@
         text-align: center;
     }
 }
+
+/* 확인이 필요한 표 줄 (켜진 출처의 수집 실패): 옅은 빨간 바탕 + 왼쪽 띠 */
+.admin-row-failed {
+    background-color: color-mix(in oklab, var(--color-error) 8%, transparent);
+    box-shadow: inset 3px 0 0 var(--color-error);
+}

@@ -34,7 +34,7 @@
           </thead>
           <tbody>
           <tr th:each="sourceRow : ${sourceRows}"
-              th:classappend="${sourceRow.isEnabled() and sourceRow.isLastCollectFailed()} ? 'bg-error/5'">
+              th:classappend="${sourceRow.isEnabled() and sourceRow.isLastCollectFailed()} ? 'admin-row-failed'">
             <td class="admin-stack-primary">
               <div class="font-medium" th:text="${sourceRow.displayName}">출처</div>
               <div class="text-xs text-base-content/50" th:text="${sourceRow.code}">CODE</div>
