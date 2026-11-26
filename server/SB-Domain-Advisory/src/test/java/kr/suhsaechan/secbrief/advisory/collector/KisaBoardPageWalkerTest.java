@@ -36,11 +36,11 @@ class KisaBoardPageWalkerTest {
         when(feedHttpClient.fetch(KisaBoard.NOTICE.toListPageUrl(1))).thenReturn(KisaBoardListParserTest.readFixture("notice-page-1"));
 
         // 1쪽 일반 글은 11-20 ~ 11-26: 11-24 이후만 담고 2쪽은 읽지 않음 (고정 글은 범위 밖이라 빠짐)
-        KisaBoardWalkResult result = walker.collectSince(noticeSource, KisaBoard.NOTICE, Instant.parse("2026-11-23T15:00:00Z"));
+        KisaBoardWalkResult walkResult = walker.collectSince(noticeSource, KisaBoard.NOTICE, Instant.parse("2026-11-23T15:00:00Z"));
 
-        assertThat(result.readPageCount()).isEqualTo(1);
-        assertThat(result.isPageLimitReached()).isFalse();
-        assertThat(result.articles()).isNotEmpty()
+        assertThat(walkResult.readPageCount()).isEqualTo(1);
+        assertThat(walkResult.isPageLimitReached()).isFalse();
+        assertThat(walkResult.articles()).isNotEmpty()
                 .allSatisfy(article -> assertThat(article.publishedAt()).isAfterOrEqualTo(Instant.parse("2026-11-23T15:00:00Z")));
         verify(feedHttpClient, never()).fetch(KisaBoard.NOTICE.toListPageUrl(2));
     }
@@ -52,21 +52,21 @@ class KisaBoardPageWalkerTest {
                 .thenReturn(KisaBoardListParserTest.readFixture("alert-level-page-7"));
 
         // 2~6쪽은 1쪽 내용으로 대신함 (같은 글은 한 번만): 1쪽 10건 + 7쪽 9건 (7쪽 고정 글은 1쪽 글)
-        KisaBoardWalkResult result = walker.collectSince(alertLevelSource, KisaBoard.ALERT_LEVEL, null);
+        KisaBoardWalkResult walkResult = walker.collectSince(alertLevelSource, KisaBoard.ALERT_LEVEL, null);
 
-        assertThat(result.readPageCount()).isEqualTo(7);
-        assertThat(result.articles()).hasSize(19);
-        assertThat(result.articles().getFirst().publisherName()).isEqualTo(alertLevelSource.getDisplayName());
+        assertThat(walkResult.readPageCount()).isEqualTo(7);
+        assertThat(walkResult.articles()).hasSize(19);
+        assertThat(walkResult.articles().getFirst().publisherName()).isEqualTo(alertLevelSource.getDisplayName());
     }
 
     @Test
     void stopsAtEmptyPage() {
         when(feedHttpClient.fetch(anyString())).thenReturn(KisaBoardListParserTest.readFixture("vulnerability-page-19-empty"));
 
-        KisaBoardWalkResult result = walker.collectSince(noticeSource, KisaBoard.VULNERABILITY, null);
+        KisaBoardWalkResult walkResult = walker.collectSince(noticeSource, KisaBoard.VULNERABILITY, null);
 
-        assertThat(result.readPageCount()).isEqualTo(1);
-        assertThat(result.articles()).isEmpty();
+        assertThat(walkResult.readPageCount()).isEqualTo(1);
+        assertThat(walkResult.articles()).isEmpty();
     }
 
     @Test
