@@ -18,6 +18,9 @@ const SUMMARY_ORDER = 0;
 const KEY_POINT_ORDER = 1;
 const ACTION_GUIDE_ORDER = 2;
 const SUMMARY_CARD_COUNT = 3;
+// 요약 카드 대신 쓰는 글 2개: 요약·핵심 모두 없음 (입력 없음·대기·실패 공통, 서버가 상태를 주지 않아 '준비 중'으로 약속하지 않음), 핵심만 있음
+const SUMMARY_MISSING_TEXT = '이 소식은 AI 요약 없이 보여 드려요. 내용은 원문 보기에서 확인해 주세요.';
+const KEY_POINTS_ONLY_TEXT = '아래 핵심을 확인해 주세요.';
 
 /**
  * 기사 상세의 브리프 구역 (조회가 끝난 뒤): AI 브리핑 카드 > 확인된 정보 > 대응 모아보기
@@ -77,7 +80,7 @@ function SummaryCards({ detail }: { detail: ArticleDetailView }) {
       <SbEntrance order={SUMMARY_ORDER}>
         <SbBriefCard title="요약" iconName="subject" noticeLabel={detail.aiNoticeLabel}>
           <SbBriefParagraph
-            text={detail.summary ?? (detail.isSummaryPending ? '요약을 준비하고 있어요. 먼저 원문에서 확인해 주세요.' : '아래 핵심을 확인해 주세요.')}
+            text={detail.summary ?? (detail.isSummaryMissing ? SUMMARY_MISSING_TEXT : KEY_POINTS_ONLY_TEXT)}
           />
         </SbBriefCard>
       </SbEntrance>

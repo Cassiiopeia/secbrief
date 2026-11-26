@@ -129,7 +129,7 @@ describe('기사 상세', () => {
     expect(view.aiNoticeLabel).toBe('AI 가 요약했어요');
     expect(view.facts).toEqual([{ label: '영향 버전', value: '원문에 없음' }]);
     expect(view.relatedArticles.map((article) => article.id)).toEqual([kisaItem.id]);
-    expect(view.isSummaryPending).toBe(false);
+    expect(view.isSummaryMissing).toBe(false);
     expect(view.moreArticlesLink).toBeUndefined();
   });
   test('함께 볼 소식이 없으면 다른 소식 이동: 같은 주제 모아 보기, 주제가 일반이면 홈', () => {
@@ -141,9 +141,9 @@ describe('기사 상세', () => {
       label: '다른 소식 보러 가기',
     });
   });
-  test('요약이 아직 없으면 준비 중, AI 표시 없음', () => {
+  test('요약이 없으면 요약 없음 안내, AI 표시 없음', () => {
     const view = toArticleDetailView({ ...detail, summary: undefined, keyPoints: [], isAiSummarized: false }, NOW);
-    expect(view.isSummaryPending).toBe(true);
+    expect(view.isSummaryMissing).toBe(true);
     expect(view.aiNoticeLabel).toBeUndefined();
   });
   test('원문 보기 버튼에는 게시자 이름, 공유 글은 제목과 원문 링크', () => {

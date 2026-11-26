@@ -63,12 +63,12 @@ describe('상세 표시 내용 (브리핑 / 이전 방식 / 준비 중)', () => 
   test('브리핑이 없고 이전 방식 요약이 있으면 이전 방식 그대로', () => {
     const view = toArticleDetailView({ ...baseDetail, summary: '이전 요약', keyPoints: [' 핵심 ', ''], actionGuide: '대응', isAiSummarized: true }, NOW);
     expect(view.briefing).toBeUndefined();
-    expect(view).toMatchObject({ summary: '이전 요약', keyPoints: ['핵심'], actionGuide: '대응', aiNoticeLabel: 'AI 가 요약했어요', isSummaryPending: false });
+    expect(view).toMatchObject({ summary: '이전 요약', keyPoints: ['핵심'], actionGuide: '대응', aiNoticeLabel: 'AI 가 요약했어요', isSummaryMissing: false });
   });
-  test('AI 내용이 하나도 없으면 준비 중 (제목·확인된 정보·원문 보기만)', () => {
+  test('AI 내용이 하나도 없으면 요약 없음 안내 (제목·확인된 정보·원문 보기만)', () => {
     const view = toArticleDetailView({ ...baseDetail, article: kisaItem, facts: [{ label: '조치 버전', value: '원문에 없음' }] }, NOW);
     expect(view.briefing).toBeUndefined();
-    expect(view).toMatchObject({ summary: undefined, keyPoints: [], aiNoticeLabel: undefined, isSummaryPending: true });
+    expect(view).toMatchObject({ summary: undefined, keyPoints: [], aiNoticeLabel: undefined, isSummaryMissing: true });
     expect(view.facts).toEqual([{ label: '조치 버전', value: '원문에 없음' }]);
   });
 });

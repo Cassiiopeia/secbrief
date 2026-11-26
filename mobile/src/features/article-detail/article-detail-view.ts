@@ -20,14 +20,14 @@ export interface ArticleDetailView {
   article: ArticleRowView;
   /** AI 브리핑 (있으면 요약·핵심·대응 카드 대신 이것을 보여 줌) */
   briefing?: ArticleBriefingView;
-  /** 요약 문단 (없으면 준비 중 안내) */
+  /** 요약 문단 (없으면 요약 없음 안내) */
   summary?: string;
   keyPoints: string[];
   actionGuide?: string;
   /** 요약·핵심·대응 카드 제목 옆 작은 표시 (AI 가 쓴 경우만) */
   aiNoticeLabel?: string;
-  /** 요약도 핵심도 아직 없음 */
-  isSummaryPending: boolean;
+  /** 요약도 핵심도 없음 (입력 없음·대기·실패 공통) */
+  isSummaryMissing: boolean;
   /** 서버가 준 값 그대로 (앱에서 만들거나 고치지 않음) */
   facts: SbFact[];
   /** 대응 모아보기 구역 (공식 대응 > 확인된 취약점 정보 > 관련 기사, 없으면 빈 배열) */
@@ -56,7 +56,7 @@ export function toArticleDetailView(detail: ArticleDetail, now: Date): ArticleDe
     keyPoints,
     actionGuide: detail.actionGuide,
     aiNoticeLabel: detail.isAiSummarized ? AI_SUMMARY_NOTICE_LABEL : undefined,
-    isSummaryPending: detail.summary === undefined && keyPoints.length === 0,
+    isSummaryMissing: detail.summary === undefined && keyPoints.length === 0,
     facts: detail.facts.filter((fact) => fact.label.trim() !== '' && fact.value.trim() !== ''),
     responseGuideSections,
     relatedArticles,
