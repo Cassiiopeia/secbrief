@@ -12,9 +12,9 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 | 모듈 | 역할 |
 |---|---|
 | `SB-Common` | ErrorCode, CustomException, 표준 응답(ApiResponse, ErrorResponse), BaseEntity |
-| `SB-Domain-Member` | 푸시 기기(토큰, 켠 알림 종류), 푸시 발송 규약과 Expo 구현 |
+| `SB-Domain-Member` | 푸시 기기(토큰, 켠 알림 종류, 방해 금지 시간), 알림함 기록(긴급 알림·공지사항), 보류 푸시, 푸시 발송 규약과 Expo 구현 |
 | `SB-Domain-Advisory` | 수집한 보안 공지·뉴스, 취약점, 관심 제품 |
-| `SB-Application` | 여러 도메인을 묶는 유스케이스 (수집, AI 제목 분석·요약, 임베딩, 긴급 알림, 이미지 저장) |
+| `SB-Application` | 여러 도메인을 묶는 유스케이스 (수집, AI 제목 분석·요약, 임베딩, 긴급 알림·알림함·공지·방해 금지, 이미지 저장) |
 | `SB-Web` | 시작점, Controller, 전역 예외 처리, 스케줄러, Flyway 마이그레이션 |
 | `SB-Tool` | 로컬 전용 도구 (요약 하네스 평가, 밀린 요약 적재). 서버 이미지에 들어가지 않음 |
 
@@ -60,7 +60,23 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 | 기사 요약 | `summary.batch-size`, `summary.tick-budget-seconds`, `summary.tick-milliseconds`, `summary.initial-delay-milliseconds` | 10건, 90초, 3분, 210초 |
 | 기사 이미지 처리 | `image.batch-size`, `image.tick-budget-seconds`, `image.tick-milliseconds`, `image.initial-delay-milliseconds` | 20건, 60초, 2분, 150초 |
 | 제목 임베딩 | `embedding.batch-size`, `embedding.request-batch-size`, `embedding.tick-milliseconds`, `embedding.initial-delay-milliseconds` | 100건, 25건, 5분, 210초 |
-| 긴급 알림 | `push.alert-tick-milliseconds`, `push.alert-initial-delay-milliseconds`, `push.receipt-tick-milliseconds`, `push.receipt-initial-delay-milliseconds` | 5분, 2분, 15분, 3분 |
+| 긴급 알림 (방해 금지 보류분 발송도 같은 틱) | `push.alert-tick-milliseconds`, `push.alert-initial-delay-milliseconds`, `push.receipt-tick-milliseconds`, `push.receipt-initial-delay-milliseconds` | 5분, 2분, 15분, 3분 |
+| 알림함 보관 정리 | `notification.retention-enabled`, `notification.retention-tick-milliseconds`, `notification.retention-initial-delay-milliseconds` | 켜짐, 6시간, 10분 (긴급 알림 기록 30일 보관, 공지사항은 지우지 않음) |
+
+## 알림함 · 공지사항 · 방해 금지 시간 (#70)
+
+| API (인증 없음) | 응답 `data` |
+|---|---|
+| `GET /api/v1/notifications?kind=ALERT\|NOTICE&cursor=&size=` | `{items, nextCursor}` (ALERT 최신순, NOTICE 고정 먼저 > 최신순, size 기본 20 · 최대 50) |
+| `GET /api/v1/notifications/latest` | `{latestAlertId, latestNoticeId}` (앱 알림 점, 이용 집계에서 뺌) |
+| `GET /api/v1/notifications/{id}` | 상세: 본문 전체, `linkUrl`(공지), `articleSections[{alertCategory, articles}]`(긴급 알림, 종류 순서 KEV > KISA_URGENT > CRITICAL_CVE) |
+| `PUT /api/v1/push-devices` | 요청에 `quietHours {isEnabled, startTime "HH:mm", endTime, timeZone}` 선택 (없으면 저장값 유지), 응답에 `quietHours` 항상 |
+
+- 긴급 알림 틱마다 알릴 기사 전체를 알림함 기록(`notification` kind ALERT + `notification_article`) 1건으로 남기고, 그 번호를 푸시 data 에 싣는다. 발송이 전부 실패하면 기록을 지우고 기사를 대기로 남긴다.
+- 푸시 data 키 원본은 `NotificationPushData` 다: `notificationId`, `notificationKind`(`ALERT`·`NOTICE`·`QUIET_HOURS_DIGEST`), `articleId`(기사 1건 알림만), `targetTab`(이전 앱용, 항상). 앱 `toNotificationTargetRoute` 와 함께 바꾼다.
+- 방해 금지 시간은 기기 시간대 기준 `[시작, 끝)`, 끝이 이르면 자정을 넘긴다. 켰을 때 시작 == 끝은 `QUIET_HOURS_SAME_TIME`, 모르는 시간대는 `INVALID_TIME_ZONE`. 기존·새 기기 모두 기본 꺼짐.
+- 방해 금지 시간이면 그 기기가 받을 글을 `push_device_held_push` 에 보류하고 (KEV 도 예외 없음), 끝난 뒤 첫 알림 틱에 1건이면 그대로, 여러 건이면 모음 1건을 보낸다. 실패하면 보류분을 남긴다.
+- 공지사항은 관리자 화면(`/admin/notices`)에서 쓰고, 올릴 때 "푸시도 보내기"를 고르면 알림을 켠 기기 전체에 보낸다 (방해 금지면 보류). 고칠 때는 다시 보내지 않는다. 발송 기록 화면은 `/admin/alerts`.
 
 ## 설정 저장소 (관리자 화면에서 바꾸는 값)
 

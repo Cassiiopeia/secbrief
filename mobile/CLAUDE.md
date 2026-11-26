@@ -21,7 +21,7 @@ mobile/
 
 ## 화면 구성
 
-하단 탭 5개 + 탭 밖 스택 화면 3개. 기사를 누르면 브라우저가 아니라 앱 안 상세를 연다 (원문은 상세의 원문 보기 버튼).
+하단 탭 5개 + 탭 밖 스택 화면 6개. 기사를 누르면 브라우저가 아니라 앱 안 상세를 연다 (원문은 상세의 원문 보기 버튼).
 
 | 라우트 | 화면 | 역할 |
 |---|---|---|
@@ -33,9 +33,16 @@ mobile/
 | `articles/[articleId]` | 기사 상세 | AI 요약, 핵심, 대응, 확인된 정보, 관련 소식, 원문 보기 |
 | `search` | 검색 | 글자·의미 검색, 요즘 키워드 |
 | `browse/[browseKey]` | 모아 보기 | 주제·출처·키워드별 목록 |
+| `notifications` | 알림함 | 알림 \| 공지사항 (`?segment=NOTICE`), 알림은 날짜별 묶음, 새 글 점. 탭 머리 종 아이콘·더보기에서 들어옴 |
+| `notifications/[notificationId]` | 알림 상세 | 왜 알렸는지(종류별 설명) + 담긴 소식 (종류별 구역) |
+| `notices/[noticeId]` | 공지사항 상세 | 제목, 날짜, 본문, 링크 버튼 |
 
 - 버전·수치는 서버가 준 값만 보여 준다 (앱에서 만들지 않음). AI 가 쓴 부분에는 AI 표시를 붙인다.
 - 알림(`expo-notifications`)은 `data/sources/device-notification-client.ts` 한 곳에서만 부른다.
+- 알림을 누르면 `notification-target-route.ts` 가 열 곳을 정한다: `articleId` 기사 상세 > `notificationKind=NOTICE` 공지 상세 > `notificationId` 알림 상세 > `QUIET_HOURS_DIGEST` 알림함 > 이전 서버의 `targetTab`. 이동은 화면 스택이 준비된 뒤 (`use-is-root-navigator-ready`).
+- 알림함 읽음 기록(본 번호·연 글)과 방해 금지 시간은 기기에만 둔다 (`secbrief.notificationReadState`, `secbrief.quietHours`). 방해 금지 시간은 알림 기기 등록(`PUT /api/v1/push-devices` 의 `quietHours`)으로 서버에도 보낸다.
+- 알림 종류 문구(이름·배지·알린 이유)는 `features/notifications/alert-category-texts.ts` 가 단일 원본이다.
+- 시각 선택기는 `@expo/ui/community/datetime-picker` (디자인 시스템 `SbTimePickerRow`): iOS 행 안 선택기, Android 시각 창, 웹은 글자만.
 
 의존 방향: `core ← data ← features · design ← app`. 계층 밖은 `@/계층/...` 로만 import 한다.
 
