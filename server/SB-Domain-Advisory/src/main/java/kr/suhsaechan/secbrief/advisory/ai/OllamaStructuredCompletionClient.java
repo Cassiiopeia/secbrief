@@ -60,7 +60,7 @@ public class OllamaStructuredCompletionClient implements StructuredCompletionCli
         requestFactory.setConnectTimeout(CONNECT_TIMEOUT);
         requestFactory.setReadTimeout(READ_TIMEOUT);
         this.restClient = RestClient.builder().requestFactory(requestFactory).build();
-        this.chatUrl = toChatUrl(baseUrl);
+        this.chatUrl = ProviderHttpClient.toEndpointUrlOrEmpty(baseUrl, CHAT_PATH);
         this.model = model == null ? "" : model.strip();
         this.apiKey = apiKey == null ? "" : apiKey.strip();
     }
@@ -164,11 +164,5 @@ public class OllamaStructuredCompletionClient implements StructuredCompletionCli
         chatRequestBody.put("format", request.outputJsonSchema());
         chatRequestBody.put("options", options);
         return chatRequestBody;
-    }
-
-    // base-url 끝의 / 제거 후 /api/chat 붙임 (비어 있으면 빈 문자열 = 미설정)
-    private static String toChatUrl(String baseUrl) {
-        String trimmedBaseUrl = baseUrl == null ? "" : baseUrl.strip().replaceAll("/+$", "");
-        return trimmedBaseUrl.isEmpty() ? "" : trimmedBaseUrl + CHAT_PATH;
     }
 }

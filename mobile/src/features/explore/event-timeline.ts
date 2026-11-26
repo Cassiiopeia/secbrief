@@ -1,4 +1,5 @@
 import { toMastheadDate } from '@/core/format/briefing-date-formatter';
+import { toLocalDayKey } from '@/core/format/notification-date-formatter';
 import type { BriefingItem } from '@/data/models/briefing-item';
 
 import { type ArticleRowView, toArticleRowView } from '../articles/article-row-view';
@@ -19,7 +20,7 @@ export interface EventTimelineGroup {
 export function toEventTimelineGroups(items: BriefingItem[], now: Date, maximumCount: number): EventTimelineGroup[] {
   const groups: EventTimelineGroup[] = [];
   for (const item of items.slice(0, maximumCount)) {
-    const dateKey = `${item.publishedAt.getFullYear()}-${item.publishedAt.getMonth()}-${item.publishedAt.getDate()}`;
+    const dateKey = toLocalDayKey(item.publishedAt);
     const lastGroup = groups[groups.length - 1];
     if (lastGroup?.dateKey === dateKey) {
       lastGroup.articles.push(toArticleRowView(item, now));

@@ -1,0 +1,4 @@
+description=ErrorCode 를 거치지 않는 오류 응답 맵 금지 (실패 응답은 전역 예외 처리 > ErrorResponse)
+paths=server/SB-Common/src/main/java/,server/SB-Domain-Member/src/main/java/,server/SB-Domain-Advisory/src/main/java/,server/SB-Application/src/main/java/,server/SB-Web/src/main/java/,server/SB-Tool/src/main/java/
+extensions=.java
+pattern=Map\.of\(\s*"error"

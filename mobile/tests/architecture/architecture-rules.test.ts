@@ -162,6 +162,54 @@ describe('기기 알림 연동은 한 곳', () => {
   });
 });
 
+describe('기기 저장소는 한 곳', () => {
+  test('AsyncStorage 는 data/sources/device-json-storage.ts 에서만 import 한다 (키 목록 DEVICE_STORAGE_KEYS)', () => {
+    expect(listSourceFiles('').filter((file) => /from '@react-native-async-storage\/async-storage'/.test(readSource(file)))).toEqual([
+      path.join('data', 'sources', 'device-json-storage.ts'),
+    ]);
+  });
+
+  test("저장 키 글자('secbrief.…')는 device-json-storage.ts 에만 있다", () => {
+    expect(listSourceFiles('').filter((file) => /['"`]secbrief\.[A-Za-z]/.test(readSource(file)))).toEqual([
+      path.join('data', 'sources', 'device-json-storage.ts'),
+    ]);
+  });
+});
+
+describe('날짜·시각 표기는 core/format 한 곳', () => {
+  test('core/format 밖에서 Date 부분값(getHours·getMonth 등)·padStart 로 표기를 조립하지 않는다', () => {
+    const datePartPattern = /\.(getFullYear|getMonth|getDate|getDay|getHours|getMinutes)\(\)|\.padStart\(/;
+    const violations = listSourceFiles('')
+      .filter((file) => !file.startsWith(path.join('core', 'format') + path.sep))
+      .filter((file) => datePartPattern.test(readSource(file)));
+    expect(violations).toEqual([]);
+  });
+});
+
+// 계층별 금지 라이브러리: 서버 상태(react-query)·화면 이동(expo-router)은 features·app 에서만
+const LAYER_FORBIDDEN_LIBRARIES: { library: string; forbiddenLayers: string[] }[] = [
+  { library: '@tanstack/react-query', forbiddenLayers: ['core', 'data', 'design'] },
+  { library: 'expo-router', forbiddenLayers: ['core', 'data', 'design'] },
+];
+
+describe('계층별 금지 라이브러리', () => {
+  for (const { library, forbiddenLayers } of LAYER_FORBIDDEN_LIBRARIES) {
+    test(`${library} 는 ${forbiddenLayers.join(', ')} 에서 import 하지 않는다`, () => {
+      const violations = forbiddenLayers
+        .flatMap((layer) => listSourceFiles(layer))
+        .filter((file) => readSource(file).includes(`from '${library}'`));
+      expect(violations).toEqual([]);
+    });
+  }
+
+  test('fontWeight 로 굵기를 고르지 않는다 (굵기별 글꼴 이름 sbFontFamily 사용)', () => {
+    const violations = listSourceFiles('').filter((file) =>
+      readSource(file).split('\n').some((line) => !/^\s*(\/\/|\*)/.test(line) && /\bfontWeight\s*:/.test(line)),
+    );
+    expect(violations).toEqual([]);
+  });
+});
+
 describe('브랜드 색 단일 원본', () => {
   test('색 토큰이 brand/brand-colors.json 과 같다', () => {
     const brandColors: Record<string, { light: string; dark: string } | string> = JSON.parse(

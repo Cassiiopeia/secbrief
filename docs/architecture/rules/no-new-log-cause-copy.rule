@@ -1,0 +1,4 @@
+description=예외 > 로그 원인 글 변환(toLogCause) 사본을 더 만들지 않음 (남은 3벌은 정리 대상)
+paths=server/SB-Common/src/main/java/,server/SB-Domain-Member/src/main/java/,server/SB-Domain-Advisory/src/main/java/,server/SB-Application/src/main/java/,server/SB-Web/src/main/java/,server/SB-Tool/src/main/java/
+extensions=.java
+pattern=private static String toLogCause\(

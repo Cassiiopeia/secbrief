@@ -16,7 +16,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 /**
- * HTTP 로 부르는 제공자 공통 (OpenAI·Google): JSON POST 1회 > 응답 JSON, 예외 > 실패 종류, 토큰 수 읽기
+ * HTTP 로 부르는 제공자 공통 (OpenAI·Google, 주소 조립은 Ollama 도): JSON POST 1회 > 응답 JSON, 예외 > 실패 종류, 토큰 수 읽기
  * 재시도 없음 (실패하면 다음 키·다음 제공자·다음 틱이 이어받음), 주소·키·본문은 로그·예외에 넣지 않음
  */
 @Component
@@ -68,6 +68,16 @@ public class ProviderHttpClient {
 
     /** base-url 끝의 / 제거 후 경로를 붙임 */
     public static String toEndpointUrl(String baseUrl, String path) {
-        return (baseUrl == null ? "" : baseUrl.strip().replaceAll("/+$", "")) + path;
+        return toTrimmedBaseUrl(baseUrl) + path;
+    }
+
+    /** base-url 이 비면 빈 문자열(미설정 표시), 아니면 끝의 / 제거 후 경로를 붙임 */
+    public static String toEndpointUrlOrEmpty(String baseUrl, String path) {
+        String trimmedBaseUrl = toTrimmedBaseUrl(baseUrl);
+        return trimmedBaseUrl.isEmpty() ? "" : trimmedBaseUrl + path;
+    }
+
+    private static String toTrimmedBaseUrl(String baseUrl) {
+        return baseUrl == null ? "" : baseUrl.strip().replaceAll("/+$", "");
     }
 }

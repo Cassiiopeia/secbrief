@@ -77,6 +77,12 @@ deploy   ← 배포 브랜치 (푸시되면 Play 스토어·TestFlight 업로드
 
 통과를 확인하기 전에 완료라고 말하지 않는다. 돌리지 않았으면 보고에 "안 돌림 (이유)"라고 적는다.
 
+## 아키텍처 규칙 테스트
+
+- 앱: `mobile/tests/architecture/architecture-rules.test.ts` (`npx jest`).
+- 서버: `docs/architecture/rules/<id>.rule` 을 `SB-Common` 의 `architecture.ArchitectureRulesTest` 가 검사한다 (`./gradlew :SB-Common:test`).
+- `<id>.allow` 는 규칙을 만들 때 있던 위반 목록이다. 줄을 빼기만 하고 더하지 않는다. 새 위반은 코드를 고친다.
+
 <!-- pro-brain:begin (managed by /pro-brain; settings live in version.yml) -->
 ## 프로젝트 지식 (pro-brain)
 

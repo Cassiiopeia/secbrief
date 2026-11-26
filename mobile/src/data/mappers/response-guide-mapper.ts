@@ -5,6 +5,7 @@ import {
   type ResponseGuideSection,
 } from '../models/response-guide';
 import { isArticleApiResponse, toBriefingItem } from './api-response-mapper';
+import { isObject } from './unknown-value-guards';
 
 /**
  * 서버 대응 모아보기 응답 > 구역 목록 (모든 칸을 믿지 않고 읽음: 이 필드가 생기기 전 서버는 아예 안 줌)
@@ -42,8 +43,4 @@ export function toResponseGuideItem(value: unknown): ResponseGuideItem | undefin
 
 function toNonEmptyText(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() !== '' ? value : undefined;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
