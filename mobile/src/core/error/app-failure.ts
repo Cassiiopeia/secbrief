@@ -28,6 +28,8 @@ export const PUSH_PERMISSION_DENIED_ERROR_CODE = 'APP_PUSH_PERMISSION_DENIED';
 export const PUSH_TOKEN_ERROR_CODE = 'APP_PUSH_TOKEN';
 // 앱 자체 코드: 알림을 쓸 수 없는 환경 (웹, 실기기 아님, 프로젝트 ID 없음)
 export const PUSH_UNAVAILABLE_ERROR_CODE = 'APP_PUSH_UNAVAILABLE';
+// 앱 자체 코드: 켠 알림 종류 없이 방해 금지 시간을 저장하려 함 (서버에 기기가 없음)
+export const QUIET_HOURS_WITHOUT_ALERT_ERROR_CODE = 'APP_QUIET_HOURS_WITHOUT_ALERT';
 
 /**
  * 임의의 예외 > AppFailure (이미 AppFailure 면 그대로, 아니면 알 수 없는 실패)
