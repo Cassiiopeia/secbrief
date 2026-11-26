@@ -56,7 +56,7 @@ class AdminCatalogTagManagementTest extends PostgresContainerTestSupport {
     void addsProductThatAppAndClassifierSeeRightAway() throws Exception {
         mockMvc.perform(post(CATALOG_PATH).with(user(adminUsername).roles("ADMIN")).with(csrf())
                         .param("kind", "PRODUCT").param("code", NEW_PRODUCT_CODE).param("name", "Test Gateway")
-                        .param("fieldCode", "network").param("matchTerms", "test gateway, tgw").param("widelyUsed", "true")
+                        .param("fieldCode", "network").param("matchTerms", "test gateway, tgw").param("isWidelyUsed", "true")
                         .param("displayOrder", "700"))
                 .andExpect(redirectedUrl(CATALOG_PATH + "?kind=PRODUCT"))
                 .andExpect(flash().attribute("flashMessage", containsString("추가했어요")));

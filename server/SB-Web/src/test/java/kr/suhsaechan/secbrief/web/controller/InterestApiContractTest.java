@@ -101,20 +101,20 @@ class InterestApiContractTest extends PostgresContainerTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(header().exists("ETag"))
                 .andReturn().getResponse().getContentAsString();
-        JsonNode data = objectMapper.readTree(responseBody).path("data");
-        assertSameShape(data, readContract("catalog-tags.json"));
+        JsonNode catalogData = objectMapper.readTree(responseBody).path("data");
+        assertSameShape(catalogData, readContract("catalog-tags.json"));
 
-        mockMvc.perform(get("/api/v1/catalog/tags").header("If-None-Match", "\"" + data.path("version").asText() + "\""))
+        mockMvc.perform(get("/api/v1/catalog/tags").header("If-None-Match", "\"" + catalogData.path("version").asText() + "\""))
                 .andExpect(status().isNotModified());
     }
 
     @Test
     void countsTodayNewArticlesByFieldAndEcosystem() throws Exception {
-        JsonNode data = getData("/api/v1/articles/new-counts?timeZone=Asia/Seoul");
+        JsonNode countsData = getData("/api/v1/articles/new-counts?timeZone=Asia/Seoul");
 
-        assertSameShape(data, readContract("new-counts.json"));
-        assertThat(data.path("totalCount").asInt()).isGreaterThanOrEqualTo(2);
-        assertThat(data.path("ecosystemCounts").get(0).path("code").asText()).isEqualTo("npm");
+        assertSameShape(countsData, readContract("new-counts.json"));
+        assertThat(countsData.path("totalCount").asInt()).isGreaterThanOrEqualTo(2);
+        assertThat(countsData.path("ecosystemCounts").get(0).path("code").asText()).isEqualTo("npm");
         mockMvc.perform(get("/api/v1/articles/new-counts?timeZone=Mars/Base"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("INVALID_TIME_ZONE"));
@@ -143,9 +143,9 @@ class InterestApiContractTest extends PostgresContainerTestSupport {
                                  "digest":{"deliveryMode":"DIGEST","digestTime":"08:00"},"timeZone":"Asia/Seoul"}"""))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        JsonNode data = objectMapper.readTree(responseBody).path("data");
+        JsonNode estimateData = objectMapper.readTree(responseBody).path("data");
 
-        assertSameShape(data, readContract("alert-estimate.json"));
+        assertSameShape(estimateData, readContract("alert-estimate.json"));
     }
 
     @Test
@@ -171,10 +171,10 @@ class InterestApiContractTest extends PostgresContainerTestSupport {
                         new NotificationArticle(0, fortinetArticle.getId(), AlertCategory.INTEREST),
                         new NotificationArticle(1, npmArticle.getId(), AlertCategory.INTEREST)), Instant.now()));
 
-        JsonNode data = getData("/api/v1/notifications/" + digest.getId());
+        JsonNode digestData = getData("/api/v1/notifications/" + digest.getId());
 
-        assertSameShape(data, readContract("digest-notification.json"));
-        assertThat(data.path("digest").path("fieldSections")).hasSize(2);
+        assertSameShape(digestData, readContract("digest-notification.json"));
+        assertThat(digestData.path("digest").path("fieldSections")).hasSize(2);
     }
 
     private Article saveArticle(String sourceCode, String title, String cvssScore, ArticleImportance importance,

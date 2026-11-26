@@ -122,11 +122,11 @@ public class AdminCatalogTagController {
 
     /** 화면 입력: 이름, 짧은 이름, 묶음, 분야, 분류 낱말, 널리 쓰는지(꺼진 체크 상자는 값이 오지 않음), 순서 */
     public record CatalogTagForm(String name, String shortName, String groupCode, String fieldCode, String matchTerms,
-                                 Boolean widelyUsed, Integer displayOrder) {
+                                 Boolean isWidelyUsed, Integer displayOrder) {
 
         CatalogTagContent toContent() {
             return new CatalogTagContent(name, shortName, groupCode, fieldCode, matchTerms,
-                    Boolean.TRUE.equals(widelyUsed), displayOrder == null ? 0 : displayOrder);
+                    Boolean.TRUE.equals(isWidelyUsed), displayOrder == null ? 0 : displayOrder);
         }
     }
 }

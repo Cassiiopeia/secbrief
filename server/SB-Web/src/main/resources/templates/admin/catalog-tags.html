@@ -56,7 +56,7 @@
             </select>
           </label>
           <label class="label cursor-pointer justify-start gap-2">
-            <input type="checkbox" name="widelyUsed" value="true" class="toggle toggle-sm toggle-primary"/>
+            <input type="checkbox" name="isWidelyUsed" value="true" class="toggle toggle-sm toggle-primary"/>
             <span class="label-text text-sm">널리 쓰는 제품 (주요 판정)</span>
           </label>
         </th:block>
@@ -131,7 +131,7 @@
                           th:selected="${fieldOption.code == catalogTag.fieldCode}">분야</option>
                 </select>
                 <label class="label cursor-pointer justify-start gap-2">
-                  <input type="checkbox" name="widelyUsed" value="true" class="toggle toggle-xs toggle-primary"
+                  <input type="checkbox" name="isWidelyUsed" value="true" class="toggle toggle-xs toggle-primary"
                          th:checked="${catalogTag.isWidelyUsed()}"
                          th:attr="form='catalogTagForm' + ${catalogTag.id},aria-label=${catalogTag.code} + ' 널리 쓰는 제품'"/>
                   <span class="label-text text-xs">널리 씀</span>

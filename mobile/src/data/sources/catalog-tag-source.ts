@@ -15,9 +15,9 @@ export async function readStoredTagCatalog(): Promise<TagCatalog> {
 export async function refreshTagCatalog(): Promise<TagCatalog> {
   const storedCatalog = await readStoredTagCatalog();
   const entityTag = storedCatalog.version.length > 0 ? `"${storedCatalog.version}"` : undefined;
-  const result = await fetchApiDataIfChanged<unknown>('/api/v1/catalog/tags', entityTag);
-  if (result.isNotModified) return storedCatalog;
-  const freshCatalog = toTagCatalog(result.data) ?? storedCatalog;
+  const catalogResponse = await fetchApiDataIfChanged<unknown>('/api/v1/catalog/tags', entityTag);
+  if (catalogResponse.isNotModified) return storedCatalog;
+  const freshCatalog = toTagCatalog(catalogResponse.responseData) ?? storedCatalog;
   await saveStoredJson(DEVICE_STORAGE_KEYS.tagCatalog, freshCatalog);
   return freshCatalog;
 }

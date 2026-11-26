@@ -83,10 +83,10 @@ class ArticleClassificationBackfillTest extends PostgresContainerTestSupport {
         Instant processedAt = find(unmatched).getUrgentNotifiedAt();
 
         articleClassificationService.requestReclassificationOfAll();
-        ClassificationBatchResult result = articleClassificationService.classifyPendingBatch();
+        ClassificationBatchResult reclassifyBatch = articleClassificationService.classifyPendingBatch();
 
         // 한 번 분류한 행은 AI 로 다시 돌리지 않고 그 밖으로
-        assertThat(result.aiRequestedCount()).isZero();
+        assertThat(reclassifyBatch.aiRequestedCount()).isZero();
         assertThat(find(unmatched).getFieldCode()).isEqualTo("other");
         assertThat(find(unmatched).getUrgentNotifiedAt()).isEqualTo(processedAt);
     }

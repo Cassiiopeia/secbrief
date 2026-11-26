@@ -44,7 +44,7 @@ export async function postApiData<T>(path: string, requestBody: unknown): Promis
 }
 
 /** 바뀐 경우만 받는 조회 결과: 바뀌지 않음(304) 또는 새 값 + 새 ETag */
-export type ApiDataIfChanged<T> = { isNotModified: true } | { isNotModified: false; data: T; entityTag?: string };
+export type ApiDataIfChanged<T> = { isNotModified: true } | { isNotModified: false; responseData: T; entityTag?: string };
 
 // HTTP 304 Not Modified (If-None-Match 와 같은 ETag)
 const NOT_MODIFIED_STATUS = 304;
@@ -55,8 +55,8 @@ export async function fetchApiDataIfChanged<T>(path: string, entityTag?: string)
   if (entityTag !== undefined && entityTag.length > 0) headers['If-None-Match'] = entityTag;
   const response = await sendRequest(toRequestUrl(path), { headers });
   if (response.status === NOT_MODIFIED_STATUS) return { isNotModified: true };
-  const data = await toApiData<T>(response);
-  return { isNotModified: false, data, entityTag: response.headers.get('ETag') ?? undefined };
+  const responseData = await toApiData<T>(response);
+  return { isNotModified: false, responseData, entityTag: response.headers.get('ETag') ?? undefined };
 }
 
 /**

@@ -35,11 +35,11 @@ public class ArticleClassificationScheduler {
         int aiRequestedCount = 0;
         Map<ClassificationSource, Integer> countBySource = new EnumMap<>(ClassificationSource.class);
         for (int batchIndex = 0; batchIndex < batchesPerTick; batchIndex++) {
-            ClassificationBatchResult result = articleClassificationService.classifyPendingBatch();
-            targetCount += result.targetCount();
-            aiRequestedCount += result.aiRequestedCount();
-            result.countBySource().forEach((source, count) -> countBySource.merge(source, count, Integer::sum));
-            if (result.targetCount() < ArticleClassificationService.BATCH_SIZE) {
+            ClassificationBatchResult batchResult = articleClassificationService.classifyPendingBatch();
+            targetCount += batchResult.targetCount();
+            aiRequestedCount += batchResult.aiRequestedCount();
+            batchResult.countBySource().forEach((source, count) -> countBySource.merge(source, count, Integer::sum));
+            if (batchResult.targetCount() < ArticleClassificationService.BATCH_SIZE) {
                 break;
             }
         }

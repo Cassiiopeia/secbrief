@@ -38,17 +38,17 @@ public final class CatalogSeedFixtures {
         while (insertMatcher.find()) {
             List<String> columns = List.of(insertMatcher.group(1).replace(" ", "").split(","));
             for (List<String> values : toTuples(insertMatcher.group(2))) {
-                entries.add(CatalogEntry.of(CatalogTagKind.valueOf(value(columns, values, "kind")),
-                        value(columns, values, "code"), value(columns, values, "name"), value(columns, values, "short_name"),
-                        value(columns, values, "group_code"), value(columns, values, "field_code"),
-                        "true".equals(value(columns, values, "is_widely_used")),
-                        Integer.parseInt(value(columns, values, "display_order")), value(columns, values, "match_terms")));
+                entries.add(CatalogEntry.of(CatalogTagKind.valueOf(readColumn(columns, values, "kind")),
+                        readColumn(columns, values, "code"), readColumn(columns, values, "name"), readColumn(columns, values, "short_name"),
+                        readColumn(columns, values, "group_code"), readColumn(columns, values, "field_code"),
+                        "true".equals(readColumn(columns, values, "is_widely_used")),
+                        Integer.parseInt(readColumn(columns, values, "display_order")), readColumn(columns, values, "match_terms")));
             }
         }
         return TagCatalog.of(entries);
     }
 
-    private static String value(List<String> columns, List<String> values, String column) {
+    private static String readColumn(List<String> columns, List<String> values, String column) {
         int index = columns.indexOf(column);
         if (index < 0) {
             return switch (column) {
@@ -57,8 +57,8 @@ public final class CatalogSeedFixtures {
                 default -> null;
             };
         }
-        String value = values.get(index);
-        return "null".equals(value) ? null : value;
+        String columnValue = values.get(index);
+        return "null".equals(columnValue) ? null : columnValue;
     }
 
     // ('a', 'b', 10, null, true) 묶음들 > 값 목록 (작은따옴표 글자는 따옴표를 벗김)
@@ -67,7 +67,7 @@ public final class CatalogSeedFixtures {
         List<String> current = null;
         StringBuilder token = new StringBuilder();
         boolean isInQuote = false;
-        boolean wasQuoted = false;
+        boolean isTokenQuoted = false;
         for (int index = 0; index < valuesText.length(); index++) {
             char character = valuesText.charAt(index);
             if (isInQuote) {
@@ -81,14 +81,14 @@ public final class CatalogSeedFixtures {
                 }
             } else if (character == '\'') {
                 isInQuote = true;
-                wasQuoted = true;
+                isTokenQuoted = true;
             } else if (character == '(') {
                 current = new ArrayList<>();
                 token.setLength(0);
             } else if ((character == ',' || character == ')') && current != null) {
-                current.add(wasQuoted ? token.toString() : token.toString().strip());
+                current.add(isTokenQuoted ? token.toString() : token.toString().strip());
                 token.setLength(0);
-                wasQuoted = false;
+                isTokenQuoted = false;
                 if (character == ')') {
                     tuples.add(current);
                     current = null;

@@ -220,11 +220,11 @@ describe('관심 기술 (#93)', () => {
       digest,
     }));
 
-    const result = await saveAlertInterestSettings(interests, digest);
+    const savedSettings = await saveAlertInterestSettings(interests, digest);
 
     expect(interestStore.saveStoredAlertInterests).toHaveBeenNthCalledWith(1, interests);
     expect(server.savePushDevice).toHaveBeenCalledWith(expect.objectContaining({ enabledAlertCategories: [], interests, digest }));
-    expect(result).toEqual({ interests: { ...interests, productCodes: [] }, digest, isSentToServer: true });
+    expect(savedSettings).toEqual({ interests: { ...interests, productCodes: [] }, digest, isSentToServer: true });
     expect(interestStore.saveStoredAlertInterests).toHaveBeenLastCalledWith({ ...interests, productCodes: [] });
   });
 
