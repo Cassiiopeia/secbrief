@@ -54,6 +54,23 @@ class AiProviderPriorityServiceTest {
     }
 
     @Test
+    void acceptsOpenAiAndGoogleInPriorityOnceTheirClientsExist() {
+        StructuredCompletionClient openAiClient = createProviderClient("openai", true);
+        StructuredCompletionClient googleClient = createProviderClient("google", false);
+        AiProviderPriorityService serviceWithAllProviders = new AiProviderPriorityService(
+                List.of(anthropicClient, openAiClient, googleClient, ollamaClient), systemConfigService);
+
+        String savedValue = serviceWithAllProviders.updatePriority(List.of("Google", "openai", "anthropic"), "admin", null);
+
+        assertThat(savedValue).isEqualTo("google,openai,anthropic");
+        verify(systemConfigService).update(ConfigKey.AI_PROVIDER_PRIORITY, "google,openai,anthropic", "admin", null);
+        givenPriority("google,openai,anthropic");
+        assertThat(serviceWithAllProviders.findProviderViews()).containsExactly(
+                new AiProviderView("google", false, 1), new AiProviderView("openai", true, 2),
+                new AiProviderView("anthropic", true, 3), new AiProviderView("ollama", false, 0));
+    }
+
+    @Test
     void rejectsUnknownProviderAndEmptyPriority() {
         assertThatThrownBy(() -> service.updatePriority(List.of("anthropic", "openai"), "admin", null))
                 .isInstanceOf(CustomException.class).extracting("errorCode").isEqualTo(ErrorCode.AI_PROVIDER_UNKNOWN);

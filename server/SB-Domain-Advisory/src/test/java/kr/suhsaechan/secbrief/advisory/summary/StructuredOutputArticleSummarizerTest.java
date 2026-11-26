@@ -35,7 +35,8 @@ class StructuredOutputArticleSummarizerTest {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final ArticleSummaryRequest REQUEST = new ArticleSummaryRequest("Example VPN flaw exploited",
-            ArticleRegion.OVERSEAS, ArticleKind.NEWS, "Attackers are exploiting a flaw in Example VPN to steal session tokens.");
+            ArticleRegion.OVERSEAS, ArticleKind.NEWS, SummaryWritingKind.NEWS_ARTICLE,
+            "Attackers are exploiting a flaw in Example VPN to steal session tokens.");
     private static final String RESPONSE_JSON =
             "{\"summary\":\"Example VPN 결함이 악용되고 있어요.\",\"keyPoints\":[\"세션 토큰을 노려요.\"],\"actionGuide\":null}";
     private static final ArticleSummary SUMMARY =
@@ -50,8 +51,30 @@ class StructuredOutputArticleSummarizerTest {
         assertThat(outcome).isEqualTo(ArticleSummaryOutcome.succeeded(SUMMARY));
         StructuredCompletionRequest completionRequest = client.receivedRequests.get(0);
         assertThat(completionRequest.callType()).isEqualTo(AiCallType.SUMMARY);
-        assertThat(completionRequest.systemInstruction()).isEqualTo(ArticleSummaryPrompt.SYSTEM_INSTRUCTION);
+        assertThat(completionRequest.systemInstruction())
+                .isEqualTo(ArticleSummaryPrompt.toSystemInstruction(SummaryWritingKind.NEWS_ARTICLE));
         assertThat(completionRequest.userMessage()).isEqualTo(ArticleSummaryPrompt.toUserMessage(REQUEST));
+        assertThat(completionRequest.outputJsonSchema()).isEqualTo(ArticleSummaryPrompt.toOutputJsonSchema());
+        assertThat(completionRequest.maximumOutputTokens()).isEqualTo(ArticleSummaryPrompt.MAXIMUM_OUTPUT_TOKENS);
+    }
+
+    @Test
+    void repairSendsRepairInstructionAndDraftWithProblemsInOneCall() {
+        StubCompletionClient client = new StubCompletionClient(StructuredCompletion.of(RESPONSE_JSON, false));
+        ArticleSummary rejectedDraft = new ArticleSummary("Example VPN 결함 2개가 악용되고 있어요.", List.of(), null);
+        List<SummaryProblem> problems =
+                List.of(new SummaryProblem("summary", ArticleSummaryPolicy.REASON_NUMBER_NOT_IN_SOURCE, "2"));
+
+        ArticleSummaryOutcome outcome = new StructuredOutputArticleSummarizer(client).repair(REQUEST, rejectedDraft, problems);
+
+        assertThat(outcome).isEqualTo(ArticleSummaryOutcome.succeeded(SUMMARY));
+        assertThat(client.receivedRequests).hasSize(1);
+        StructuredCompletionRequest completionRequest = client.receivedRequests.get(0);
+        assertThat(completionRequest.callType()).isEqualTo(AiCallType.SUMMARY);
+        assertThat(completionRequest.systemInstruction())
+                .isEqualTo(ArticleSummaryPrompt.toRepairSystemInstruction(SummaryWritingKind.NEWS_ARTICLE));
+        assertThat(completionRequest.userMessage())
+                .isEqualTo(ArticleSummaryPrompt.toRepairUserMessage(REQUEST, rejectedDraft, problems));
         assertThat(completionRequest.outputJsonSchema()).isEqualTo(ArticleSummaryPrompt.toOutputJsonSchema());
         assertThat(completionRequest.maximumOutputTokens()).isEqualTo(ArticleSummaryPrompt.MAXIMUM_OUTPUT_TOKENS);
     }

@@ -6,6 +6,8 @@ package kr.suhsaechan.secbrief.advisory.constant;
 public final class AiProviderCode {
 
     public static final String ANTHROPIC = "anthropic";
+    public static final String OPENAI = "openai";
+    public static final String GOOGLE = "google";
     public static final String OLLAMA = "ollama";
 
     private AiProviderCode() {

@@ -36,13 +36,18 @@ import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallLogService;
 import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallType;
 import kr.suhsaechan.secbrief.advisory.ai.calllog.AiFailureKind;
 import kr.suhsaechan.secbrief.advisory.ai.calllog.AiTokenUsage;
-import kr.suhsaechan.secbrief.advisory.ai.key.AnthropicApiKey;
-import kr.suhsaechan.secbrief.advisory.ai.key.AnthropicApiKeyService;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKey;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKeyCallRunner;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKeyService;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKeyServiceRegistry;
 import kr.suhsaechan.secbrief.advisory.ai.key.ApiKeyFallbackExecutor;
 import kr.suhsaechan.secbrief.advisory.ai.key.ApiKeyHealthTracker;
+import kr.suhsaechan.secbrief.advisory.constant.KeyedAiProvider;
 import kr.suhsaechan.secbrief.advisory.support.MutableClock;
+import kr.suhsaechan.secbrief.common.config.SystemConfigService;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
@@ -55,26 +60,34 @@ class AnthropicStructuredCompletionClientTest {
     private static final String MODEL = "claude-haiku-5-5";
     private static final String FIRST_API_KEY = "sk-test-first-000000000000-AAAA";
     private static final String SECOND_API_KEY = "sk-test-second-00000000000-BBBB";
-    private static final AnthropicApiKey FIRST_KEY = new AnthropicApiKey("key-1", "운영", FIRST_API_KEY, true);
-    private static final AnthropicApiKey SECOND_KEY = new AnthropicApiKey("key-2", "예비", SECOND_API_KEY, true);
+    private static final AiApiKey FIRST_KEY = new AiApiKey("key-1", "운영", FIRST_API_KEY, true);
+    private static final AiApiKey SECOND_KEY = new AiApiKey("key-2", "예비", SECOND_API_KEY, true);
     private static final StructuredCompletionRequest REQUEST = new StructuredCompletionRequest(
             AiCallType.TITLE_ANALYSIS, "instruction", "{\"titles\":[]}", Map.of("type", "object"), 256);
     private static final Headers NO_HEADERS = Headers.builder().build();
 
-    private final AnthropicApiKeyService anthropicApiKeyService = mock(AnthropicApiKeyService.class);
+    private final AiApiKeyService aiApiKeyService = mock(AiApiKeyService.class);
+    private final AiApiKeyServiceRegistry aiApiKeyServiceRegistry = mock(AiApiKeyServiceRegistry.class);
     private final AiCallLogService aiCallLogService = mock(AiCallLogService.class);
     private final ApiKeyHealthTracker tracker = new ApiKeyHealthTracker(new MutableClock(Instant.parse("2026-11-26T00:00:00Z")));
     // 키 값별 가짜 SDK 클라이언트 (만든 순서 기록)
     private final Map<String, MessageService> messageServiceByApiKey = new HashMap<>();
     private final List<String> createdClientApiKeys = new ArrayList<>();
+    // 키 순회·호출 기록은 실제 공통 구성요소 (AiApiKeyCallRunner + ApiKeyFallbackExecutor)
     private final AnthropicStructuredCompletionClient client = new AnthropicStructuredCompletionClient(
-            anthropicApiKeyService, new AnthropicClientCache(this::createFakeClient),
-            new ApiKeyFallbackExecutor(tracker), aiCallLogService, MODEL);
+            new AiApiKeyCallRunner(aiApiKeyServiceRegistry, new ApiKeyFallbackExecutor(tracker), aiCallLogService),
+            new AnthropicClientCache(this::createFakeClient),
+            new AiProviderModelService(mock(SystemConfigService.class), MODEL));
+
+    @BeforeEach
+    void givenAnthropicKeyService() {
+        when(aiApiKeyServiceRegistry.find(KeyedAiProvider.ANTHROPIC)).thenReturn(aiApiKeyService);
+    }
 
     @Test
     void isUnavailableAndDoesNotCallWithoutKeys() {
-        when(anthropicApiKeyService.hasCallableKey()).thenReturn(false);
-        when(anthropicApiKeyService.findCallableKeys()).thenReturn(List.of());
+        when(aiApiKeyService.hasCallableKey()).thenReturn(false);
+        when(aiApiKeyService.findCallableKeys()).thenReturn(List.of());
 
         assertThat(client.getProviderCode()).isEqualTo("anthropic");
         assertThat(client.isAvailable()).isFalse();
@@ -200,9 +213,9 @@ class AnthropicStructuredCompletionClientTest {
         assertThat(createdClientApiKeys).containsExactly(FIRST_API_KEY, SECOND_API_KEY);
     }
 
-    private void givenCallableKeys(AnthropicApiKey... keys) {
-        when(anthropicApiKeyService.findCallableKeys()).thenReturn(List.of(keys));
-        when(anthropicApiKeyService.hasCallableKey()).thenReturn(keys.length > 0);
+    private void givenCallableKeys(AiApiKey... keys) {
+        when(aiApiKeyService.findCallableKeys()).thenReturn(List.of(keys));
+        when(aiApiKeyService.hasCallableKey()).thenReturn(keys.length > 0);
     }
 
     private void givenResponse(String apiKey, Message message) {

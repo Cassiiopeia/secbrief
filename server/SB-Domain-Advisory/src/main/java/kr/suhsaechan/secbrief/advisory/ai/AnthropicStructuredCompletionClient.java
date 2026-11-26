@@ -8,49 +8,32 @@ import com.anthropic.models.messages.OutputConfig;
 import com.anthropic.models.messages.StopReason;
 import com.anthropic.models.messages.TextBlock;
 import com.anthropic.models.messages.ThinkingConfigDisabled;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallAttempt;
-import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallLogService;
-import kr.suhsaechan.secbrief.advisory.ai.calllog.AiCallType;
 import kr.suhsaechan.secbrief.advisory.ai.calllog.AiTokenUsage;
-import kr.suhsaechan.secbrief.advisory.ai.key.AnthropicApiKey;
-import kr.suhsaechan.secbrief.advisory.ai.key.AnthropicApiKeyService;
-import kr.suhsaechan.secbrief.advisory.ai.key.ApiKeyFallbackExecutor;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKey;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKeyCall;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKeyCallRunner;
 import kr.suhsaechan.secbrief.advisory.constant.AiProviderCode;
-import kr.suhsaechan.secbrief.common.exception.CustomException;
-import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
-import org.springframework.beans.factory.annotation.Value;
+import kr.suhsaechan.secbrief.advisory.constant.KeyedAiProvider;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Anthropic 제공자: 요청 1회 > 키 우선순위대로 Messages API(구조화 출력 JSON 스키마) > 응답 JSON 문자열, 키마다 호출 기록 1행
- * 쓸 키가 없으면 호출하지 않음 (서버 기동·수집에 영향 없음), 키 값·입력 글은 로그·예외·기록에 넣지 않음
+ * Anthropic 제공자: 요청 1회 > 키 우선순위대로 Messages API(구조화 출력 JSON 스키마) > 응답 JSON 문자열
+ * 키 순회·키마다 호출 기록 1행은 AiApiKeyCallRunner, 쓸 키가 없으면 호출하지 않음 (서버 기동·수집에 영향 없음)
  */
 @Component
+@RequiredArgsConstructor
 public class AnthropicStructuredCompletionClient implements StructuredCompletionClient {
 
     public static final String PROVIDER_CODE = AiProviderCode.ANTHROPIC;
+    private static final KeyedAiProvider PROVIDER = KeyedAiProvider.ANTHROPIC;
 
-    private final AnthropicApiKeyService anthropicApiKeyService;
+    private final AiApiKeyCallRunner aiApiKeyCallRunner;
     private final AnthropicClientCache anthropicClientCache;
-    private final ApiKeyFallbackExecutor apiKeyFallbackExecutor;
-    private final AiCallLogService aiCallLogService;
-    private final String model;
-
-    public AnthropicStructuredCompletionClient(AnthropicApiKeyService anthropicApiKeyService,
-                                               AnthropicClientCache anthropicClientCache,
-                                               ApiKeyFallbackExecutor apiKeyFallbackExecutor,
-                                               AiCallLogService aiCallLogService,
-                                               @Value("${secbrief.ai.model:claude-haiku-5-5}") String model) {
-        this.anthropicApiKeyService = anthropicApiKeyService;
-        this.anthropicClientCache = anthropicClientCache;
-        this.apiKeyFallbackExecutor = apiKeyFallbackExecutor;
-        this.aiCallLogService = aiCallLogService;
-        this.model = model;
-    }
+    private final AiProviderModelService aiProviderModelService;
 
     @Override
     public String getProviderCode() {
@@ -59,7 +42,7 @@ public class AnthropicStructuredCompletionClient implements StructuredCompletion
 
     @Override
     public boolean isAvailable() {
-        return anthropicApiKeyService.hasCallableKey();
+        return aiApiKeyCallRunner.hasCallableKey(PROVIDER);
     }
 
     /**
@@ -67,14 +50,13 @@ public class AnthropicStructuredCompletionClient implements StructuredCompletion
      */
     @Override
     public StructuredCompletion requestCompletion(StructuredCompletionRequest request) {
-        List<AnthropicApiKey> callableKeys = anthropicApiKeyService.findCallableKeys();
-        if (callableKeys.isEmpty()) {
-            throw new CustomException(ErrorCode.AI_API_ERROR, "provider not configured");
-        }
+        List<AiApiKey> callableKeys = aiApiKeyCallRunner.findCallableKeys(PROVIDER);
         anthropicClientCache.retainOnly(callableKeys);
-        MessageCreateParams params = toMessageCreateParams(request);
-        Message message = apiKeyFallbackExecutor.execute(callableKeys,
-                key -> requestMessage(key, params, request.callType()), AnthropicFailures::classify);
+        String model = aiProviderModelService.findModel(PROVIDER);
+        MessageCreateParams params = toMessageCreateParams(request, model);
+        Message message = aiApiKeyCallRunner.call(callableKeys, new AiApiKeyCall<>(PROVIDER, model, request.callType(),
+                key -> anthropicClientCache.findClient(key).messages().create(params),
+                AnthropicStructuredCompletionClient::toTokenUsage, AnthropicFailures::classify));
 
         AiTokenUsage tokenUsage = toTokenUsage(message);
         if (message.stopReason().filter(StopReason.REFUSAL::equals).isPresent()) {
@@ -88,26 +70,7 @@ public class AnthropicStructuredCompletionClient implements StructuredCompletion
                 message.stopReason().filter(StopReason.MAX_TOKENS::equals).isPresent(), tokenUsage);
     }
 
-    // 키 1개로 호출 1회 + 호출 기록 (성공·실패 공통), 예외는 그대로 던져 키 순회가 판정
-    private Message requestMessage(AnthropicApiKey key, MessageCreateParams params, AiCallType callType) {
-        long startedAtNanoseconds = System.nanoTime();
-        try {
-            Message message = anthropicClientCache.findClient(key).messages().create(params);
-            aiCallLogService.recordSuccess(toAttempt(key, callType, startedAtNanoseconds), toTokenUsage(message));
-            return message;
-        } catch (RuntimeException exception) {
-            aiCallLogService.recordFailure(toAttempt(key, callType, startedAtNanoseconds),
-                    AnthropicFailures.classify(exception));
-            throw exception;
-        }
-    }
-
-    private AiCallAttempt toAttempt(AnthropicApiKey key, AiCallType callType, long startedAtNanoseconds) {
-        return new AiCallAttempt(callType, PROVIDER_CODE, model, key.nickname(),
-                Duration.ofNanos(System.nanoTime() - startedAtNanoseconds).toMillis());
-    }
-
-    private MessageCreateParams toMessageCreateParams(StructuredCompletionRequest request) {
+    private static MessageCreateParams toMessageCreateParams(StructuredCompletionRequest request, String model) {
         return MessageCreateParams.builder()
                 .model(model)
                 .maxTokens(request.maximumOutputTokens())

@@ -82,6 +82,21 @@ public class Source extends BaseEntity {
     private String feedLastModified;
 
     /**
+     * DB 에 저장하지 않는 출처 값: 운영에서 내보낸 출처 값으로 수집기·정규화를 그대로 돌릴 때 씀 (로컬 요약 적재 도구)
+     */
+    public static Source ofFeed(String code, String displayName, ArticleKind kind, ArticleRegion region,
+                                FeedFormat feedFormat, String feedUrl) {
+        Source source = new Source();
+        source.code = code;
+        source.displayName = displayName;
+        source.kind = kind;
+        source.region = region;
+        source.feedFormat = feedFormat;
+        source.feedUrl = feedUrl;
+        return source;
+    }
+
+    /**
      * 수집 설정 변경 (관리자 화면): 켜기·끄기, 주기(분). 범위 검사는 호출부 책임
      */
     public void changeCollectSettings(boolean isEnabled, int intervalMinutes) {

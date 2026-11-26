@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<!--
+  AI 키 화면의 제공자 1개 구역 (Anthropic · OpenAI · Google 공통): 모델, 키 표, 키 추가, 운영 설정의 키
+  providerKeySection(providerSection): AdminAiKeyProviderSection
+  화면 공통 값(canStoreSecret, maximumKeyCount, maximumNicknameLength, minimumApiKeyLength, maximumApiKeyLength)은 화면 모델에서 읽음
+-->
+<body>
+
+<section th:fragment="providerKeySection(providerSection)" class="card scroll-mt-20 border border-base-300 bg-base-100"
+         th:id="${providerSection.provider.providerCode}"
+         th:with="provider=${providerSection.provider},
+                  keysPath=|/admin/ai-keys/${providerSection.provider.providerCode}|">
+  <div class="card-body gap-0 p-0">
+    <!--/* 제목 줄: 제공자 이름 · 모델 · 키 개수 */-->
+    <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+      <div class="flex flex-wrap items-center gap-2">
+        <h3 class="text-lg font-bold" th:text="|${provider.displayName} 키|">제공자 키</h3>
+        <span class="text-sm text-base-content/60">모델</span>
+        <code class="admin-number text-sm" th:text="${providerSection.model}">model</code>
+        <!--/* th:replace 가 th:if 보다 먼저 처리돼 조건은 바깥 블록에 둠 */-->
+        <th:block th:if="${provider.hasFixedModel()}">
+          <span th:replace="~{admin/fragments/admin-ui :: toneBadge('ghost', '고정')}"></span>
+        </th:block>
+        <a class="link text-sm" th:if="${!provider.hasFixedModel()}" th:href="@{/admin/settings}">설정에서 바꾸기</a>
+      </div>
+      <span class="text-sm text-base-content/60"
+            th:text="|${#lists.size(providerSection.storedKeyViews)} / ${maximumKeyCount}개|">0 / 10개</span>
+    </div>
+
+    <div role="status" class="alert alert-info mx-4 mb-3" th:if="${providerSection.isUsingDeployPropertyKeys()}">
+      <i data-lucide="info" class="size-5"></i>
+      <span>여기에 켜진 키가 없어서 운영 설정(<code th:text="${provider.deployPropertyName}">secbrief.ai.key</code>)의 키를 쓰고 있어요.</span>
+    </div>
+
+    <!--/* 키 표 */-->
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead>
+        <tr>
+          <th>우선순위</th>
+          <th>별명</th>
+          <th>키</th>
+          <th>켜짐</th>
+          <th>상태</th>
+          <th>마지막 성공</th>
+          <th>마지막 실패</th>
+          <th class="text-right">작업</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="keyView, row : ${providerSection.storedKeyViews}"
+            th:with="keyPath=|${keysPath}/${keyView.id}|, editModalId=|keyEditModal-${provider.providerCode}-${keyView.id}|">
+          <td>
+            <div class="flex items-center gap-1">
+              <span class="admin-number w-6 font-medium" th:text="${keyView.priority}">1</span>
+              <form method="post" th:action="@{|${keyPath}/move|}">
+                <input type="hidden" name="direction" value="up"/>
+                <button type="submit" class="btn btn-ghost btn-xs btn-square" th:disabled="${row.first or !canStoreSecret}"
+                        th:attr="aria-label=|${provider.displayName} ${keyView.nickname} 우선순위 올리기|"><i data-lucide="arrow-up" class="size-4"></i></button>
+              </form>
+              <form method="post" th:action="@{|${keyPath}/move|}">
+                <input type="hidden" name="direction" value="down"/>
+                <button type="submit" class="btn btn-ghost btn-xs btn-square" th:disabled="${row.last or !canStoreSecret}"
+                        th:attr="aria-label=|${provider.displayName} ${keyView.nickname} 우선순위 내리기|"><i data-lucide="arrow-down" class="size-4"></i></button>
+              </form>
+            </div>
+          </td>
+          <td class="font-medium" th:text="${keyView.nickname}">별명</td>
+          <td class="admin-number whitespace-nowrap text-sm text-base-content/70" th:text="${keyView.maskedApiKey}">••••abcd</td>
+          <td>
+            <!--/* 누르면 반대 상태로 저장 */-->
+            <form method="post" th:action="@{|${keyPath}/toggle|}">
+              <input type="hidden" name="enabled" th:value="${!keyView.isEnabled()}"/>
+              <input type="checkbox" class="toggle toggle-primary toggle-sm" onchange="this.form.requestSubmit()"
+                     th:checked="${keyView.isEnabled()}" th:disabled="${!canStoreSecret}"
+                     th:attr="aria-label=|${provider.displayName} ${keyView.nickname} 켜기|"/>
+            </form>
+          </td>
+          <td>
+            <span th:replace="~{admin/fragments/admin-ui :: toneBadge(
+                  ${!keyView.isEnabled()} ? 'ghost' : (${keyView.isCoolingDown()} ? 'warning' : 'success'),
+                  ${!keyView.isEnabled()} ? '꺼짐' : (${keyView.isCoolingDown()} ? '쉬는 중 (5분)' : '쓰는 중'))}"></span>
+          </td>
+          <td class="admin-number whitespace-nowrap text-sm" th:text="${@adminDateTimeFormatter.format(keyView.lastSuccessAt)}">-</td>
+          <td>
+            <div class="admin-number whitespace-nowrap text-sm" th:text="${@adminDateTimeFormatter.format(keyView.lastFailureAt)}">-</div>
+            <div class="text-xs text-error" th:if="${keyView.lastFailureKind != null}" th:text="${keyView.lastFailureKind.label}">실패 종류</div>
+          </td>
+          <td>
+            <div class="flex justify-end gap-1">
+              <button type="button" class="btn btn-sm" th:disabled="${!canStoreSecret}"
+                      th:attr="data-modal-target=${editModalId}"
+                      onclick="document.getElementById(this.dataset.modalTarget).showModal()">바꾸기</button>
+              <form method="post" th:action="@{|${keyPath}/remove|}"
+                    data-confirm-title="키를 삭제할까요?" data-confirm-label="삭제" data-confirm-tone="danger"
+                    th:attr="data-confirm-message=|${provider.displayName} 「${keyView.nickname}」 키를 삭제해요. 삭제한 키 값은 되살릴 수 없어요.|">
+                <button type="submit" class="btn btn-error btn-outline btn-sm" th:disabled="${!canStoreSecret}">삭제</button>
+              </form>
+            </div>
+
+            <!--/* 별명 변경 · 키 값 교체 */-->
+            <dialog class="modal text-left" th:id="${editModalId}">
+              <div class="modal-box space-y-6">
+                <h3 class="text-lg font-bold" th:text="|${provider.displayName} 「${keyView.nickname}」 키 바꾸기|">키 바꾸기</h3>
+                <form method="post" class="space-y-2" th:action="@{|${keyPath}/rename|}">
+                  <label class="flex flex-col gap-1">
+                    <span class="text-sm font-medium">별명</span>
+                    <input type="text" name="nickname" class="input w-full" required
+                           th:value="${keyView.nickname}" th:attr="maxlength=${maximumNicknameLength}"/>
+                  </label>
+                  <button type="submit" class="btn btn-primary btn-sm">별명 저장</button>
+                </form>
+                <form method="post" class="space-y-2" th:action="@{|${keyPath}/replace|}">
+                  <label class="flex flex-col gap-1">
+                    <span class="text-sm font-medium">새 키 값 (다시 발급받은 키)</span>
+                    <input type="password" name="apiKey" class="input w-full" required autocomplete="new-password"
+                           th:attr="placeholder=${provider.apiKeyPlaceholder},minlength=${minimumApiKeyLength},maxlength=${maximumApiKeyLength}"/>
+                  </label>
+                  <p class="text-xs text-base-content/60">순서와 별명은 그대로 두고 값만 바꿔요.</p>
+                  <button type="submit" class="btn btn-primary btn-sm">키 값 교체</button>
+                </form>
+                <div class="modal-action">
+                  <form method="dialog"><button class="btn btn-ghost">닫기</button></form>
+                </div>
+              </div>
+              <form method="dialog" class="modal-backdrop"><button>닫기</button></form>
+            </dialog>
+          </td>
+        </tr>
+        <th:block th:if="${#lists.isEmpty(providerSection.storedKeyViews)}">
+          <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(8, '등록한 키가 없어요')}"></tr>
+        </th:block>
+        </tbody>
+      </table>
+    </div>
+
+    <!--/* 키 추가 */-->
+    <div class="space-y-3 border-t border-base-300 px-4 py-4">
+      <div>
+        <h4 class="font-bold" th:text="|${provider.displayName} 키 추가|">키 추가</h4>
+        <p class="text-sm text-base-content/60"
+           th:text="|새 키는 맨 아래 순위로 들어가요. 별명은 ${maximumNicknameLength}자까지, 키는 ${maximumKeyCount}개까지 등록할 수 있어요.|">안내</p>
+      </div>
+      <form method="post" th:action="@{${keysPath}}" class="flex flex-wrap items-end gap-2">
+        <label class="flex flex-col gap-1">
+          <span class="text-xs text-base-content/60">별명</span>
+          <input type="text" name="nickname" class="input input-sm w-48" required placeholder="예: 운영 1"
+                 th:attr="maxlength=${maximumNicknameLength}" th:disabled="${!providerSection.canAddKey()}"/>
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="text-xs text-base-content/60">키 값</span>
+          <input type="password" name="apiKey" class="input input-sm w-80" required autocomplete="new-password"
+                 th:attr="placeholder=${provider.apiKeyPlaceholder},minlength=${minimumApiKeyLength},maxlength=${maximumApiKeyLength}"
+                 th:disabled="${!providerSection.canAddKey()}"/>
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm" th:disabled="${!providerSection.canAddKey()}">추가</button>
+      </form>
+      <p class="text-sm text-warning" th:if="${canStoreSecret and !providerSection.canAddKey()}">키를 더 추가하려면 안 쓰는 키를 먼저 삭제해 주세요.</p>
+    </div>
+
+    <!--/* 운영 설정의 키 (읽기 전용) */-->
+    <div class="border-t border-base-300" th:if="${!#lists.isEmpty(providerSection.deployPropertyKeyViews)}">
+      <div class="px-4 py-3">
+        <h4 class="font-bold">운영 설정의 키</h4>
+        <p class="text-sm text-base-content/60">위 표에 켜진 키가 하나도 없을 때만 써요. 운영 설정 파일에서만 바꿀 수 있어요.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead>
+          <tr>
+            <th>우선순위</th>
+            <th>별명</th>
+            <th>키</th>
+            <th>상태</th>
+            <th>마지막 성공</th>
+            <th>마지막 실패</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="keyView : ${providerSection.deployPropertyKeyViews}">
+            <td class="admin-number" th:text="${keyView.priority}">1</td>
+            <td th:text="${keyView.nickname}">config</td>
+            <td class="admin-number whitespace-nowrap text-sm text-base-content/70" th:text="${keyView.maskedApiKey}">••••abcd</td>
+            <td>
+              <span th:replace="~{admin/fragments/admin-ui :: toneBadge(
+                    ${!providerSection.isUsingDeployPropertyKeys()} ? 'ghost' : (${keyView.isCoolingDown()} ? 'warning' : 'success'),
+                    ${!providerSection.isUsingDeployPropertyKeys()} ? '대기' : (${keyView.isCoolingDown()} ? '쉬는 중 (5분)' : '쓰는 중'))}"></span>
+            </td>
+            <td class="admin-number whitespace-nowrap text-sm" th:text="${@adminDateTimeFormatter.format(keyView.lastSuccessAt)}">-</td>
+            <td>
+              <div class="admin-number whitespace-nowrap text-sm" th:text="${@adminDateTimeFormatter.format(keyView.lastFailureAt)}">-</div>
+              <div class="text-xs text-error" th:if="${keyView.lastFailureKind != null}" th:text="${keyView.lastFailureKind.label}">실패 종류</div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

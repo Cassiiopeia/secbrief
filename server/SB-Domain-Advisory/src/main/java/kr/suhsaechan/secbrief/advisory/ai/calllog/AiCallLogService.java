@@ -3,8 +3,7 @@ package kr.suhsaechan.secbrief.advisory.ai.calllog;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.function.Supplier;
-import kr.suhsaechan.secbrief.advisory.constant.AiProviderCode;
-import kr.suhsaechan.secbrief.common.config.ConfigKey;
+import kr.suhsaechan.secbrief.advisory.constant.KeyedAiProvider;
 import kr.suhsaechan.secbrief.common.config.SystemConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -47,14 +46,13 @@ public class AiCallLogService {
         save(attempt, () -> AiCallLog.failed(attempt, failureKind, clock.instant()));
     }
 
-    // 단가를 아는 제공자(Anthropic)만 추정, 그 밖(자체 서버 Ollama)은 null
+    // 단가 설정이 있는 제공자(키로 부르는 Anthropic·OpenAI·Google)만 추정, 그 밖(자체 서버 Ollama)은 null
     private BigDecimal estimateCost(String providerCode, AiTokenUsage tokenUsage) {
-        if (!AiProviderCode.ANTHROPIC.equals(providerCode)) {
-            return null;
-        }
-        return AiCostCalculator.estimate(tokenUsage,
-                systemConfigService.getDecimal(ConfigKey.PRICE_ANTHROPIC_INPUT_PER_1M),
-                systemConfigService.getDecimal(ConfigKey.PRICE_ANTHROPIC_OUTPUT_PER_1M));
+        return KeyedAiProvider.fromProviderCode(providerCode)
+                .map(provider -> AiCostCalculator.estimate(tokenUsage,
+                        systemConfigService.getDecimal(provider.getInputPriceConfigKey()),
+                        systemConfigService.getDecimal(provider.getOutputPriceConfigKey())))
+                .orElse(null);
     }
 
     private void save(AiCallAttempt attempt, Supplier<AiCallLog> callLogSupplier) {

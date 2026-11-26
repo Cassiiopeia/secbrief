@@ -2,13 +2,12 @@
   "expo": {
     "name": "시큐브리프",
     "slug": "secbrief",
-    "version": "0.6.1",
+    "version": "0.7.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "secbrief",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "kr.suhsaechan.secbrief",
       "appleTeamId": "CUK22HY6YC",
       "config": {
@@ -24,7 +23,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "kr.suhsaechan.secbrief",
-      "versionCode": 15
+      "versionCode": 16
     },
     "web": {
       "output": "single",

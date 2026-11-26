@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import kr.suhsaechan.secbrief.advisory.ai.key.AnthropicApiKey;
+import kr.suhsaechan.secbrief.advisory.ai.key.AiApiKey;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -40,7 +40,7 @@ public class AnthropicClientCache {
     }
 
     /** 이 키의 클라이언트 (없거나 키 값이 바뀌었으면 새로 만듦) */
-    public AnthropicClient findClient(AnthropicApiKey key) {
+    public AnthropicClient findClient(AiApiKey key) {
         CachedClient cachedClient = cachedClientByKeyId.compute(key.id(), (keyId, previousClient) -> {
             if (previousClient != null && previousClient.apiKey().equals(key.apiKey())) {
                 return previousClient;
@@ -52,8 +52,8 @@ public class AnthropicClientCache {
     }
 
     /** 지금 쓰는 키만 남기고 나머지 클라이언트는 닫음 (삭제·끄기·운영 설정 키로 전환) */
-    public void retainOnly(Collection<AnthropicApiKey> currentKeys) {
-        Set<String> currentKeyIds = currentKeys.stream().map(AnthropicApiKey::id).collect(Collectors.toSet());
+    public void retainOnly(Collection<AiApiKey> currentKeys) {
+        Set<String> currentKeyIds = currentKeys.stream().map(AiApiKey::id).collect(Collectors.toSet());
         cachedClientByKeyId.keySet().removeIf(keyId -> {
             if (currentKeyIds.contains(keyId)) {
                 return false;
