@@ -2,6 +2,8 @@ import { DateTimePicker } from '@expo/ui/community/datetime-picker';
 import { useState } from 'react';
 import { Platform } from 'react-native';
 
+import { toClockTime } from '@/core/format/briefing-date-formatter';
+
 import { useSbTheme } from '../theme/use-sb-theme';
 import { sbMaximumLines } from '../tokens';
 import { playSbHaptic } from './sb-haptics';
@@ -20,15 +22,12 @@ interface SbTimePickerRowProps {
   onTimeSelected: (timeOfDay: string) => void;
 }
 
-// 시각 글자 "HH:mm" <-> 오늘 날짜의 그 시각 (선택기는 Date 를 주고받음)
+// 시각 글자 "HH:mm" > 오늘 날짜의 그 시각 (선택기는 Date 를 주고받음, 반대 방향은 toClockTime)
 function toDate(timeOfDay: string): Date {
   const [hour, minute] = timeOfDay.split(':').map(Number);
   const date = new Date();
   date.setHours(hour, minute, 0, 0);
   return date;
-}
-function toTimeOfDay(date: Date): string {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 /**
@@ -40,7 +39,7 @@ export function SbTimePickerRow({ title, timeOfDay, timeLabel, isDisabled = fals
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const onValueChange = (date: Date) => {
     setIsDialogOpen(false);
-    const selectedTimeOfDay = toTimeOfDay(date);
+    const selectedTimeOfDay = toClockTime(date);
     if (selectedTimeOfDay === timeOfDay) return;
     playSbHaptic('selection');
     onTimeSelected(selectedTimeOfDay);
