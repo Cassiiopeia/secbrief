@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 import kr.suhsaechan.secbrief.advisory.collector.CollectedArticle;
 import kr.suhsaechan.secbrief.advisory.entity.Source;
 import kr.suhsaechan.secbrief.advisory.fact.SourceFactPolicy;
+import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import org.springframework.web.util.HtmlUtils;
 
 /**
@@ -86,7 +87,7 @@ public final class ArticleNormalizer {
             return UNKNOWN_ERROR_MESSAGE;
         }
         String withoutControlCharacters = CONTROL_CHARACTER.matcher(rawMessage).replaceAll("?");
-        return truncate(withoutControlCharacters, MAXIMUM_ERROR_MESSAGE_LENGTH);
+        return TextTruncation.truncateKeepingSurrogatePairs(withoutControlCharacters, MAXIMUM_ERROR_MESSAGE_LENGTH);
     }
 
     // HTML 태그 제거 > 문자 참조 풀기(&#39; &amp; 등, KISA 피드가 제목을 이렇게 줌) > 연속 공백 하나로 > trim > 500자 제한
@@ -97,7 +98,7 @@ public final class ArticleNormalizer {
         String withoutTags = HTML_TAG.matcher(rawTitle).replaceAll("");
         String unescaped = HtmlUtils.htmlUnescape(withoutTags);
         String collapsed = WHITESPACE_RUN.matcher(unescaped).replaceAll(" ").trim();
-        return truncate(collapsed, MAXIMUM_TITLE_LENGTH).trim();
+        return TextTruncation.truncateKeepingSurrogatePairs(collapsed, MAXIMUM_TITLE_LENGTH).trim();
     }
 
     // trim > #fragment 제거
@@ -142,15 +143,6 @@ public final class ArticleNormalizer {
         String publisherName = collectedPublisherName == null || collectedPublisherName.isBlank()
                 ? source.getDisplayName()
                 : collectedPublisherName.trim();
-        return truncate(publisherName, MAXIMUM_PUBLISHER_NAME_LENGTH);
-    }
-
-    // 길이 제한 (잘린 끝이 서로게이트 쌍 절반이면 그 글자는 뺌: DB 인코딩 오류 방지)
-    private static String truncate(String text, int maximumLength) {
-        if (text.length() <= maximumLength) {
-            return text;
-        }
-        int endIndex = Character.isHighSurrogate(text.charAt(maximumLength - 1)) ? maximumLength - 1 : maximumLength;
-        return text.substring(0, endIndex);
+        return TextTruncation.truncateKeepingSurrogatePairs(publisherName, MAXIMUM_PUBLISHER_NAME_LENGTH);
     }
 }
