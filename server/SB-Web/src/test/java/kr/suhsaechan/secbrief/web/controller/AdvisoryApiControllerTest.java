@@ -83,6 +83,7 @@ class AdvisoryApiControllerTest {
                 .andExpect(jsonPath("$.data.items[0].sourceCode").value("NVD"))
                 .andExpect(jsonPath("$.data.items[0].keywords[0]").value("Example"))
                 .andExpect(jsonPath("$.data.items[0].keywords[1]").value("원격 코드 실행"))
+                .andExpect(jsonPath("$.data.items[0].oneLine").value("Example에서 원격 코드 실행이 가능해요."))
                 .andExpect(jsonPath("$.data.items[0].aiStatus").doesNotExist())
                 .andExpect(jsonPath("$.data.items[0].kev").doesNotExist())
                 .andExpect(jsonPath("$.data.items[0].imagePath").value("/api/v1/articles/1/image"))
@@ -95,7 +96,7 @@ class AdvisoryApiControllerTest {
         ArticleResponse pending = new ArticleResponse(2L, ArticleKind.NEWS, ArticleRegion.OVERSEAS, ArticleTopic.GENERAL,
                 "Example breach report", null, "https://example.test/news/2", "The Hacker News",
                 Instant.parse("2026-11-23T00:00:00Z"), false, null, null, null, false, false, null,
-                ArticleImportance.ROUTINE, null, "THE_HACKER_NEWS", List.of());
+                ArticleImportance.ROUTINE, null, "THE_HACKER_NEWS", List.of(), null);
         given(articleQueryService.findArticles(any())).willReturn(new ArticlePageResponse(List.of(pending), null));
 
         mockMvc.perform(get("/api/v1/articles"))
@@ -104,6 +105,9 @@ class AdvisoryApiControllerTest {
                 .andExpect(jsonPath("$.data.items[0].translatedTitle").value(nullValue()))
                 .andExpect(jsonPath("$.data.items[0].topic").value("GENERAL"))
                 .andExpect(jsonPath("$.data.items[0].keywords").isEmpty())
+                // 브리핑이 없는 기사: oneLine 은 이름은 있고 값이 null
+                .andExpect(jsonPath("$.data.items[0]", org.hamcrest.Matchers.hasKey("oneLine")))
+                .andExpect(jsonPath("$.data.items[0].oneLine").value(nullValue()))
                 .andExpect(jsonPath("$.data.items[0].imagePath").value(nullValue()))
                 .andExpect(jsonPath("$.data.nextCursor").value(nullValue()));
     }
@@ -230,6 +234,7 @@ class AdvisoryApiControllerTest {
                 "CVE-2026-1111: Example remote code execution", "CVE-2026-1111: 원격 코드 실행 예시",
                 "https://nvd.nist.gov/vuln/detail/CVE-2026-1111", "NVD", Instant.parse("2026-11-23T00:00:00Z"), false,
                 "CVE-2026-1111", new BigDecimal("9.8"), "3.1", true, true, ArticleResponse.toImagePath(1L),
-                ArticleImportance.HEADLINE, "Example", "NVD", List.of("Example", "원격 코드 실행"));
+                ArticleImportance.HEADLINE, "Example", "NVD", List.of("Example", "원격 코드 실행"),
+                "Example에서 원격 코드 실행이 가능해요.");
     }
 }

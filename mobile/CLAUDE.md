@@ -21,7 +21,7 @@ mobile/
 
 ## 화면 구성
 
-하단 탭 5개 + 탭 밖 스택 화면 3개. 기사를 누르면 브라우저가 아니라 앱 안 상세를 연다 (원문은 상세의 원문 보기 버튼).
+하단 탭 5개 + 탭 밖 스택 화면 6개. 기사를 누르면 브라우저가 아니라 앱 안 상세를 연다 (원문은 상세의 원문 보기 버튼).
 
 | 라우트 | 화면 | 역할 |
 |---|---|---|
@@ -30,12 +30,21 @@ mobile/
 | `(tabs)/vulnerability` | 취약점 | 주요만 / 악용 중 / 전체, 출처 묶음 칩 |
 | `(tabs)/explore` | 탐색 | 검색 들머리, 키워드 순위, 주제 동향, 행사 소식 |
 | `(tabs)/settings` | 더보기 | 알림 설정, 출처, 문의, 약관, 앱 정보 |
-| `articles/[articleId]` | 기사 상세 | AI 요약, 핵심, 대응, 확인된 정보, 관련 소식, 원문 보기 |
+| `articles/[articleId]` | 기사 상세 | AI 브리핑(한 줄 결론, 무슨 일, 왜 중요, 영향 대상, 대응 — 없으면 이전 요약 카드), 확인된 정보, 대응 모아보기(공식 대응 > 확인된 취약점 정보 > 관련 기사, 비면 함께 보면 좋은 소식), 원문 보기. `?focus=responseGuide` 면 대응 모아보기로 내려감 |
 | `search` | 검색 | 글자·의미 검색, 요즘 키워드 |
 | `browse/[browseKey]` | 모아 보기 | 주제·출처·키워드별 목록 |
+| `notifications` | 알림함 | 알림 \| 공지사항 (`?segment=NOTICE`), 알림은 날짜별 묶음, 새 글 점. 탭 머리 종 아이콘·더보기에서 들어옴 |
+| `notifications/[notificationId]` | 알림 상세 | 왜 알렸는지(종류별 설명) > 담긴 소식 (종류별 구역) > 소식마다 대응 안내 카드 (이렇게 대응해요, 공식 대응 첫 건, 대응 모아보기 N건 보기) |
+| `notices/[noticeId]` | 공지사항 상세 | 제목, 날짜, 본문, 링크 버튼 |
 
 - 버전·수치는 서버가 준 값만 보여 준다 (앱에서 만들지 않음). AI 가 쓴 부분에는 AI 표시를 붙인다.
 - 알림(`expo-notifications`)은 `data/sources/device-notification-client.ts` 한 곳에서만 부른다.
+- 기기 저장(`AsyncStorage`)은 `data/sources/device-json-storage.ts` 한 곳에서만 부른다. 저장 키는 `DEVICE_STORAGE_KEYS` 에 모은다.
+- 알림을 누르면 `notification-target-route.ts` 가 열 곳을 정한다: `articleId` 기사 상세 > `notificationKind=NOTICE` 공지 상세 > `notificationId` 알림 상세 > `QUIET_HOURS_DIGEST` 알림함 > 이전 서버의 `targetTab`. 이동은 화면 스택이 준비된 뒤 (`use-is-root-navigator-ready`).
+- 알림함 읽음 기록(본 번호·연 글)과 방해 금지 시간은 기기에만 둔다 (`secbrief.notificationReadState`, `secbrief.quietHours`). 방해 금지 시간은 알림 기기 등록(`PUT /api/v1/push-devices` 의 `quietHours`)으로 서버에도 보낸다.
+- 알림 종류 문구(이름·배지·알린 이유)는 `features/notifications/alert-category-texts.ts` 가 단일 원본이다.
+- 대응 모아보기 문구(구역 이름·설명·묶인 이유)는 `features/response-guide/response-guide-texts.ts` 가 단일 원본이다. 행은 `ResponseGuideRow` 하나를 기사 상세와 알림 상세가 함께 쓴다.
+- 시각 선택기는 `@expo/ui/community/datetime-picker` (디자인 시스템 `SbTimePickerRow`): iOS 행 안 선택기, Android 시각 창, 웹은 글자만.
 
 의존 방향: `core ← data ← features · design ← app`. 계층 밖은 `@/계층/...` 로만 import 한다.
 
@@ -75,6 +84,8 @@ python3 brand/generate_platform_assets.py   # 레포 루트에서 실행 (Python
 ## 규칙 (tests/architecture 와 ESLint 가 강제)
 
 - 화면(`app`, `features`)에 색·글꼴·글자 크기·간격·모서리·지속시간 숫자를 직접 쓰지 않는다. 토큰이 없으면 토큰을 먼저 추가한다.
+- 움직임은 디자인 시스템 부품만 쓴다: 등장 `SbEntrance`·`SbListEntrance`, 조건부 구역 `SbReveal`, 누름 `SbPressable`, 로딩 `SbLoadingSkeleton`, 저장 확인 `showSbToast`. 화면에서 Reanimated·`withTiming`·`Easing`·`entering=` 직접 사용 금지. 값은 `sbMotion` 토큰 한 곳, 동작 줄이기가 켜져 있으면 바로 바뀐다.
+- 빈 상태·오류 그림은 `SbEmptyState`(`illustration`)·`SbErrorState`(에러 코드로 연결 끊김/문제 생김 자동 선택)로만 쓴다. 원본은 `assets/illustrations/*.webp` (408px, 밝은·어두운 바탕 공용, 40KB 이하), 목록은 `sb-state-illustration-sources.ts` 한 곳. 새 그림은 `pro-image` 로 같은 세트 그림을 참고로 그린다.
 - 글자는 `SbText` 만 쓴다 (한글 낱말 단위 줄바꿈이 여기 한 곳에 있다). `Text` 직접 사용 금지.
 - 다크 판정은 `useSbTheme` 한 곳. 테마 색이 필요한 스타일은 `useSbStyles(createStyles)`.
 - `style` 에 객체를 직접 쓰지 않는다. `StyleSheet` 로 이름을 붙인다.

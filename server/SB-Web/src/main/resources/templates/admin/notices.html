@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{admin/fragments/admin-layout :: page('공지사항', 'notices', ~{::content})}">
+<body>
+
+<main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6">
+  <div th:replace="~{admin/fragments/admin-ui :: pageHeader('공지사항',
+       '앱 알림함의 공지사항 칸에 보여요. 올릴 때 푸시도 함께 보낼 수 있고, 바꾼 내용은 관리자 기록에 남아요.')}"></div>
+
+  <section class="card max-w-3xl border border-base-300 bg-base-100">
+    <form th:action="@{/admin/notices}" method="post" class="card-body gap-4"
+          data-confirm-title="공지사항을 올릴까요?" data-confirm-label="올리기"
+          data-confirm-message="앱 알림함에 바로 보여요. 푸시는 보내지 않아요.">
+      <div th:replace="~{admin/fragments/admin-ui :: cardHeader('새 공지 쓰기', '')}"></div>
+      <th:block th:replace="~{admin/fragments/notice-form :: fields(${noticeForm}, ${maximumTitleLength}, ${maximumBodyLength})}"></th:block>
+      <label class="flex items-start gap-2 rounded-box border border-base-300 p-3">
+        <input type="checkbox" name="sendPush" value="true" class="checkbox checkbox-sm checkbox-primary mt-0.5"
+               th:checked="${shouldSendPush}"
+               th:attr="data-confirm-message-when-checked=|앱 알림함에 바로 보이고, 알림을 켠 기기 ${pushRecipientCount}대에 푸시를 보내요. 방해 금지 시간인 기기는 끝난 뒤에 받아요.|"/>
+        <span class="flex flex-col">
+          <span class="text-sm font-medium">푸시도 보내기</span>
+          <span class="text-xs text-base-content/60"
+                th:text="|알림을 켠 기기 ${pushRecipientCount}대가 받아요. 올린 뒤에는 다시 보낼 수 없어요.|">기기 0대</span>
+        </span>
+      </label>
+      <div class="card-actions justify-end">
+        <button type="submit" class="btn btn-primary">올리기</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card border border-base-300 bg-base-100">
+    <div class="card-body p-0 py-4">
+      <div class="px-4">
+        <div th:replace="~{admin/fragments/admin-ui :: cardHeader('올린 공지',
+             |${#lists.size(noticeRows)}개 · 고정한 공지가 맨 위에 보여요|)}"></div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table admin-stack-table">
+          <thead>
+          <tr>
+            <th>제목</th>
+            <th>올린 시각</th>
+            <th>고친 시각</th>
+            <th>푸시</th>
+            <th class="text-right">작업</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr th:each="noticeRow : ${noticeRows}">
+            <td class="admin-stack-primary max-w-md">
+              <div class="flex items-center gap-2">
+                <th:block th:if="${noticeRow.isPinned()}">
+                  <span th:replace="~{admin/fragments/admin-ui :: toneBadge('info', '고정')}"></span>
+                </th:block>
+                <span class="font-medium break-words" th:text="${noticeRow.title}">제목</span>
+              </div>
+              <div class="line-clamp-2 text-xs text-base-content/60" th:text="${noticeRow.body}">본문</div>
+            </td>
+            <td class="admin-number whitespace-nowrap text-sm" data-label="올린 시각" th:text="${@adminDateTimeFormatter.format(noticeRow.createdAt)}">-</td>
+            <td class="admin-number whitespace-nowrap text-sm" data-label="고친 시각" th:text="${@adminDateTimeFormatter.format(noticeRow.updatedAt)}">-</td>
+            <td data-label="푸시">
+              <span th:replace="~{admin/fragments/admin-ui :: toneBadge(${noticeRow.pushedAt != null} ? 'success' : 'ghost', ${noticeRow.pushedAt != null} ? '보냄' : '안 보냄')}"></span>
+            </td>
+            <td data-label="작업">
+              <div class="flex flex-nowrap items-center justify-end gap-1 whitespace-nowrap">
+                <a class="btn btn-ghost btn-sm" th:href="@{/admin/notices/{noticeId}/edit(noticeId=${noticeRow.id})}">고치기</a>
+                <form method="post" th:action="@{/admin/notices/{noticeId}/pin(noticeId=${noticeRow.id})}">
+                  <input type="hidden" name="pinned" th:value="${!noticeRow.isPinned()}"/>
+                  <button type="submit" class="btn btn-ghost btn-sm" th:text="${noticeRow.isPinned()} ? '고정 풀기' : '고정'">고정</button>
+                </form>
+                <form method="post" th:action="@{/admin/notices/{noticeId}/delete(noticeId=${noticeRow.id})}"
+                      data-confirm-title="공지사항을 삭제할까요?" data-confirm-label="삭제" data-confirm-tone="danger"
+                      th:attr="data-confirm-message=|「${noticeRow.title}」 공지를 삭제하면 앱 알림함에서도 사라지고 되돌릴 수 없어요.|">
+                  <button type="submit" class="btn btn-ghost btn-sm text-error">삭제</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <th:block th:if="${#lists.isEmpty(noticeRows)}">
+            <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(5, '아직 올린 공지사항이 없어요')}"></tr>
+          </th:block>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+</body>
+</html>

@@ -28,14 +28,14 @@ public final class ArticleSummaryHarness {
         if (!firstOutcome.isSuccessful()) {
             return new ArticleSummaryAttempt(null, firstOutcome.failureReason(), 1, null, null, false);
         }
-        ArticleSummary firstDraft = firstOutcome.summary();
+        ArticleBrief firstDraft = firstOutcome.brief();
         ArticleSummaryValidation firstValidation =
                 ArticleSummaryPolicy.validate(request.title(), request.sourceText(), firstDraft);
         if (firstValidation.isClean() || remainingModelCallCount < MAXIMUM_MODEL_CALLS_PER_ATTEMPT) {
             return toAttempt(firstValidation, firstValidation.rejectionReason(), 1, firstDraft, firstValidation, false);
         }
 
-        // 고쳐 쓰기 (걸린 곳: 요약 거부 또는 버린 핵심 정리·대응 안내)
+        // 고쳐 쓰기 (걸린 곳: 필수 필드 거부 또는 버린 선택 필드·목록 항목)
         ArticleSummaryOutcome repairOutcome;
         try {
             repairOutcome = summarizer.repair(request, firstDraft, firstValidation.problems());
@@ -52,7 +52,7 @@ public final class ArticleSummaryHarness {
                     MAXIMUM_MODEL_CALLS_PER_ATTEMPT, firstDraft, firstValidation, false);
         }
         ArticleSummaryValidation repairValidation =
-                ArticleSummaryPolicy.validate(request.title(), request.sourceText(), repairOutcome.summary());
+                ArticleSummaryPolicy.validate(request.title(), request.sourceText(), repairOutcome.brief());
         if (isRepairBetter(firstValidation, repairValidation)) {
             return toAttempt(repairValidation, null, MAXIMUM_MODEL_CALLS_PER_ATTEMPT, firstDraft, firstValidation, true);
         }
@@ -71,10 +71,10 @@ public final class ArticleSummaryHarness {
 
     // 고른 검증 결과 > 시도 결과 (통과면 실패 사유 없음)
     private static ArticleSummaryAttempt toAttempt(ArticleSummaryValidation chosenValidation, String failureReason,
-                                                   int modelCallCount, ArticleSummary firstDraft,
-                                                   ArticleSummaryValidation firstValidation, boolean isRepairedSummaryUsed) {
-        return new ArticleSummaryAttempt(chosenValidation.acceptedSummary(),
+                                                   int modelCallCount, ArticleBrief firstDraft,
+                                                   ArticleSummaryValidation firstValidation, boolean isRepairedBriefUsed) {
+        return new ArticleSummaryAttempt(chosenValidation.acceptedBrief(),
                 chosenValidation.isAccepted() ? null : failureReason,
-                modelCallCount, firstDraft, firstValidation, isRepairedSummaryUsed);
+                modelCallCount, firstDraft, firstValidation, isRepairedBriefUsed);
     }
 }

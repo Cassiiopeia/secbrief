@@ -9,6 +9,8 @@ import java.util.List;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.SourceCode;
+import kr.suhsaechan.secbrief.advisory.dto.AffectedTargetResponse;
+import kr.suhsaechan.secbrief.advisory.dto.ArticleBriefResponse;
 import kr.suhsaechan.secbrief.advisory.dto.ArticleDetailResponse;
 import kr.suhsaechan.secbrief.advisory.dto.ArticleResponse;
 import kr.suhsaechan.secbrief.advisory.dto.SourceFactResponse;
@@ -18,6 +20,8 @@ import kr.suhsaechan.secbrief.advisory.fact.SourceFact;
 import kr.suhsaechan.secbrief.advisory.policy.ArticleDraft;
 import kr.suhsaechan.secbrief.advisory.policy.RelatedArticlePolicy;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
+import kr.suhsaechan.secbrief.advisory.summary.AffectedTarget;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleBrief;
 import kr.suhsaechan.secbrief.advisory.repository.SourceRepository;
 import kr.suhsaechan.secbrief.advisory.service.ArticleDetailQueryService;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
@@ -30,7 +34,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
- * 기사 상세 (DB): 요약 있음·없음, 사실 값, 없는 id, 관련 기사 순서(같은 CVE > 같은 회사·제품 > 겹치는 키워드 수 > 같은 주제, 그 안에서 최신순)
+ * 기사 상세 (DB): 브리핑 있음·이전 요약만 있음·요약 없음, 사실 값, 없는 id, 관련 기사 순서(같은 CVE > 같은 회사·제품 > 겹치는 키워드 수 > 같은 주제, 그 안에서 최신순)
  * 관련 기사는 자기 자신·조회 기간 밖 제외, 최대 6건
  */
 @SpringBootTest
@@ -60,22 +64,48 @@ class ArticleDetailQueryServiceTest extends PostgresContainerTestSupport {
     }
 
     @Test
-    void returnsSummaryKeyPointsActionGuideAndFacts() {
+    void returnsBriefWithLegacyFieldsAndFactsFromStoredColumns() {
         Article article = Article.create(source, createDraft("Example VPN flaw exploited", now, SOURCE_TEXT,
                 List.of(new SourceFact("조치 기한", "2026-12-11"))), now);
-        article.getSummaryState().applySummary("Example VPN 결함이 악용되고 있어요.", List.of("세션 토큰을 노려요."), "패치를 적용하세요.");
+        article.getSummaryState().applyBrief(new ArticleBrief("Example VPN 결함으로 세션 토큰이 털리고 있어요.",
+                "공격자가 Example VPN의 결함을 악용하고 있어요.", "세션 토큰을 빼앗길 수 있어요.",
+                List.of(new AffectedTarget("Example VPN", null)), List.of("패치를 적용하세요.")));
         Long articleId = articleRepository.save(article).getId();
 
         ArticleDetailResponse detail = articleDetailQueryService.findArticleDetail(articleId);
 
         assertThat(detail.article().id()).isEqualTo(articleId);
         assertThat(detail.article().title()).isEqualTo("Example VPN flaw exploited");
+        assertThat(detail.article().oneLine()).isEqualTo("Example VPN 결함으로 세션 토큰이 털리고 있어요.");
         assertThat(detail.isAiSummarized()).isTrue();
-        assertThat(detail.summary()).isEqualTo("Example VPN 결함이 악용되고 있어요.");
-        assertThat(detail.keyPoints()).containsExactly("세션 토큰을 노려요.");
+        // DB 를 거쳐 읽은 브리핑 (JSON 열 2개 포함)
+        assertThat(detail.brief()).isEqualTo(new ArticleBriefResponse("Example VPN 결함으로 세션 토큰이 털리고 있어요.",
+                "공격자가 Example VPN의 결함을 악용하고 있어요.", "세션 토큰을 빼앗길 수 있어요.",
+                List.of(new AffectedTargetResponse("Example VPN", null)), List.of("패치를 적용하세요.")));
+        assertThat(detail.summary()).isEqualTo(
+                "Example VPN 결함으로 세션 토큰이 털리고 있어요. 공격자가 Example VPN의 결함을 악용하고 있어요. 세션 토큰을 빼앗길 수 있어요.");
+        assertThat(detail.keyPoints()).containsExactly("Example VPN");
         assertThat(detail.actionGuide()).isEqualTo("패치를 적용하세요.");
         assertThat(detail.facts()).containsExactly(new SourceFactResponse("조치 기한", "2026-12-11"));
         assertThat(detail.relatedItems()).isEmpty();
+    }
+
+    @Test
+    void servesLegacySummaryRowWithNullBrief() {
+        // 브리핑 열이 생기기 전에 쓴 요약 행: 이전 구조 열 3개만 값이 있음 (운영 DB 의 기존 행과 같은 모양)
+        Long articleId = saveArticle("Legacy summary article", now, SOURCE_TEXT);
+        jdbcTemplate.update("update article set summary = ?, summary_key_points = ?, summary_action_guide = ?, "
+                        + "summary_status = 'DONE', source_text = null where id = ?",
+                "이전 구조로 쓴 요약이에요.", "[\"첫째예요.\",\"둘째예요.\"]", "패치를 적용하세요.", articleId);
+
+        ArticleDetailResponse detail = articleDetailQueryService.findArticleDetail(articleId);
+
+        assertThat(detail.isAiSummarized()).isTrue();
+        assertThat(detail.brief()).isNull();
+        assertThat(detail.article().oneLine()).isNull();
+        assertThat(detail.summary()).isEqualTo("이전 구조로 쓴 요약이에요.");
+        assertThat(detail.keyPoints()).containsExactly("첫째예요.", "둘째예요.");
+        assertThat(detail.actionGuide()).isEqualTo("패치를 적용하세요.");
     }
 
     @Test
@@ -91,6 +121,8 @@ class ArticleDetailQueryServiceTest extends PostgresContainerTestSupport {
         assertThat(List.of(pendingId, noneId, failedId)).allSatisfy(articleId -> {
             ArticleDetailResponse detail = articleDetailQueryService.findArticleDetail(articleId);
             assertThat(detail.isAiSummarized()).isFalse();
+            assertThat(detail.brief()).isNull();
+            assertThat(detail.article().oneLine()).isNull();
             assertThat(detail.summary()).isNull();
             assertThat(detail.keyPoints()).isEmpty();
             assertThat(detail.actionGuide()).isNull();

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
@@ -16,10 +17,11 @@ import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.entity.Source;
 import kr.suhsaechan.secbrief.advisory.policy.ArticleDraft;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
+import kr.suhsaechan.secbrief.member.constant.NotificationKind;
 import org.junit.jupiter.api.Test;
 
 /**
- * 긴급 알림 규칙: 기사 > 종류(KEV 우선), 1건·여러 건 글, 번역 제목 우선, 긴 제목 말줄임
+ * 긴급 알림 규칙: 기사 > 종류(KEV 우선), 1건·여러 건 글, 푸시 data 키, 번역 제목 우선, 긴 제목 말줄임
  */
 class UrgentAlertPolicyTest {
 
@@ -42,10 +44,21 @@ class UrgentAlertPolicyTest {
         UrgentAlertContent content = UrgentAlertPolicy.toContent(List.of(createArticle(kisaSource, "긴급 보안 업데이트 권고", false, NOW)));
 
         // 저장 전 기사라 번호는 null (저장된 1건 알림은 번호를 실음)
-        assertThat(content).isEqualTo(new UrgentAlertContent("KISA 긴급 공지가 올라왔어요", "긴급 보안 업데이트 권고", "vulnerability", null));
-        assertThat(UrgentAlertPolicy.toPushData(content)).containsOnlyKeys("targetTab");
-        assertThat(UrgentAlertPolicy.toPushData(new UrgentAlertContent("제목", "본문", "vulnerability", 42L)))
-                .containsEntry("targetTab", "vulnerability").containsEntry("articleId", "42");
+        assertThat(content).isEqualTo(new UrgentAlertContent("KISA 긴급 공지가 올라왔어요", "긴급 보안 업데이트 권고", null, 1));
+    }
+
+    @Test
+    void writesPushDataWithNotificationIdAndArticleIdOnlyForSingleArticle() {
+        // 이전 앱은 targetTab 만 읽음 (항상 실음)
+        assertThat(NotificationPushData.forNotification(7L, NotificationKind.ALERT, 42L))
+                .containsExactlyInAnyOrderEntriesOf(Map.of("notificationId", "7", "notificationKind", "ALERT",
+                        "articleId", "42", "targetTab", "vulnerability"));
+        assertThat(NotificationPushData.forNotification(8L, NotificationKind.ALERT, null))
+                .doesNotContainKey("articleId").containsEntry("notificationId", "8");
+        assertThat(NotificationPushData.forNotification(9L, NotificationKind.NOTICE, null))
+                .containsEntry("notificationKind", "NOTICE").containsEntry("targetTab", "today");
+        assertThat(NotificationPushData.forQuietHoursDigest(true))
+                .containsExactlyInAnyOrderEntriesOf(Map.of("notificationKind", "QUIET_HOURS_DIGEST", "targetTab", "vulnerability"));
     }
 
     @Test
@@ -67,6 +80,8 @@ class UrgentAlertPolicyTest {
 
         assertThat(content.title()).isEqualTo("긴급 보안 소식 4건이 들어왔어요");
         assertThat(content.body()).isEqualTo("악용 중 최신 것 외 3건");
+        assertThat(content.articleCount()).isEqualTo(4);
+        assertThat(content.articleId()).isNull();
     }
 
     @Test

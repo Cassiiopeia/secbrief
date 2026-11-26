@@ -6,6 +6,8 @@ import type { CollectSourceStatus } from '../models/collect-source-status';
 import type { TodayBriefing } from '../models/today-briefing';
 import type { TrendingKeyword } from '../models/trending-keyword';
 import type { TrendTopic, WeeklyTrend } from '../models/trend-topic';
+import { type ArticleBriefApiResponse, toArticleBrief, toNonBlankText } from './article-brief-mapper';
+import { toResponseGuideSections } from './response-guide-mapper';
 
 /** 서버 기사 응답 (enum 은 대문자 이름) */
 export interface ArticleApiResponse {
@@ -20,6 +22,8 @@ export interface ArticleApiResponse {
   sourceCode?: string | null;
   title: string;
   translatedTitle: string | null;
+  /** AI 한 줄 결론. 없으면 null, 이 필드가 생기기 전 서버는 아예 안 줌 */
+  oneLine?: string | null;
   originalUrl: string;
   /** 대표 이미지 경로. 이미지가 없으면 null, 이 필드가 생기기 전 서버는 아예 안 줌 */
   imagePath?: string | null;
@@ -80,8 +84,12 @@ export interface ArticleDetailApiResponse {
   keyPoints?: string[] | null;
   actionGuide?: string | null;
   isAiSummarized?: boolean | null;
+  /** AI 브리핑. 이전 방식 요약만 있으면 null, 이 필드가 생기기 전 서버는 아예 안 줌 */
+  brief?: ArticleBriefApiResponse | null;
   facts?: { label: string; value: string }[] | null;
   relatedItems?: ArticleApiResponse[] | null;
+  /** 대응 모아보기 (#71). 이 필드가 생기기 전 서버는 아예 안 줌 (모양은 response-guide-mapper 가 확인) */
+  responseGuideSections?: unknown;
 }
 
 export interface ArticleSearchApiResponse {
@@ -142,6 +150,7 @@ export function toBriefingItem(response: ArticleApiResponse): BriefingItem {
     keywords: response.keywords ?? [],
     title: response.title,
     translatedTitle: response.translatedTitle ? response.translatedTitle : undefined,
+    oneLine: toNonBlankText(response.oneLine),
     originalUrl: response.originalUrl,
     imagePath: response.imagePath ? response.imagePath : undefined,
     publisherName: response.publisherName,
@@ -153,6 +162,19 @@ export function toBriefingItem(response: ArticleApiResponse): BriefingItem {
     isKev: response.isKev,
     isUrgent: response.isUrgent,
   };
+}
+
+/** 기사 응답으로 읽을 수 있는 최소 모양 (번호·제목·원문 주소·게시일): 모양을 믿지 않는 응답(알림함·대응 모아보기)용 */
+export function isArticleApiResponse(value: unknown): value is ArticleApiResponse {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.id === 'number' &&
+    typeof candidate.title === 'string' &&
+    typeof candidate.originalUrl === 'string' &&
+    typeof candidate.publishedAt === 'string' &&
+    !Number.isNaN(new Date(candidate.publishedAt).getTime())
+  );
 }
 
 export function toTrendTopic(response: TrendTopicApiResponse): TrendTopic {
@@ -195,16 +217,19 @@ export function toTrendingKeywords(response: TrendingKeywordsApiResponse): Trend
   }));
 }
 
-/** 기사 상세 응답 > 상세 (요약이 아직 없으면 summary 없음·keyPoints 빈 배열, 없는 목록은 빈 배열) */
+/** 기사 상세 응답 > 상세 (요약이 아직 없으면 summary 없음·keyPoints 빈 배열, 없는 목록은 빈 배열, 브리핑·대응 모아보기는 읽을 수 있을 때만) */
 export function toArticleDetail(response: ArticleDetailApiResponse): ArticleDetail {
+  const article = toBriefingItem(response.article);
   return {
-    article: toBriefingItem(response.article),
+    article,
+    brief: toArticleBrief(response.brief, article.oneLine),
     summary: response.summary ? response.summary : undefined,
     keyPoints: response.keyPoints ?? [],
     actionGuide: response.actionGuide ? response.actionGuide : undefined,
     isAiSummarized: response.isAiSummarized === true,
     facts: (response.facts ?? []).map(({ label, value }) => ({ label, value })),
     relatedItems: (response.relatedItems ?? []).map(toBriefingItem),
+    responseGuideSections: toResponseGuideSections(response.responseGuideSections),
   };
 }
 

@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 요약 로컬 도구 진입점: 명령 7개 (recover, generate, apply-file, sample, evaluate, judge, evaluation-report)
- * 적재 실행 순서는 SB-Tool/run-summary-backfill.sh, 평가 실행 순서는 docs/summary-harness/evaluation.md
+ * 적재(브리핑 만들기) 실행 순서는 SB-Tool/run-summary-backfill.sh, 평가 실행 순서는 docs/summary-harness/evaluation.md
  * 요약 입력이 든 파일은 저장소 밖 임시 폴더에 두고 끝나면 지움
  */
 @Slf4j
@@ -31,7 +31,6 @@ public final class SummaryToolMain {
     // 동시 호출 수 기본값 (claude -p 1회 5~10초, 4개면 분당 30건 안팎: 구독 사용량 제한에 여유)
     private static final String DEFAULT_CONCURRENCY = "4";
     private static final String OPTION_PREFIX = "--";
-    private static final String BASELINE_VARIANT = "baseline";
 
     private SummaryToolMain() {
     }
@@ -71,11 +70,13 @@ public final class SummaryToolMain {
                 targetRows.size(), targetsWithoutSourceText.size(), recoveredSourceTextById.size());
     }
 
-    // 대상(입력 포함) > 요약 > --results (JSON Lines) + --report (마크다운)
+    // 대상(입력 포함) > 브리핑 > --results (JSON Lines) + --report (마크다운)
     private static void generate(Map<String, String> options) {
         Path resultsFile = toPath(options, "results");
-        new SummaryBackfillGenerator(new StructuredOutputArticleSummarizer(toGenerationClient(options)), toConcurrency(options))
+        ClaudePrintCompletionClient generationClient = toGenerationClient(options);
+        new SummaryBackfillGenerator(new StructuredOutputArticleSummarizer(generationClient), toConcurrency(options))
                 .generate(readTargets(options, "inputs"), resultsFile);
+        log.info("[summary backfill] token usage : {}", generationClient.toTokenUsageSummary());
         writeText(toPath(options, "report"), BackfillReport.toMarkdown(readResults(resultsFile)));
     }
 
@@ -93,17 +94,14 @@ public final class SummaryToolMain {
         log.info("[summary evaluation] sample written : count={}", sampleRows.size());
     }
 
-    // --variant baseline: 이전 지시문 + 호출 1회, 그 밖(harness): 하네스 지시문 + 고쳐 쓰기
+    // 지금의 작성 규칙으로 표본마다 요약 시도 1회 (작성 + 고쳐 쓰기). --variant 는 출력 줄과 보고서에 적히는 이름표
+    // 이전 판과 비교: 그 판의 커밋에서 같은 표본으로 만든 출력 파일을 함께 채점 (docs/summary-harness/evaluation.md)
     private static void evaluate(Map<String, String> options) {
-        String variantName = options.get("variant");
-        boolean isBaseline = BASELINE_VARIANT.equals(variantName);
-        StructuredCompletionClient generationClient = toGenerationClient(options);
-        new SummaryEvaluationRunner(
-                new StructuredOutputArticleSummarizer(
-                        isBaseline ? new BaselineInstructionCompletionClient(generationClient) : generationClient),
-                isBaseline ? 1 : ArticleSummaryHarness.MAXIMUM_MODEL_CALLS_PER_ATTEMPT,
-                toConcurrency(options))
-                .run(readTargets(options, "sample"), variantName, toPath(options, "output"));
+        ClaudePrintCompletionClient generationClient = toGenerationClient(options);
+        new SummaryEvaluationRunner(new StructuredOutputArticleSummarizer(generationClient),
+                ArticleSummaryHarness.MAXIMUM_MODEL_CALLS_PER_ATTEMPT, toConcurrency(options))
+                .run(readTargets(options, "sample"), options.get("variant"), toPath(options, "output"));
+        log.info("[summary evaluation] token usage : {}", generationClient.toTokenUsageSummary());
     }
 
     // --judge-model: 생성 모델보다 강한 모델 이름 (채점 전용)
@@ -120,7 +118,7 @@ public final class SummaryToolMain {
                 options.containsKey("scores") ? JsonLinesFile.readAll(toPath(options, "scores")) : List.of()));
     }
 
-    private static StructuredCompletionClient toGenerationClient(Map<String, String> options) {
+    private static ClaudePrintCompletionClient toGenerationClient(Map<String, String> options) {
         return new ClaudePrintCompletionClient(options.getOrDefault("claude", DEFAULT_CLAUDE_BINARY), GENERATION_MODEL,
                 toPath(options, "empty-directory"));
     }

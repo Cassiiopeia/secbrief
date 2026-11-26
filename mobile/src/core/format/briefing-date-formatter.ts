@@ -33,7 +33,7 @@ export function isDateOnly(dateTime: Date): boolean {
 }
 
 /** 시각 > 날짜 (예: 2026.11.23) */
-function toAbsoluteDate(dateTime: Date): string {
+export function toAbsoluteDate(dateTime: Date): string {
   return `${dateTime.getFullYear()}.${toTwoDigits(dateTime.getMonth() + 1)}.${toTwoDigits(dateTime.getDate())}`;
 }
 

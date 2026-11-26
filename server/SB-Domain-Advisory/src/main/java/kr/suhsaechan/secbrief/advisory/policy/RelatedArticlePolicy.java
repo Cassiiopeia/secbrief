@@ -2,6 +2,7 @@ package kr.suhsaechan.secbrief.advisory.policy;
 
 import java.time.Duration;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -28,11 +29,32 @@ public final class RelatedArticlePolicy {
      * 예: (CVE-2026-1111|CVE-2026-2222)(?!\d) — 뒤에 숫자가 이어지는 다른 번호는 제외
      */
     public static String toCveIdPattern(String cveId, String title) {
+        List<String> cveIds = findCveIds(cveId, title);
+        return cveIds.isEmpty() ? "" : "(" + String.join("|", cveIds) + ")(?!\\d)";
+    }
+
+    /**
+     * 기사의 CVE ID (전용 열 먼저 > 제목에 적힌 순서, 대문자, 중복 제거, 최대 5개)
+     */
+    public static List<String> findCveIds(String cveId, String title) {
         Set<String> cveIds = new LinkedHashSet<>();
-        Matcher matcher = CVE_ID.matcher((cveId == null ? "" : cveId) + " " + title);
+        Matcher matcher = CVE_ID.matcher((cveId == null ? "" : cveId) + " " + (title == null ? "" : title));
         while (matcher.find() && cveIds.size() < MAXIMUM_CVE_ID_COUNT) {
             cveIds.add(matcher.group().toUpperCase(Locale.ROOT));
         }
-        return cveIds.isEmpty() ? "" : "(" + String.join("|", cveIds) + ")(?!\\d)";
+        return List.copyOf(cveIds);
+    }
+
+    /**
+     * 다른 기사(CVE ID 열 + 제목)에 적힌 내 CVE ID 중 첫 번째 (없으면 null): 대응 모아보기의 "같은 CVE" 표시용
+     * 뒤에 숫자가 이어지는 다른 번호는 일치로 보지 않음 (CVE-2026-1111 <-> CVE-2026-11112)
+     */
+    public static String findSharedCveId(List<String> cveIds, String otherCveId, String otherTitle) {
+        String otherText = ((otherCveId == null ? "" : otherCveId) + " " + (otherTitle == null ? "" : otherTitle))
+                .toUpperCase(Locale.ROOT);
+        return cveIds.stream()
+                .filter(cveId -> Pattern.compile(Pattern.quote(cveId) + "(?!\\d)").matcher(otherText).find())
+                .findFirst()
+                .orElse(null);
     }
 }

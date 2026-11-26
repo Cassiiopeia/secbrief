@@ -35,17 +35,22 @@ export function SbBriefCard({ title, iconName, noticeLabel, tone = 'plain', chil
               {title}
             </SbText>
           </View>
-          {noticeLabel !== undefined && (
-            <View style={styles.notice}>
-              <MaterialIcons name="auto-awesome" size={NOTICE_ICON_SIZE} color={colors.tertiaryLabel} />
-              <SbText variant="caption" color={colors.tertiaryLabel}>
-                {noticeLabel}
-              </SbText>
-            </View>
-          )}
+          {noticeLabel !== undefined && <SbNoticeMark label={noticeLabel} color={colors.tertiaryLabel} />}
         </View>
         {children}
       </View>
+    </View>
+  );
+}
+
+/** 작은 안내 표시 (반짝 아이콘 + 글): AI 가 쓴 구역에 붙임. 색은 놓이는 바탕에 맞춰 받음 */
+export function SbNoticeMark({ label, color }: { label: string; color: string }) {
+  return (
+    <View style={noticeStyles.notice}>
+      <MaterialIcons name="auto-awesome" size={NOTICE_ICON_SIZE} color={color} />
+      <SbText variant="caption" color={color}>
+        {label}
+      </SbText>
     </View>
   );
 }
@@ -67,5 +72,8 @@ const createStyles = (colors: SbColors) =>
     emphasis: { borderWidth: EMPHASIS_BORDER_WIDTH, borderColor: colors.accent },
     header: { flexDirection: 'row', alignItems: 'center', gap: sbSpacing.small },
     title: { flex: 1 },
-    notice: { flexDirection: 'row', alignItems: 'center', gap: sbSpacing.extraSmall },
   });
+
+const noticeStyles = StyleSheet.create({
+  notice: { flexDirection: 'row', alignItems: 'center', gap: sbSpacing.extraSmall },
+});

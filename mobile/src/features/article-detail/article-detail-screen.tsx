@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect } from 'react';
-import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { type LayoutChangeEvent, ScrollView, type ScrollViewInstance, Share, StyleSheet, View } from 'react-native';
 
 import { toAppFailure } from '@/core/error/app-failure';
 import {
@@ -28,21 +28,26 @@ import { openOriginalArticle } from '../articles/open-original-article';
 import { useMarkArticleRead } from '../articles/use-read-articles';
 import { toHashtagAccessibilityLabel } from '../keywords/keyword-view-state';
 import { openKeywordArticles } from '../keywords/open-keyword-articles';
+import { ARTICLE_DETAIL_FOCUSES, type ArticleDetailFocus } from '../navigation/app-routes';
 import { goBackOrHome } from '../navigation/go-back-or-home';
 import { ArticleDetailBrief } from './article-detail-brief';
 import { toOriginalButtonLabel, toShareMessage } from './article-detail-view';
 import { useArticleDetail } from './use-article-detail';
 
 const BACK_ACCESSIBILITY_LABEL = '뒤로';
+// 내려간 구역 머리가 화면 맨 위에 딱 붙지 않게 남기는 여백
+const FOCUS_SCROLL_TOP_INSET = sbSpacing.medium;
 
 /**
- * 기사 상세 화면 (탭 밖, 앱 안 브리프): 그림 > 배지·CVSS > 제목 > 출처·게시일 > 브리프(요약·핵심·대응·확인된 정보·함께 볼 소식)
+ * 기사 상세 화면 (탭 밖, 앱 안 브리프): 그림 > 배지·CVSS > 제목 > 출처·게시일 > 브리프(AI 브리핑·확인된 정보·대응 모아보기)
  * 아래 고정 줄에 원문 보기와 공유. 조회가 실패해도 넘겨받은 기본 정보와 원문 보기는 남음
+ * ?focus=responseGuide 로 열면 대응 모아보기가 그려진 뒤 한 번 그 위치로 내려감 (알림 상세에서 들어옴)
  */
 export function ArticleDetailScreen() {
-  const { articleId } = useLocalSearchParams<{ articleId: string }>();
+  const { articleId, focus } = useLocalSearchParams<{ articleId: string; focus?: string }>();
   const { detailQuery, article } = useArticleDetail(articleId ?? '');
   const markArticleRead = useMarkArticleRead();
+  const { scrollViewRef, onBriefLayout, onTargetLayout } = useFocusScroll(toArticleDetailFocus(focus));
 
   // 화면을 연 것으로 읽음 처리 (기기에만 저장)
   useEffect(() => {
@@ -52,9 +57,9 @@ export function ArticleDetailScreen() {
   return (
     <SbScreen>
       <SbScreenHeader title={article?.kindLabel} backAccessibilityLabel={BACK_ACCESSIBILITY_LABEL} onBackPress={goBackOrHome} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.content}>
         {article !== undefined && <ArticleDetailHeading article={article} />}
-        {renderBrief()}
+        <View onLayout={onBriefLayout}>{renderBrief()}</View>
       </ScrollView>
       {article !== undefined && (
         <SbBottomActionBar
@@ -85,8 +90,36 @@ export function ArticleDetailScreen() {
       return <SbErrorState message={failure.userMessage} errorCode={failure.errorCode} onRetry={() => detailQuery.refetch()} />;
     }
     if (article === undefined) return <SbEmptyState title="소식을 찾지 못했어요" description="이전 화면에서 다시 골라 주세요." />;
-    return <ArticleDetailBrief detail={detailQuery.data} />;
+    return <ArticleDetailBrief detail={detailQuery.data} onResponseGuideLayout={onTargetLayout} />;
   }
+}
+
+/** ?focus= 값 > 내려갈 구역 (모르는 값은 없음) */
+function toArticleDetailFocus(focus: string | undefined): ArticleDetailFocus | undefined {
+  return ARTICLE_DETAIL_FOCUSES.find((knownFocus) => knownFocus === focus);
+}
+
+/**
+ * 구역으로 한 번 내려가기: 브리프 구역 위치 + 구역 안 위치 > 스크롤 (둘 다 잰 뒤 1회, 다시 그려져도 반복하지 않음)
+ * focus 가 없으면 아무것도 하지 않음
+ */
+function useFocusScroll(focus: ArticleDetailFocus | undefined) {
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
+  const hasScrolledRef = useRef(false);
+  const [briefOffset, setBriefOffset] = useState<number>();
+  const [targetOffset, setTargetOffset] = useState<number>();
+
+  useEffect(() => {
+    if (focus === undefined || hasScrolledRef.current || briefOffset === undefined || targetOffset === undefined) return;
+    hasScrolledRef.current = true;
+    scrollViewRef.current?.scrollTo({ y: Math.max(briefOffset + targetOffset - FOCUS_SCROLL_TOP_INSET, 0), animated: true });
+  }, [focus, briefOffset, targetOffset]);
+
+  return {
+    scrollViewRef,
+    onBriefLayout: (event: LayoutChangeEvent) => setBriefOffset(event.nativeEvent.layout.y),
+    onTargetLayout: (event: LayoutChangeEvent) => setTargetOffset(event.nativeEvent.layout.y),
+  };
 }
 
 /** 상세 머리: 그림(+CVSS 게이지) > 배지(종류는 화면 제목에 있어 생략) > 제목 > (원문 제목) > 출처·게시일 > 해시태그 */

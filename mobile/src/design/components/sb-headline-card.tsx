@@ -4,6 +4,7 @@ import { useSbStyles, useSbTheme } from '../theme/use-sb-theme';
 import { type SbColors, sbMaximumLines, sbRadius, sbSize, sbSpacing, toSbArticleTitleColor } from '../tokens';
 import { SbArticleImage } from './sb-article-image';
 import type { SbArticleHashtags, SbArticleThumbnail } from './sb-article-row';
+import { type SbArticleSecondaryLine, SbArticleSecondaryLineText } from './sb-article-secondary-line';
 import { type SbBadgeContent, SbBadgeRow } from './sb-badge';
 import { SbCvssGauge, type SbCvssGaugeValue } from './sb-cvss-gauge';
 import { SbHashtagChips } from './sb-hashtag-chips';
@@ -14,8 +15,8 @@ interface SbHeadlineCardProps {
   /** rail 가로 레일 안 카드(고정 너비), wide 화면 너비 카드(목록 대표 자리) */
   layout: 'rail' | 'wide';
   title: string;
-  /** 번역 항목의 원문 제목 (작게) */
-  originalTitle?: string;
+  /** 제목 아래 작은 줄 (한 줄 결론 또는 번역 항목의 원문 제목) */
+  secondaryLine?: SbArticleSecondaryLine;
   /** 게시자 · 짧은 날짜 (· AI 번역) 줄 */
   metaLabel: string;
   badges: SbBadgeContent[];
@@ -30,11 +31,11 @@ interface SbHeadlineCardProps {
   onPress: () => void;
 }
 
-/** 큰 소식 카드: (그림 + CVSS 게이지) > 배지 > 큰 제목 > (원문 제목) > 게시자·날짜 > (해시태그) */
+/** 큰 소식 카드: (그림 + CVSS 게이지) > 배지 > 큰 제목 > (한 줄 결론 또는 원문 제목) > 게시자·날짜 > (해시태그) */
 export function SbHeadlineCard({
   layout,
   title,
-  originalTitle,
+  secondaryLine,
   metaLabel,
   badges,
   cover,
@@ -70,11 +71,7 @@ export function SbHeadlineCard({
             numberOfLines={sbMaximumLines.cardTitle}>
             {title}
           </SbText>
-          {originalTitle !== undefined && (
-            <SbText variant="caption" color={colors.tertiaryLabel} numberOfLines={sbMaximumLines.singleLine}>
-              {originalTitle}
-            </SbText>
-          )}
+          {secondaryLine !== undefined && <SbArticleSecondaryLineText secondaryLine={secondaryLine} />}
           <SbText variant="timeLabel" color={colors.tertiaryLabel} numberOfLines={sbMaximumLines.singleLine}>
             {metaLabel}
           </SbText>

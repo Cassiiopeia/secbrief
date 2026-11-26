@@ -3,6 +3,7 @@
  */
 export * from './components/sb-article-image';
 export * from './components/sb-article-row';
+export * from './components/sb-article-secondary-line';
 export * from './components/sb-badge';
 export * from './components/sb-bottom-action-bar';
 export * from './components/sb-bottom-tab-bar';
@@ -41,8 +42,16 @@ export * from './components/sb-stream-rail';
 export * from './components/sb-switch-row';
 export * from './components/sb-tab-page-scaffold';
 export * from './components/sb-text';
+export * from './components/sb-time-picker-row';
 export * from './components/sb-timeline';
+export * from './components/sb-unread-dot';
 export * from './components/sb-urgent-tile';
 export * from './theme/use-is-motion-reduced';
 export * from './theme/use-sb-theme';
 export * from './tokens';
+
+// 움직임·상태 그림 보강 (#75): 조건부 구역 펼침, 상태 그림, 알림 막대
+export * from './components/sb-reveal';
+export { type SbStateIllustrationKind } from './components/sb-state-illustration-sources';
+export * from './components/sb-toast-host';
+export { showSbToast } from './components/sb-toast-store';

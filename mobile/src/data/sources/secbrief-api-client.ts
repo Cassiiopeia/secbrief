@@ -6,6 +6,8 @@ import {
   TIMEOUT_ERROR_CODE,
 } from '@/core/error/app-failure';
 
+import { isObject } from '../mappers/unknown-value-guards';
+
 /** 쿼리 값: undefined 는 주소에서 뺌 */
 export type ApiQueryParameters = Record<string, string | undefined>;
 
@@ -85,10 +87,6 @@ function toServerFailure(status: number, body: unknown): AppFailure {
 
 function toInvalidResponseFailure(): AppFailure {
   return new AppFailure(INVALID_RESPONSE_ERROR_CODE, '서버 응답을 읽지 못했어요.');
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 function isApiErrorBody(body: unknown): body is ApiErrorBody {

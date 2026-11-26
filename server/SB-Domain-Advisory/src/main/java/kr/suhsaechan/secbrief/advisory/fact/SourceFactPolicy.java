@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import kr.suhsaechan.secbrief.common.text.TextTruncation;
 
 /**
  * 사실 값 정리·병합 규칙 (값은 고치지 않고 다듬기만 함)
@@ -76,15 +77,12 @@ public final class SourceFactPolicy {
         return text == null ? "" : WHITESPACE_OR_CONTROL_RUN.matcher(text).replaceAll(" ").strip();
     }
 
-    // 길이 제한 (잘린 끝이 서로게이트 쌍 절반이면 그 글자는 뺌)
+    // 길이 제한 (넘으면 … 표시 포함 최대 길이)
     private static String truncate(String value) {
         if (value.length() <= MAXIMUM_VALUE_LENGTH) {
             return value;
         }
-        int endIndex = MAXIMUM_VALUE_LENGTH - TRUNCATION_MARK.length();
-        if (Character.isHighSurrogate(value.charAt(endIndex - 1))) {
-            endIndex--;
-        }
-        return value.substring(0, endIndex) + TRUNCATION_MARK;
+        return TextTruncation.truncateKeepingSurrogatePairs(value, MAXIMUM_VALUE_LENGTH - TRUNCATION_MARK.length())
+                + TRUNCATION_MARK;
     }
 }

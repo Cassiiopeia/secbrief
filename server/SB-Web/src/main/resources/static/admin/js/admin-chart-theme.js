@@ -15,7 +15,8 @@
         magenta: ['#ee7fac', '#e24d8b'],
         green: ['#008a17', '#0aac23'],
         violet: ['#6a4ce2', '#9887ef'],
-        red: ['#ec4647', '#eb6263']
+        red: ['#ec4647', '#eb6263'],
+        brown: ['#9a6b3f', '#c08a5a']
     };
     // 줄 key(서버 응답 series.key) > 색
     const SERIES_COLOR_BY_KEY = {
@@ -27,7 +28,7 @@
         AI_SUCCESS: PALETTE.blue,
         AI_FAILURE: PALETTE.red,
         AI_COST: PALETTE.violet,
-        // 이용 추이: ApiUsageGroup (화면 묶음 8개, 팔레트 순서 그대로)
+        // 이용 추이: ApiUsageGroup (화면 묶음 9개, 팔레트 순서 그대로)
         TODAY: PALETTE.blue,
         ARTICLE_LIST: PALETTE.orange,
         ARTICLE_DETAIL: PALETTE.aqua,
@@ -36,6 +37,7 @@
         TREND: PALETTE.green,
         SOURCE: PALETTE.violet,
         PUSH_DEVICE: PALETTE.red,
+        NOTIFICATION: PALETTE.brown,
         // 알림 기기 등록 추이
         REGISTERED: PALETTE.blue
     };

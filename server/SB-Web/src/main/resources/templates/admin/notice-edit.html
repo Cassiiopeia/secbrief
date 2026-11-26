@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{admin/fragments/admin-layout :: page('공지사항 고치기', 'notices', ~{::content})}">
+<body>
+
+<main th:fragment="content" class="flex-1 space-y-6 p-4 lg:p-6">
+  <div th:replace="~{admin/fragments/admin-ui :: pageHeader('공지사항 고치기',
+       '고친 내용은 앱 알림함에 바로 보여요. 푸시는 다시 보내지 않아요.')}"></div>
+
+  <section class="card max-w-3xl border border-base-300 bg-base-100">
+    <form th:action="@{/admin/notices/{noticeId}(noticeId=${noticeId})}" method="post" class="card-body gap-4"
+          data-confirm-title="공지사항을 고칠까요?" data-confirm-label="저장"
+          data-confirm-message="앱 알림함의 공지가 바로 바뀌어요.">
+      <th:block th:replace="~{admin/fragments/notice-form :: fields(${noticeForm}, ${maximumTitleLength}, ${maximumBodyLength})}"></th:block>
+      <div class="card-actions justify-end">
+        <a class="btn btn-ghost" th:href="@{/admin/notices}">목록으로</a>
+        <button type="submit" class="btn btn-primary">저장</button>
+      </div>
+    </form>
+  </section>
+</main>
+
+</body>
+</html>

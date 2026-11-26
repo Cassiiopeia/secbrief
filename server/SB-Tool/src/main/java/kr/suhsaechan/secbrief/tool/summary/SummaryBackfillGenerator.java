@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 밀린 요약 만들기: 대상마다 입력 확인 > 요약 시도 최대 3회 (운영과 같은 ArticleSummaryHarness·검증) > 결과 파일에 한 줄
+ * 브리핑 만들기 (밀린 요약, 이전 구조 요약의 다시 쓰기): 대상마다 입력 확인 > 요약 시도 최대 3회 (운영과 같은 ArticleSummaryHarness·검증) > 결과 파일에 한 줄
  * 결과 파일에 이미 있는 기사는 건너뜀 (중간에 멈춘 뒤 이어서 돌리기), 제공자 호출 실패는 그 건을 적지 않고 전체를 멈춤
  */
 @Slf4j
@@ -48,10 +48,10 @@ public class SummaryBackfillGenerator {
     // 기사 1건: 입력 없음·내용 없음은 제공자를 부르지 않음, 시도마다 작성 + 고쳐 쓰기 (호출 최대 2회)
     BackfillResult generateOne(BackfillTarget target) {
         if (!target.hasSourceText()) {
-            return BackfillResult.withoutSummary(target, BackfillResult.Status.NOT_RECOVERABLE);
+            return BackfillResult.withoutBrief(target, BackfillResult.Status.NOT_RECOVERABLE);
         }
         if (!SourceTextPolicy.isWorthSummarizing(target.sourceText(), target.title())) {
-            return BackfillResult.withoutSummary(target, BackfillResult.Status.INPUT_TOO_THIN);
+            return BackfillResult.withoutBrief(target, BackfillResult.Status.INPUT_TOO_THIN);
         }
         int modelCallCount = 0;
         String failureReason = null;
@@ -60,7 +60,7 @@ public class SummaryBackfillGenerator {
             modelCallCount += attempt.modelCallCount();
             if (attempt.isAccepted()) {
                 return new BackfillResult(target.id(), target.sourceCode(), BackfillResult.Status.ACCEPTED,
-                        attempt.acceptedSummary(), attemptNumber, modelCallCount, attempt.isRepairedSummaryUsed(), null);
+                        attempt.acceptedBrief(), attemptNumber, modelCallCount, attempt.isRepairedBriefUsed(), null);
             }
             failureReason = attempt.failureReason();
         }

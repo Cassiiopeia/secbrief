@@ -76,7 +76,7 @@ export function SearchScreen() {
     const now = new Date();
     const rowViews = searchResultQuery.data.items.map((item) => toArticleRowView(item, now));
     if (rowViews.length === 0) {
-      return <SbEmptyState iconName="search-off" title="찾는 소식이 없어요" description="다른 낱말로 다시 찾아 주세요." />;
+      return <SbEmptyState illustration="searchEmpty" title="찾는 소식이 없어요" description="다른 낱말로 다시 찾아 주세요." />;
     }
     return (
       <>
@@ -98,7 +98,7 @@ function TrendingKeywordSection() {
   const trendingKeywordsQuery = useTrendingKeywords();
   const trendingHashtags = toTrendingHashtags(trendingKeywordsQuery.data ?? []);
   if (trendingHashtags.length === 0) {
-    return <SbEmptyState iconName="search" title="무엇을 찾을까요?" description="두 글자 이상 입력하면 소식을 찾아 드려요." />;
+    return <SbEmptyState illustration="searchIdle" title="무엇을 찾을까요?" description="두 글자 이상 입력하면 소식을 찾아 드려요." />;
   }
   return (
     <SbEntrance order={0}>

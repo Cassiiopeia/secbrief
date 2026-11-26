@@ -5,7 +5,7 @@ import { SbEmptyState, SbErrorState, SbLoadingSkeleton, SbMasthead, SbScreen, cr
 
 import { usePullRefresh } from '../articles/use-pull-refresh';
 import { TodayBriefingContent } from './today-briefing-content';
-import { SEARCH_MASTHEAD_ACTION } from '../search/search-action';
+import { useTabMastheadActions } from '../notifications/use-tab-masthead-actions';
 import { useKisaAlertLevel } from './use-kisa-alert-level';
 import { useTodayBriefing } from './use-today-briefing';
 
@@ -13,6 +13,7 @@ const MASTHEAD_TITLE_LINES = ['SEC', 'BRIEF'];
 
 /** 오늘 탭: 경보단계 띠 > 주요 소식 > 긴급 > 숫자 > 주제 바로가기 > 최신 스트림. 당겨서 새로고침 */
 export function TodayScreen() {
+  const mastheadActions = useTabMastheadActions();
   const { colors } = useSbTheme();
   const briefingQuery = useTodayBriefing();
   const alertLevelQuery = useKisaAlertLevel();
@@ -34,7 +35,7 @@ export function TodayScreen() {
       const failure = toAppFailure(briefingQuery.error);
       return (
         <>
-          <SbMasthead titleLines={MASTHEAD_TITLE_LINES} action={SEARCH_MASTHEAD_ACTION} />
+          <SbMasthead titleLines={MASTHEAD_TITLE_LINES} actions={mastheadActions} />
           <SbErrorState
             message={failure.userMessage}
             errorCode={failure.errorCode}
@@ -47,7 +48,7 @@ export function TodayScreen() {
     if (briefingQuery.isPending || alertLevelQuery.isPending) {
       return (
         <>
-          <SbMasthead titleLines={MASTHEAD_TITLE_LINES} action={SEARCH_MASTHEAD_ACTION} />
+          <SbMasthead titleLines={MASTHEAD_TITLE_LINES} actions={mastheadActions} />
           <SbLoadingSkeleton />
         </>
       );
@@ -58,9 +59,9 @@ export function TodayScreen() {
           <SbMasthead
             titleLines={MASTHEAD_TITLE_LINES}
             trailingLines={briefingQuery.data.mastheadTrailingLines}
-            action={SEARCH_MASTHEAD_ACTION}
+            actions={mastheadActions}
           />
-          <SbEmptyState title="오늘은 새 소식이 없어요" description="새 소식이 올라오면 여기에 보여 드릴게요." />
+          <SbEmptyState illustration="feedEmpty" title="오늘은 새 소식이 없어요" description="새 소식이 올라오면 여기에 보여 드릴게요." />
         </>
       );
     }

@@ -24,7 +24,8 @@ import kr.suhsaechan.secbrief.advisory.constant.SourceCode;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.policy.ArticleDraft;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
-import kr.suhsaechan.secbrief.advisory.summary.ArticleSummary;
+import kr.suhsaechan.secbrief.advisory.summary.AffectedTarget;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleBrief;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryOutcome;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryRequest;
 import kr.suhsaechan.secbrief.advisory.summary.SummaryWritingKind;
@@ -47,8 +48,10 @@ class ArticleSummaryProcessServiceTest {
     private static final long TICK_BUDGET_SECONDS = 90;
     private static final int DAILY_LIMIT = 300;
     private static final String SOURCE_TEXT = "Attackers are exploiting a flaw in Example VPN 2.4.0 to steal session tokens.";
-    private static final ArticleSummary SUMMARY =
-            new ArticleSummary("Example VPN 2.4.0 결함이 악용되고 있어요.", List.of("세션 토큰을 노려요."), null);
+    private static final ArticleBrief BRIEF =
+            new ArticleBrief("Example VPN 결함으로 세션 토큰이 털리고 있어요.",
+                    "공격자가 Example VPN 2.4.0의 결함을 악용하고 있어요.", null, List.of(new AffectedTarget("Example VPN", "2.4.0")),
+                    List.of());
 
     private final FakeArticleSummarizer fakeSummarizer = new FakeArticleSummarizer();
     private final ArticleRepository articleRepository = mock(ArticleRepository.class);
@@ -68,8 +71,8 @@ class ArticleSummaryProcessServiceTest {
 
     @Test
     void summarizesEachPendingArticleInItsOwnCallAndRecordsSuccess() {
-        fakeSummarizer.respondTo("First headline", ArticleSummaryOutcome.succeeded(SUMMARY));
-        fakeSummarizer.respondTo("Second headline", ArticleSummaryOutcome.succeeded(SUMMARY));
+        fakeSummarizer.respondTo("First headline", ArticleSummaryOutcome.succeeded(BRIEF));
+        fakeSummarizer.respondTo("Second headline", ArticleSummaryOutcome.succeeded(BRIEF));
         givenPendingArticles(createArticle(1L, "First headline"), createArticle(2L, "Second headline"));
         when(recorder.recordSuccess(anyLong(), any(), any())).thenReturn(true);
 
@@ -81,14 +84,14 @@ class ArticleSummaryProcessServiceTest {
                         SummaryWritingKind.NEWS_ARTICLE, SOURCE_TEXT),
                 new ArticleSummaryRequest("Second headline", ArticleRegion.OVERSEAS, ArticleKind.NEWS,
                         SummaryWritingKind.NEWS_ARTICLE, SOURCE_TEXT));
-        verify(recorder).recordSuccess(1L, SOURCE_TEXT, SUMMARY);
-        verify(recorder).recordSuccess(2L, SOURCE_TEXT, SUMMARY);
+        verify(recorder).recordSuccess(1L, SOURCE_TEXT, BRIEF);
+        verify(recorder).recordSuccess(2L, SOURCE_TEXT, BRIEF);
     }
 
     @Test
     void failedOutcomeRecordsFailureWithoutFailingOthers() {
         fakeSummarizer.respondTo("Refused headline", ArticleSummaryOutcome.failed("refused"));
-        fakeSummarizer.respondTo("Answered headline", ArticleSummaryOutcome.succeeded(SUMMARY));
+        fakeSummarizer.respondTo("Answered headline", ArticleSummaryOutcome.succeeded(BRIEF));
         givenPendingArticles(createArticle(1L, "Refused headline"), createArticle(2L, "Answered headline"));
         when(recorder.recordSuccess(anyLong(), any(), any())).thenReturn(true);
 
@@ -96,13 +99,14 @@ class ArticleSummaryProcessServiceTest {
 
         assertThat(result).isEqualTo(new SummaryProcessResult(1, 1, false));
         verify(recorder).recordFailure(1L, SOURCE_TEXT);
-        verify(recorder).recordSuccess(2L, SOURCE_TEXT, SUMMARY);
+        verify(recorder).recordSuccess(2L, SOURCE_TEXT, BRIEF);
     }
 
     @Test
     void summaryWithInventedNumberIsRecordedAsFailure() {
         fakeSummarizer.respondTo("First headline", ArticleSummaryOutcome.succeeded(
-                new ArticleSummary("Example VPN 2.4.1 버전으로 올려야 해요.", List.of(), null)));
+                new ArticleBrief("Example VPN 결함으로 세션 토큰이 털리고 있어요.",
+                        "Example VPN 2.4.1 버전으로 올려야 해요.", null, List.of(), List.of())));
         givenPendingArticles(createArticle(1L, "First headline"));
 
         SummaryProcessResult result = service.processPendingSummaries();
@@ -116,7 +120,7 @@ class ArticleSummaryProcessServiceTest {
     void providerCallFailureKeepsArticlesPendingAndStopsTick() {
         // 제공자 장애: 시도 횟수를 쓰지 않고(기록 없음) 남은 건도 부르지 않음
         fakeSummarizer.failCallFor("First headline");
-        fakeSummarizer.respondTo("Second headline", ArticleSummaryOutcome.succeeded(SUMMARY));
+        fakeSummarizer.respondTo("Second headline", ArticleSummaryOutcome.succeeded(BRIEF));
         givenPendingArticles(createArticle(1L, "First headline"), createArticle(2L, "Second headline"));
 
         SummaryProcessResult result = service.processPendingSummaries();
@@ -128,9 +132,9 @@ class ArticleSummaryProcessServiceTest {
 
     @Test
     void recordsFailureWhenSuccessRecordThrows() {
-        fakeSummarizer.respondTo("First headline", ArticleSummaryOutcome.succeeded(SUMMARY));
+        fakeSummarizer.respondTo("First headline", ArticleSummaryOutcome.succeeded(BRIEF));
         givenPendingArticles(createArticle(1L, "First headline"));
-        doThrow(new IllegalStateException("db")).when(recorder).recordSuccess(1L, SOURCE_TEXT, SUMMARY);
+        doThrow(new IllegalStateException("db")).when(recorder).recordSuccess(1L, SOURCE_TEXT, BRIEF);
 
         assertThat(service.processPendingSummaries()).isEqualTo(new SummaryProcessResult(0, 1, false));
         verify(recorder).recordFailure(1L, SOURCE_TEXT);
@@ -138,7 +142,7 @@ class ArticleSummaryProcessServiceTest {
 
     @Test
     void countsNeitherDoneNorFailedWhenSourceTextChangedWhileSummarizing() {
-        fakeSummarizer.respondTo("First headline", ArticleSummaryOutcome.succeeded(SUMMARY));
+        fakeSummarizer.respondTo("First headline", ArticleSummaryOutcome.succeeded(BRIEF));
         givenPendingArticles(createArticle(1L, "First headline"));
         when(recorder.recordSuccess(anyLong(), any(), any())).thenReturn(false);
 
@@ -170,8 +174,8 @@ class ArticleSummaryProcessServiceTest {
     @Test
     void stopsCallingProviderAfterDailyLimitUntilNextSeoulDay() {
         ArticleSummaryProcessService limitedService = createService(3);
-        fakeSummarizer.respondTo("A", ArticleSummaryOutcome.succeeded(SUMMARY));
-        fakeSummarizer.respondTo("B", ArticleSummaryOutcome.succeeded(SUMMARY));
+        fakeSummarizer.respondTo("A", ArticleSummaryOutcome.succeeded(BRIEF));
+        fakeSummarizer.respondTo("B", ArticleSummaryOutcome.succeeded(BRIEF));
         when(recorder.recordSuccess(anyLong(), any(), any())).thenReturn(true);
         givenPendingArticles(createArticle(1L, "A"), createArticle(2L, "B"));
 
@@ -194,7 +198,7 @@ class ArticleSummaryProcessServiceTest {
 
     @Test
     void leavesRemainingArticlesForNextTickWhenTickBudgetIsSpent() {
-        fakeSummarizer.respondTo("A", ArticleSummaryOutcome.succeeded(SUMMARY));
+        fakeSummarizer.respondTo("A", ArticleSummaryOutcome.succeeded(BRIEF));
         when(recorder.recordSuccess(anyLong(), any(), any())).thenAnswer(invocation -> {
             // 첫 건 처리에 틱 시간 상한을 다 씀
             clock.advance(Duration.ofSeconds(TICK_BUDGET_SECONDS + 1));

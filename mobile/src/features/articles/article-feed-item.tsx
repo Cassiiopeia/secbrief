@@ -22,7 +22,7 @@ interface ArticleFeedItemProps {
 
 /**
  * 소식 한 건 표현 (모든 목록·레일 공통): 표현 크기에 맞는 디자인 컴포넌트 고르기, 누르면 앱 안 상세, 해시태그 누르면 키워드 목록
- * 배지는 2개까지 (조밀한 행은 분류 배지 없이), 해시태그는 카드에만. 읽은 소식은 제목을 흐리게
+ * 배지는 2개까지 (조밀한 행은 분류 배지 없이), 해시태그는 카드에만. 읽은 소식은 제목을 흐리게. 제목 아래 줄은 한 줄 결론 우선
  */
 export function ArticleFeedItem({ rowView, presentation, headlineLayout = 'wide', impliedKind }: ArticleFeedItemProps) {
   const openArticle = useArticleOpener();
@@ -40,7 +40,7 @@ export function ArticleFeedItem({ rowView, presentation, headlineLayout = 'wide'
       <SbHeadlineCard
         layout={headlineLayout}
         title={rowView.title}
-        originalTitle={rowView.originalTitle}
+        secondaryLine={rowView.secondaryLine}
         metaLabel={rowView.compactMetaLabel}
         badges={badges}
         cover={rowView.cover}
@@ -56,7 +56,7 @@ export function ArticleFeedItem({ rowView, presentation, headlineLayout = 'wide'
     <SbArticleRow
       density={isCompact ? 'compact' : 'card'}
       title={rowView.title}
-      originalTitle={rowView.originalTitle}
+      secondaryLine={rowView.secondaryLine}
       metaLabel={rowView.compactMetaLabel}
       badges={badges}
       cvss={rowView.cvss}

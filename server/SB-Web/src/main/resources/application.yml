@@ -158,3 +158,10 @@ secbrief:
       access-token: ${EXPO_ACCESS_TOKEN:}
       # 우리 앱의 Expo 프로젝트 이름 (@계정/slug): 다른 프로젝트 토큰이 섞여 들어오면 가려내는 기준
       experience-id: ${EXPO_EXPERIENCE_ID:}
+  notification:
+    # 알림함 보관 정리 켜기 (30일 지난 긴급 알림 기록 삭제, 공지사항은 지우지 않음)
+    retention-enabled: true
+    # 보관 정리 틱 (6시간)
+    retention-tick-milliseconds: 21600000
+    # 기동 후 첫 정리까지 대기 (10분)
+    retention-initial-delay-milliseconds: 600000
