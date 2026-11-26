@@ -15,6 +15,8 @@ spring:
       hibernate:
         jdbc:
           time_zone: Asia/Seoul
+        # 지연 로딩 묶음 조회: 기사 목록이 출처를 기사마다 따로 읽지 않게 (출처는 10곳 안팎)
+        default_batch_fetch_size: 50
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -41,12 +43,85 @@ secbrief:
   ai:
     # AI 스케줄러 켜기 (false: AI 처리 안 함, 기사는 원문 제목·general 로 보임)
     enabled: ${AI_ENABLED:true}
+    # AI 제공자: anthropic, ollama (모르는 값이면 경고 로그만 남기고 AI 처리를 건너뜀)
+    provider: ${AI_PROVIDER:anthropic}
     # Anthropic API 키 (비어 있으면 AI 처리를 건너뜀, 로그에 남기지 않음)
     anthropic-api-key: ${ANTHROPIC_API_KEY:}
     model: claude-haiku-5-5
+    ollama:
+      # Ollama 서버 주소 (예: http://host:11434, 주소나 모델이 비어 있으면 AI 처리를 건너뜀, 로그에 남기지 않음)
+      base-url: ${OLLAMA_BASE_URL:}
+      # Ollama 모델 이름 (서버에 내려받아 둔 것, 구조화 출력 format 지원 모델)
+      model: ${OLLAMA_MODEL:}
+      # 인증 프록시용 키 (있으면 Authorization: Bearer 로 보냄, 로그에 남기지 않음)
+      api-key: ${OLLAMA_API_KEY:}
     # 한 틱에 처리할 기사 수
     batch-size: 20
+    # API 호출 1회에 묶어 보낼 기사 수 (batch-size 를 이 크기로 나눠 호출)
+    request-batch-size: 10
     # AI 틱 (5분)
     tick-milliseconds: 300000
     # 기동 후 첫 틱까지 대기 (90초: 첫 수집 이후)
     initial-delay-milliseconds: 90000
+  summary:
+    # 기사 요약 스케줄러 켜기 (false: 요약 안 함, 상세 화면은 제목·사실 값·원문 링크로 열림). 제공자·모델은 ai.* 를 같이 씀
+    enabled: ${SUMMARY_ENABLED:true}
+    # 한 틱에 처리할 기사 수 (한 호출에 1건)
+    batch-size: 10
+    # 한 틱이 새 건을 시작할 수 있는 시간 (초): 넘으면 남은 건은 다음 틱에 (수집·알림 틱이 밀리지 않게)
+    tick-budget-seconds: 90
+    # 하루(서울 날짜) 요약 호출 상한: 대기열이 몰려도 AI 비용이 하루 상한을 넘지 않게 (남은 건은 다음 날, 중요도 높은 순)
+    daily-limit: ${SUMMARY_DAILY_LIMIT:300}
+    # 요약 틱 (3분)
+    tick-milliseconds: 180000
+    # 기동 후 첫 틱까지 대기 (210초: 첫 수집·제목 분석 이후)
+    initial-delay-milliseconds: 210000
+  image:
+    # 기사 대표 이미지 스케줄러 켜기 (false: 내려받기·저장 안 함, 기사는 이미지 없이 보임)
+    enabled: ${IMAGE_ENABLED:true}
+    # 한 틱에 처리할 기사 수
+    batch-size: 20
+    # 한 틱이 새 건을 시작할 수 있는 시간 (초): 넘으면 남은 건은 다음 틱에 (수집·알림 틱이 밀리지 않게)
+    tick-budget-seconds: 60
+    # 이미지 틱 (2분)
+    tick-milliseconds: 120000
+    # 기동 후 첫 틱까지 대기 (150초: 첫 수집 이후)
+    initial-delay-milliseconds: 150000
+  embedding:
+    # 제목 임베딩(의미 검색) 켜기 (false: 임베딩 스케줄러를 만들지 않고 검색은 글자 일치로만 동작)
+    enabled: ${EMBEDDING_ENABLED:true}
+    ollama:
+      # Ollama 임베딩 모델 이름 (서버에 내려받아 둔 것, 비어 있으면 임베딩을 건너뜀). 주소·키는 ai.ollama.base-url·api-key 를 같이 씀
+      model: ${OLLAMA_EMBEDDING_MODEL:}
+    # 의미 검색 결과로 받아들일 최소 코사인 유사도 (0~1, 모델마다 분포가 달라 바꾼 뒤 조정)
+    minimum-similarity: 0.5
+    # 한 틱에 처리할 기사 수
+    batch-size: 100
+    # 제공자 호출 1회에 묶어 보낼 기사 수 (batch-size 를 이 크기로 나눠 호출)
+    request-batch-size: 25
+    # 임베딩 틱 (5분)
+    tick-milliseconds: 300000
+    # 기동 후 첫 틱까지 대기 (210초: 첫 수집·AI 틱 이후)
+    initial-delay-milliseconds: 210000
+  image-storage:
+    # MinIO 주소 (예: http://host:9000, 주소·키 중 하나라도 비어 있으면 이미지 처리를 건너뜀, 로그에 남기지 않음)
+    endpoint: ${MINIO_ENDPOINT:}
+    access-key: ${MINIO_ACCESS_KEY:}
+    secret-key: ${MINIO_SECRET_KEY:}
+    # 버킷 이름 (없으면 첫 저장 때 만듦)
+    bucket: ${MINIO_BUCKET:secbrief}
+  push:
+    # 긴급 알림 켜기 (false: 발송·접수증 확인 안 함, 기기 등록 API 는 그대로 받음)
+    enabled: ${PUSH_ENABLED:true}
+    # 긴급 알림 틱 (5분): 새 긴급 소식을 묶어 기기마다 1건
+    alert-tick-milliseconds: 300000
+    # 기동 후 첫 틱까지 대기 (2분: 첫 수집 이후)
+    alert-initial-delay-milliseconds: 120000
+    # 접수증 확인 틱 (15분): 무효 토큰 기기 정리
+    receipt-tick-milliseconds: 900000
+    receipt-initial-delay-milliseconds: 180000
+    expo:
+      # Expo 발송 보안을 켠 경우에만 필요 (로그에 남기지 않음)
+      access-token: ${EXPO_ACCESS_TOKEN:}
+      # 우리 앱의 Expo 프로젝트 이름 (@계정/slug): 다른 프로젝트 토큰이 섞여 들어오면 가려내는 기준
+      experience-id: ${EXPO_EXPERIENCE_ID:}

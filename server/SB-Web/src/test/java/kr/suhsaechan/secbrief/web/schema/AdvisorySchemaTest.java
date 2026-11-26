@@ -49,17 +49,21 @@ class AdvisorySchemaTest extends PostgresContainerTestSupport {
     @Test
     void flywayMigratesAndJpaValidatesSchema() {
         // 컨텍스트가 뜨면 ddl-auto=validate 통과
-        assertThat(sourceRepository.count()).isEqualTo(7);
+        assertThat(sourceRepository.count()).isEqualTo(15);
     }
 
     @Test
-    void seedsSevenEnabledSourcesWithSpecIntervals() {
+    void seedsEnabledSourcesWithSpecIntervals() {
         Map<String, Integer> intervalByCode = sourceRepository.findAllByIsEnabledTrueOrderByIdAsc().stream()
                 .collect(toMap(Source::getCode, Source::getIntervalMinutes));
 
-        assertThat(intervalByCode).containsExactlyInAnyOrderEntriesOf(Map.of(
-                "KISA", 30, "CISA_KEV", 360, "NVD", 120, "DAILYSECU", 30, "THE_HACKER_NEWS", 30,
-                "BLEEPING_COMPUTER", 30, "GHSA", 120));
+        // Map.of 는 10쌍까지라 ofEntries 사용
+        assertThat(intervalByCode).containsExactlyInAnyOrderEntriesOf(Map.ofEntries(
+                Map.entry("KISA", 30), Map.entry("CISA_KEV", 360), Map.entry("NVD", 120), Map.entry("DAILYSECU", 30),
+                Map.entry("THE_HACKER_NEWS", 30), Map.entry("BLEEPING_COMPUTER", 30), Map.entry("GHSA", 120),
+                Map.entry("KISA_VULNERABILITY", 60), Map.entry("KISA_REPORT", 120), Map.entry("KISA_ALERT_LEVEL", 60),
+                Map.entry("UBUNTU_USN", 120), Map.entry("DEBIAN_DSA", 120), Map.entry("REDHAT_RHSA", 120),
+                Map.entry("NODEJS_SECURITY", 360), Map.entry("GHSA_HIGH", 120)));
     }
 
     @Test

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import kr.suhsaechan.secbrief.advisory.constant.AiStatus;
+import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
@@ -29,7 +30,7 @@ class ArticleAiStateTest {
 
     @Test
     void appliesAnalysisAndMarksDone() {
-        article.applyAiAnalysis(ArticleTopic.RANSOMWARE, "번역");
+        article.applyAiAnalysis(ArticleTopic.RANSOMWARE, "번역", ArticleImportance.ROUTINE, null);
 
         assertThat(article.getTopic()).isEqualTo(ArticleTopic.RANSOMWARE);
         assertThat(article.getTranslatedTitle()).isEqualTo("번역");

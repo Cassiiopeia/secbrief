@@ -9,12 +9,14 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
+import kr.suhsaechan.secbrief.advisory.fact.SourceFact;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import org.junit.jupiter.api.Test;
 
 /**
  * KEV 카탈로그 파싱: 항목 > 수집 원본 매핑, since 이전 항목 버림, 형식 오류
+ * 요약 입력(설명 + 조치 문구), 사실 값(제조사·제품, 조치 요구, 조치 기한, 랜섬웨어 악용, CWE)은 카탈로그 값 그대로
  */
 class KevCatalogParserTest {
 
@@ -39,6 +41,42 @@ class KevCatalogParserTest {
         assertThat(article.cvssVersion()).isNull();
         assertThat(article.publishedAt()).isEqualTo(Instant.parse("2026-11-20T00:00:00Z"));
         assertThat(article.publisherName()).isEqualTo("CISA KEV");
+    }
+
+    @Test
+    void takesSourceTextFromShortDescriptionAndRequiredAction() {
+        CollectedArticle article = parse(openFixture(), Instant.EPOCH).get(0);
+
+        assertThat(article.sourceText()).isEqualTo(
+                "ExampleVendor ExampleServer contains a deserialization of untrusted data vulnerability that allows a remote attacker to execute arbitrary code."
+                        + " Required action: Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable.");
+    }
+
+    @Test
+    void takesFactsExactlyAsWrittenInCatalog() {
+        List<CollectedArticle> articles = parse(openFixture(), Instant.EPOCH);
+
+        assertThat(articles.get(0).sourceFacts()).containsExactly(
+                new SourceFact("제조사·제품", "ExampleVendor ExampleServer"),
+                new SourceFact("조치 요구", "Apply mitigations per vendor instructions or discontinue use of the product if mitigations are unavailable."),
+                new SourceFact("조치 기한", "2026-11-23"),
+                new SourceFact("랜섬웨어 악용", "확인 안 됨"),
+                new SourceFact("CWE", "CWE-502"));
+        assertThat(articles.get(1).sourceFacts()).contains(
+                new SourceFact("랜섬웨어 악용", "확인됨"), new SourceFact("CWE", "CWE-287, CWE-306"));
+    }
+
+    @Test
+    void leavesOutFactsAndSourceTextMissingFromEntry() {
+        String catalog = """
+                {"vulnerabilities":[{"cveID":"CVE-2026-9999","vulnerabilityName":"Example flaw","dateAdded":"2026-11-20",
+                  "dueDate":"2026-12-11"}]}
+                """;
+
+        CollectedArticle article = parse(toInputStream(catalog), null).get(0);
+
+        assertThat(article.sourceText()).isNull();
+        assertThat(article.sourceFacts()).containsExactly(new SourceFact("조치 기한", "2026-12-11"));
     }
 
     @Test

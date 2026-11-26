@@ -2,6 +2,7 @@ package kr.suhsaechan.secbrief.web.support;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
@@ -36,7 +37,7 @@ public class ArticleTestWriter {
                 publishedAt, false, null, isUrgent ? new BigDecimal("9.8") : null, isUrgent ? "3.1" : null,
                 false, isUrgent), publishedAt);
         if (topic != ArticleTopic.GENERAL) {
-            article.applyAiAnalysis(topic, null);
+            article.applyAiAnalysis(topic, null, ArticleImportance.ROUTINE, null);
         }
         return articleRepository.save(article);
     }

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
 import kr.suhsaechan.secbrief.advisory.ai.ArticleTitleAnalysis;
 import kr.suhsaechan.secbrief.advisory.constant.AiStatus;
+import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
@@ -53,7 +54,7 @@ class ArticleAiResultRecorderTest extends PostgresContainerTestSupport {
 
     @Test
     void dropsInventedNumberButKeepsTopic() {
-        recorder.recordSuccess(articleId, new ArticleTitleAnalysis(ArticleTopic.VULNERABILITY, "Ivanti 취약점 3개 패치"));
+        recorder.recordSuccess(articleId, new ArticleTitleAnalysis(ArticleTopic.VULNERABILITY, "Ivanti 취약점 3개 패치", ArticleImportance.ROUTINE, null));
 
         Article article = articleRepository.findById(articleId).orElseThrow();
         assertThat(article.getTopic()).isEqualTo(ArticleTopic.VULNERABILITY);

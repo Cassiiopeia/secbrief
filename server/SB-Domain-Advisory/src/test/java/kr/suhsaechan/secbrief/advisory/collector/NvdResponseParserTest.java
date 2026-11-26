@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import kr.suhsaechan.secbrief.advisory.fact.SourceFact;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,31 @@ class NvdResponseParserTest {
                 .extracting(CollectedArticle::cveId, CollectedArticle::cvssScore, CollectedArticle::cvssVersion)
                 .containsExactly(tuple("CVE-2026-0001", new BigDecimal("9.8"), "3.1"),
                         tuple("CVE-2026-0002", new BigDecimal("9.3"), "4.0"));
+    }
+
+    @Test
+    void takesFullEnglishDescriptionAsSourceText() {
+        CollectedArticle article = parse(openFixture()).articles().get(0);
+
+        assertThat(article.sourceText())
+                .startsWith("A remote code execution vulnerability exists in Example Gateway request routing")
+                .endsWith("allowing an unauthenticated attacker to run arbitrary commands.");
+    }
+
+    @Test
+    void takesCvssAndWeaknessFactsFromChosenMetric() {
+        List<CollectedArticle> articles = parse(openFixture()).articles();
+
+        // Primary 항목의 값, CWE 는 중복·정보 없음 표시(NVD-CWE-noinfo) 제외
+        assertThat(articles.get(0).sourceFacts()).containsExactly(
+                new SourceFact("CVSS 점수", "9.8"),
+                new SourceFact("CVSS 버전", "3.1"),
+                new SourceFact("CVSS 벡터", "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"),
+                new SourceFact("심각도", "CRITICAL"),
+                new SourceFact("CWE", "CWE-94"));
+        // weaknesses 가 없으면 CWE 를 싣지 않음
+        assertThat(articles.get(1).sourceFacts()).extracting(SourceFact::label)
+                .containsExactly("CVSS 점수", "CVSS 버전", "CVSS 벡터", "심각도");
     }
 
     @Test

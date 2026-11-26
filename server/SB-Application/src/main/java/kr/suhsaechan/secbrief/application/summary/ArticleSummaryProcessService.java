@@ -1,0 +1,163 @@
+package kr.suhsaechan.secbrief.application.summary;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import kr.suhsaechan.secbrief.advisory.entity.Article;
+import kr.suhsaechan.secbrief.advisory.policy.SeoulCalendar;
+import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleSummarizer;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryOutcome;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryPolicy;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryRequest;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryValidation;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Limit;
+import org.springframework.stereotype.Service;
+
+/**
+ * 요약 묶음 처리: 제공자 확인 > 하루 상한 확인 > 대기(PENDING) 기사 batchSize 건 (중요도 높은 순 > 최신순) > 건별 요약 > 검증 > 기록
+ * 한 호출에 1건, 건별 격리 (그 건만 실패), 제공자 호출 실패는 기록 없이 틱 중단, 제목·본문은 로그에 남기지 않음
+ */
+@Slf4j
+@Service
+public class ArticleSummaryProcessService {
+
+    private final ArticleSummarizer articleSummarizer;
+    private final ArticleRepository articleRepository;
+    private final ArticleSummaryResultRecorder articleSummaryResultRecorder;
+    private final Clock clock;
+    // 한 틱에 처리할 기사 수
+    private final int batchSize;
+    // 한 틱이 새 건을 시작할 수 있는 시간: 주기 작업이 스레드 하나를 나눠 써서 느린 응답이 수집·알림을 밀지 않게 함
+    private final Duration tickBudget;
+    // 하루(서울 날짜) 제공자 호출 상한: 대기열이 한꺼번에 몰려도 AI 비용이 하루 상한을 넘지 않게 함 (남은 건은 다음 날)
+    private final int dailyLimit;
+    // 호출 수를 센 서울 날짜와 그 날의 호출 수 (서버를 다시 띄우면 0부터, 주기 작업 스레드 하나만 씀)
+    private LocalDate countedDate;
+    private int countedCallCount;
+
+    public ArticleSummaryProcessService(ArticleSummarizer articleSummarizer, ArticleRepository articleRepository,
+                                        ArticleSummaryResultRecorder articleSummaryResultRecorder, Clock clock,
+                                        @Value("${secbrief.summary.batch-size:10}") int batchSize,
+                                        @Value("${secbrief.summary.tick-budget-seconds:90}") long tickBudgetSeconds,
+                                        @Value("${secbrief.summary.daily-limit:300}") int dailyLimit) {
+        this.articleSummarizer = articleSummarizer;
+        this.articleRepository = articleRepository;
+        this.articleSummaryResultRecorder = articleSummaryResultRecorder;
+        this.clock = clock;
+        this.batchSize = batchSize;
+        this.tickBudget = Duration.ofSeconds(tickBudgetSeconds);
+        this.dailyLimit = dailyLimit;
+    }
+
+    public SummaryProcessResult processPendingSummaries() {
+        if (!articleSummarizer.isAvailable()) {
+            log.info("[article summary] skipped : provider not configured, provider={}", articleSummarizer.getProviderCode());
+            return new SummaryProcessResult(0, 0, true);
+        }
+        int remainingDailyCallCount = toRemainingDailyCallCount();
+        if (remainingDailyCallCount <= 0) {
+            log.info("[article summary] skipped : daily limit reached, limit={}", dailyLimit);
+            return new SummaryProcessResult(0, 0, false);
+        }
+
+        List<Article> pendingArticles =
+                articleRepository.findSummaryTargets(Limit.of(Math.min(batchSize, remainingDailyCallCount)));
+        Instant tickDeadline = clock.instant().plus(tickBudget);
+        int doneCount = 0;
+        int failedCount = 0;
+        for (Article article : pendingArticles) {
+            // 시간 상한을 넘기면 남은 건은 다음 틱에
+            if (clock.instant().isAfter(tickDeadline)) {
+                break;
+            }
+            SummaryStep step = summarizeAndRecord(article);
+            if (step == SummaryStep.PROVIDER_FAILED) {
+                break;
+            }
+            if (step == SummaryStep.DONE) {
+                doneCount++;
+            } else if (step == SummaryStep.FAILED) {
+                failedCount++;
+            }
+        }
+        if (!pendingArticles.isEmpty()) {
+            log.info("[article summary] processed : provider={}, done={}, failed={}, read={}",
+                    articleSummarizer.getProviderCode(), doneCount, failedCount, pendingArticles.size());
+        }
+        return new SummaryProcessResult(doneCount, failedCount, false);
+    }
+
+    /**
+     * 기사 1건: 요약 > 검증 > 기록 (제공자 호출 실패는 기록 없이 틱 중단, 그 밖의 실패는 시도 횟수 +1)
+     */
+    private SummaryStep summarizeAndRecord(Article article) {
+        String sourceText = article.getSummaryState().getSourceText();
+        // 대기인데 입력이 없는 행 (정상 흐름에서는 생기지 않음): 제공자를 부르지 않고 실패로 세어 대기열에서 빠지게 함
+        if (sourceText == null || sourceText.isBlank()) {
+            return recordFailure(article.getId(), sourceText, "no source text");
+        }
+        ArticleSummaryOutcome outcome;
+        try {
+            outcome = articleSummarizer.summarize(new ArticleSummaryRequest(
+                    article.getTitle(), article.getRegion(), article.getKind(), sourceText));
+        } catch (RuntimeException exception) {
+            log.warn("[article summary] failed 502 : provider call failed, retry next tick : provider={}, cause={}",
+                    articleSummarizer.getProviderCode(), exception.getClass().getSimpleName());
+            return SummaryStep.PROVIDER_FAILED;
+        }
+        countedCallCount++;
+        if (!outcome.isSuccessful()) {
+            return recordFailure(article.getId(), sourceText, outcome.failureReason());
+        }
+        ArticleSummaryValidation validation = ArticleSummaryPolicy.validate(article.getTitle(), sourceText, outcome.summary());
+        if (!validation.isAccepted()) {
+            return recordFailure(article.getId(), sourceText, validation.rejectionReason());
+        }
+        try {
+            boolean isRecorded = articleSummaryResultRecorder.recordSuccess(
+                    article.getId(), sourceText, validation.acceptedSummary());
+            if (!isRecorded) {
+                log.info("[article summary] skipped : source text changed while summarizing : articleId={}", article.getId());
+            }
+            return isRecorded ? SummaryStep.DONE : SummaryStep.SKIPPED;
+        } catch (RuntimeException exception) {
+            return recordFailure(article.getId(), sourceText, exception.getClass().getSimpleName());
+        }
+    }
+
+    // 실패 기록마저 실패하면 다음 틱에 다시 (failureReason: 영어 고정 문구 또는 예외 종류)
+    private SummaryStep recordFailure(Long articleId, String summarizedSourceText, String failureReason) {
+        log.warn("[article summary] failed : articleId={}, cause={}", articleId, failureReason);
+        try {
+            articleSummaryResultRecorder.recordFailure(articleId, summarizedSourceText);
+        } catch (RuntimeException recordException) {
+            log.error("[article summary] failure record failed : articleId={}", articleId);
+        }
+        return SummaryStep.FAILED;
+    }
+
+    // 오늘(서울 날짜) 남은 호출 수: 날짜가 바뀌면 0부터 다시 셈
+    private int toRemainingDailyCallCount() {
+        LocalDate today = LocalDate.ofInstant(clock.instant(), SeoulCalendar.SEOUL);
+        if (!today.equals(countedDate)) {
+            countedDate = today;
+            countedCallCount = 0;
+        }
+        return dailyLimit - countedCallCount;
+    }
+
+    private enum SummaryStep {
+        DONE,
+        // 그 건만 실패: 입력 없음, 거부·읽을 수 없는 응답, 검증 탈락, 기록 실패
+        FAILED,
+        // 요약하는 사이 입력이 바뀜: 기록하지 않음
+        SKIPPED,
+        // 제공자 장애 (기사 탓 아님): 기록 없이 틱 중단 (FAILED 로 굳지 않게 다음 틱에 다시)
+        PROVIDER_FAILED
+    }
+}

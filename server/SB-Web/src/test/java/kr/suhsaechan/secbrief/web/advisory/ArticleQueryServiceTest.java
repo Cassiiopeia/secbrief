@@ -64,7 +64,7 @@ class ArticleQueryServiceTest extends PostgresContainerTestSupport {
         String cursor = null;
         int pageCount = 0;
         do {
-            ArticlePageResponse page = articleQueryService.findArticles(new ArticleSearchCondition(null, null, null, cursor, 10));
+            ArticlePageResponse page = articleQueryService.findArticles(new ArticleSearchCondition(null, null, null, null, null, null, cursor, 10));
             page.items().forEach(item -> pagedIds.add(item.id()));
             cursor = page.nextCursor();
             pageCount++;
@@ -72,7 +72,7 @@ class ArticleQueryServiceTest extends PostgresContainerTestSupport {
 
         assertThat(pageCount).isEqualTo(3);
         assertThat(pagedIds).containsExactlyInAnyOrderElementsOf(savedIds).doesNotHaveDuplicates();
-        List<ArticleResponse> firstPage = articleQueryService.findArticles(new ArticleSearchCondition(null, null, null, null, 25)).items();
+        List<ArticleResponse> firstPage = articleQueryService.findArticles(new ArticleSearchCondition(null, null, null, null, null, null, null, 25)).items();
         assertThat(firstPage).extracting(ArticleResponse::publishedAt).isSortedAccordingTo((first, second) -> second.compareTo(first));
     }
 
@@ -83,7 +83,7 @@ class ArticleQueryServiceTest extends PostgresContainerTestSupport {
         articleTestWriter.saveArticle(BASE, ArticleKind.ADVISORY, ArticleRegion.DOMESTIC, ArticleTopic.GENERAL, false);
 
         List<ArticleResponse> items = articleQueryService.findArticles(
-                new ArticleSearchCondition(ArticleKind.NEWS, ArticleRegion.DOMESTIC, null, null, null)).items();
+                new ArticleSearchCondition(ArticleKind.NEWS, ArticleRegion.DOMESTIC, null, null, null, null, null, null)).items();
 
         assertThat(items).singleElement().satisfies(item -> {
             assertThat(item.kind()).isEqualTo(ArticleKind.NEWS);
@@ -96,7 +96,7 @@ class ArticleQueryServiceTest extends PostgresContainerTestSupport {
         articleTestWriter.saveNews(BASE, ArticleTopic.SUPPLY_CHAIN);
         articleTestWriter.saveNews(BASE, ArticleTopic.RANSOMWARE);
 
-        assertThat(articleQueryService.findArticles(new ArticleSearchCondition(null, null, ArticleTopic.SUPPLY_CHAIN, null, null)).items())
+        assertThat(articleQueryService.findArticles(new ArticleSearchCondition(null, null, ArticleTopic.SUPPLY_CHAIN, null, null, null, null, null)).items())
                 .extracting(ArticleResponse::topic).containsExactly(ArticleTopic.SUPPLY_CHAIN);
     }
 
@@ -109,7 +109,7 @@ class ArticleQueryServiceTest extends PostgresContainerTestSupport {
         }
         articleRepository.save(failedArticle);
 
-        List<ArticleResponse> items = articleQueryService.findArticles(new ArticleSearchCondition(null, null, null, null, null)).items();
+        List<ArticleResponse> items = articleQueryService.findArticles(new ArticleSearchCondition(null, null, null, null, null, null, null, null)).items();
 
         assertThat(articleRepository.findById(failedArticle.getId()).orElseThrow().getAiStatus()).isEqualTo(AiStatus.FAILED);
         assertThat(items).hasSize(2).allSatisfy(item -> {
@@ -120,7 +120,7 @@ class ArticleQueryServiceTest extends PostgresContainerTestSupport {
 
     @Test
     void rejectsSizeAboveFifty() {
-        assertThatThrownBy(() -> articleQueryService.findArticles(new ArticleSearchCondition(null, null, null, null, 51)))
+        assertThatThrownBy(() -> articleQueryService.findArticles(new ArticleSearchCondition(null, null, null, null, null, null, null, 51)))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
     }

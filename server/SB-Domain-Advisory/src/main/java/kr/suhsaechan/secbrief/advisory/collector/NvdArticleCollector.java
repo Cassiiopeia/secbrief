@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * NVD 수집기: 게시일 범위(since ~ 지금)로 페이지를 끝까지 요청 > CVSS 9.0 이상만
- * 요청마다 6초 간격 (NvdRequestThrottle)
+ * 요청마다 6초 간격 (NvdRequestThrottle), 날짜 범위 질의라 조건부 요청은 쓰지 않음
  */
 @Component
 public class NvdArticleCollector implements ArticleCollector {
@@ -45,7 +45,7 @@ public class NvdArticleCollector implements ArticleCollector {
      * since 가 null 이면 첫 수집 범위(7일)로 대체 (범위 없이 요청하면 NVD 전체를 받게 됨)
      */
     @Override
-    public List<CollectedArticle> collect(Source source, Instant since) {
+    public CollectOutcome collect(Source source, Instant since) {
         Instant now = clock.instant();
         Instant rangeStart = since != null ? since : now.minus(Duration.ofDays(CollectSchedulePolicy.NVD_FIRST_COLLECT_DAYS));
         List<CollectedArticle> articles = new ArrayList<>();
@@ -58,7 +58,7 @@ public class NvdArticleCollector implements ArticleCollector {
             articles.addAll(page.articles());
             startIndex = page.startIndex() + page.resultsPerPage();
         } while (page.hasNextPage());
-        return articles;
+        return CollectOutcome.ofArticles(articles);
     }
 
     /**
