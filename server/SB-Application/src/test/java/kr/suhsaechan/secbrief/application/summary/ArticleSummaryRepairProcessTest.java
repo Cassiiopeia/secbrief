@@ -22,7 +22,8 @@ import kr.suhsaechan.secbrief.advisory.constant.SourceCode;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.policy.ArticleDraft;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
-import kr.suhsaechan.secbrief.advisory.summary.ArticleSummary;
+import kr.suhsaechan.secbrief.advisory.summary.AffectedTarget;
+import kr.suhsaechan.secbrief.advisory.summary.ArticleBrief;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryOutcome;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryPolicy;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryRequest;
@@ -45,11 +46,14 @@ class ArticleSummaryRepairProcessTest {
     private static final long TICK_BUDGET_SECONDS = 90;
     private static final int DAILY_LIMIT = 300;
     private static final String SOURCE_TEXT = "Attackers are exploiting a flaw in Example VPN 2.4.0 to steal session tokens.";
-    private static final ArticleSummary SUMMARY =
-            new ArticleSummary("Example VPN 2.4.0 결함이 악용되고 있어요.", List.of("세션 토큰을 노려요."), null);
+    private static final ArticleBrief BRIEF =
+            new ArticleBrief("Example VPN 결함으로 세션 토큰이 털리고 있어요.",
+                    "공격자가 Example VPN 2.4.0의 결함을 악용하고 있어요.", null, List.of(new AffectedTarget("Example VPN", "2.4.0")),
+                    List.of());
     // 입력에 없는 버전(2.4.1)을 쓴 초안: 검증에 걸림
-    private static final ArticleSummary INVENTED_NUMBER_SUMMARY =
-            new ArticleSummary("Example VPN 2.4.1 버전으로 올려야 해요.", List.of(), null);
+    private static final ArticleBrief INVENTED_NUMBER_BRIEF =
+            new ArticleBrief("Example VPN 결함으로 세션 토큰이 털리고 있어요.",
+                    "Example VPN 2.4.1 버전으로 올려야 해요.", null, List.of(), List.of());
 
     private final FakeArticleSummarizer fakeSummarizer = new FakeArticleSummarizer();
     private final ArticleRepository articleRepository = mock(ArticleRepository.class);
@@ -59,8 +63,8 @@ class ArticleSummaryRepairProcessTest {
 
     @Test
     void repairsRejectedDraftOnceAndRecordsRepairedSummary() {
-        fakeSummarizer.respondTo("First headline", ArticleSummaryOutcome.succeeded(INVENTED_NUMBER_SUMMARY));
-        fakeSummarizer.respondToRepairOf("First headline", ArticleSummaryOutcome.succeeded(SUMMARY));
+        fakeSummarizer.respondTo("First headline", ArticleSummaryOutcome.succeeded(INVENTED_NUMBER_BRIEF));
+        fakeSummarizer.respondToRepairOf("First headline", ArticleSummaryOutcome.succeeded(BRIEF));
         givenPendingArticles(createArticle(1L, "First headline"));
         when(recorder.recordSuccess(anyLong(), any(), any())).thenReturn(true);
 
@@ -69,15 +73,15 @@ class ArticleSummaryRepairProcessTest {
         assertThat(result).isEqualTo(new SummaryProcessResult(1, 0, false));
         // 고쳐 쓰기 요청에는 걸린 곳(입력에 없는 숫자)이 그대로 감
         assertThat(fakeSummarizer.getReceivedRepairProblems()).containsExactly(List.of(
-                new SummaryProblem("summary", ArticleSummaryPolicy.REASON_NUMBER_NOT_IN_SOURCE, "2.4.1")));
-        verify(recorder).recordSuccess(1L, SOURCE_TEXT, SUMMARY);
+                new SummaryProblem("whatHappened", ArticleSummaryPolicy.REASON_NUMBER_NOT_IN_SOURCE, "2.4.1")));
+        verify(recorder).recordSuccess(1L, SOURCE_TEXT, BRIEF);
         verify(recorder, never()).recordFailure(anyLong(), any());
     }
 
     @Test
     void recordsOneFailureWhenRepairIsRejectedTooAndCallsProviderAtMostTwicePerArticle() {
-        fakeSummarizer.respondTo("First headline", ArticleSummaryOutcome.succeeded(INVENTED_NUMBER_SUMMARY));
-        fakeSummarizer.respondToRepairOf("First headline", ArticleSummaryOutcome.succeeded(INVENTED_NUMBER_SUMMARY));
+        fakeSummarizer.respondTo("First headline", ArticleSummaryOutcome.succeeded(INVENTED_NUMBER_BRIEF));
+        fakeSummarizer.respondToRepairOf("First headline", ArticleSummaryOutcome.succeeded(INVENTED_NUMBER_BRIEF));
         givenPendingArticles(createArticle(1L, "First headline"));
 
         SummaryProcessResult result = service.processPendingSummaries();
@@ -93,8 +97,8 @@ class ArticleSummaryRepairProcessTest {
     void repairCallsCountTowardDailyLimitAndLastCallIsNotSpentOnRepair() {
         // 하루 상한 3: 1건째 작성 + 고쳐 쓰기(2회) > 2건째는 남은 1회로 작성만 (고쳐 쓰기 없음) > 3건째는 부르지 않음
         ArticleSummaryProcessService limitedService = createService(3);
-        fakeSummarizer.respondTo("A", ArticleSummaryOutcome.succeeded(INVENTED_NUMBER_SUMMARY));
-        fakeSummarizer.respondToRepairOf("A", ArticleSummaryOutcome.succeeded(SUMMARY));
+        fakeSummarizer.respondTo("A", ArticleSummaryOutcome.succeeded(INVENTED_NUMBER_BRIEF));
+        fakeSummarizer.respondToRepairOf("A", ArticleSummaryOutcome.succeeded(BRIEF));
         when(recorder.recordSuccess(anyLong(), any(), any())).thenReturn(true);
         givenPendingArticles(createArticle(1L, "A"), createArticle(2L, "A"), createArticle(3L, "A"));
 

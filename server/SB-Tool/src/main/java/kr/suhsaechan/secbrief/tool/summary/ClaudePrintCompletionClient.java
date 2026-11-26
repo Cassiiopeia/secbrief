@@ -12,6 +12,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletion;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletionClient;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletionRequest;
@@ -22,13 +24,14 @@ import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
  * 로컬 Claude Code CLI 호출 (claude -p): 지시문 + 사용자 메시지(표준 입력) + JSON 스키마 > 응답 JSON
  * 도구·MCP·설정·훅·CLAUDE.md 없이 실행 (--safe-mode, --tools "", --strict-mcp-config, 빈 작업 폴더), 세션을 디스크에 남기지 않음
  * 운영 제공자 목록에는 넣지 않는 로컬 도구 전용 구현 (출력 토큰 상한은 CLI 에 옵션이 없어 적용하지 않음)
+ * 운영 API 와 다른 점: CLI 는 생각(adaptive thinking)을 끌 수 없음 (운영은 생각 끔). 호출마다 답·생각 토큰 수를 세어 둠
  */
 public class ClaudePrintCompletionClient implements StructuredCompletionClient {
 
     public static final String PROVIDER_CODE = "claude-print";
     // 호출 1회 제한 시간 (초): 요약 1건은 10초 안팎, 멈춘 프로세스가 작업 스레드를 붙잡지 않게 함
     private static final long CALL_TIMEOUT_SECONDS = 180;
-    // 운영 API 호출과 같은 노력 수준 (AnthropicStructuredCompletionClient: effort low)
+    // 운영 API 호출과 같은 노력 수준 (AnthropicStructuredCompletionClient: effort low). 생각은 이 값과 무관하게 켜져 있음
     private static final String EFFORT_LEVEL = "low";
     // 부모 Claude Code 세션이 물려준 환경변수 접두사: 자식 호출이 부모 세션에 묶이지 않게 지움 (로그인 위치 CLAUDE_CONFIG_DIR 은 유지)
     private static final List<String> INHERITED_SESSION_VARIABLE_PREFIXES =
@@ -40,6 +43,11 @@ public class ClaudePrintCompletionClient implements StructuredCompletionClient {
     private final String claudeBinaryPath;
     private final String model;
     private final Path emptyWorkingDirectory;
+    // 토큰 사용량 (여러 작업 스레드가 함께 씀): 호출 수, 답 토큰(출력 - 생각)의 합·최댓값, 생각 토큰의 합
+    private final AtomicInteger callCount = new AtomicInteger();
+    private final AtomicLong answerTokenCount = new AtomicLong();
+    private final AtomicInteger maximumAnswerTokenCount = new AtomicInteger();
+    private final AtomicLong thinkingTokenCount = new AtomicLong();
 
     /**
      * emptyWorkingDirectory: 저장소 밖 빈 폴더 (CLI 가 프로젝트 CLAUDE.md·설정을 읽지 않게 함)
@@ -73,6 +81,7 @@ public class ClaudePrintCompletionClient implements StructuredCompletionClient {
             throw new CustomException(ErrorCode.AI_API_ERROR,
                     "claude print failed : status=" + printResult.path("api_error_status").asText("unknown"));
         }
+        recordTokenUsage(printResult.path("usage"));
         String stopReason = printResult.path("stop_reason").asText("");
         if (STOP_REASON_REFUSAL.equals(stopReason)) {
             return StructuredCompletion.refused();
@@ -81,6 +90,26 @@ public class ClaudePrintCompletionClient implements StructuredCompletionClient {
         // 스키마에 맞는 출력이 없으면 글 응답을 그대로 넘겨 호출부가 읽을 수 없는 응답으로 처리
         String responseJson = structuredOutput.isObject() ? structuredOutput.toString() : printResult.path("result").asText("");
         return StructuredCompletion.of(responseJson, STOP_REASON_MAX_TOKENS.equals(stopReason));
+    }
+
+    /**
+     * 지금까지의 토큰 사용량 한 줄 (로그용): 답 토큰은 운영 출력 토큰 상한과 견줄 값, 생각 토큰은 운영(생각 끔)에는 없는 값
+     */
+    public String toTokenUsageSummary() {
+        int calls = Math.max(callCount.get(), 1);
+        return "calls=" + callCount.get() + ", averageAnswerTokens=" + answerTokenCount.get() / calls
+                + ", maximumAnswerTokens=" + maximumAnswerTokenCount.get()
+                + ", averageThinkingTokens=" + thinkingTokenCount.get() / calls;
+    }
+
+    // usage.output_tokens 는 생각 토큰을 포함: 답 토큰 = 출력 - 생각 (구조화 출력의 도구 호출 틀 포함)
+    private void recordTokenUsage(JsonNode usage) {
+        int thinkingTokens = usage.path("output_tokens_details").path("thinking_tokens").asInt(0);
+        int answerTokens = Math.max(usage.path("output_tokens").asInt(0) - thinkingTokens, 0);
+        callCount.incrementAndGet();
+        answerTokenCount.addAndGet(answerTokens);
+        thinkingTokenCount.addAndGet(thinkingTokens);
+        maximumAnswerTokenCount.accumulateAndGet(answerTokens, Math::max);
     }
 
     private JsonNode runClaudeProcess(StructuredCompletionRequest request) {

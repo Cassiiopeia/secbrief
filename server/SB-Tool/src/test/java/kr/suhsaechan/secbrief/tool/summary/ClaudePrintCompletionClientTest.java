@@ -68,6 +68,19 @@ class ClaudePrintCompletionClientTest {
     }
 
     @Test
+    void countsAnswerTokensWithoutThinkingTokens() throws Exception {
+        // CLI 는 생각을 끌 수 없어 출력 토큰에 생각 토큰이 섞임: 운영 상한과 견줄 값은 답 토큰(출력 - 생각)
+        ClaudePrintCompletionClient client = createClient("{\"is_error\":false,\"stop_reason\":\"tool_use\",\"structured_output\":{},"
+                + "\"usage\":{\"output_tokens\":1500,\"output_tokens_details\":{\"thinking_tokens\":1100}}}");
+
+        client.requestCompletion(REQUEST);
+        client.requestCompletion(REQUEST);
+
+        assertThat(client.toTokenUsageSummary())
+                .isEqualTo("calls=2, averageAnswerTokens=400, maximumAnswerTokens=400, averageThinkingTokens=1100");
+    }
+
+    @Test
     void throwsAiApiErrorWhenClaudeReportsErrorOrPrintsNothing() throws Exception {
         assertThatThrownBy(() -> createClient("{\"is_error\":true,\"api_error_status\":429}").requestCompletion(REQUEST))
                 .isInstanceOf(CustomException.class).extracting("errorCode").isEqualTo(ErrorCode.AI_API_ERROR);

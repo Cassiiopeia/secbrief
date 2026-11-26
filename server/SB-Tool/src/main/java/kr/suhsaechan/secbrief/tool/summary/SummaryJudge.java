@@ -20,15 +20,16 @@ import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryPrompt;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 평가용 채점 (LLM 심사): 표본 입력 + 최종 글 > 기준 6개를 1~5점으로 (어느 쪽 글인지는 알려 주지 않음)
- * 기준: faithfulness, coverage, actionGuide, koreanStyle, originality, concision (설명은 summary-evaluation/judge-instruction.md)
+ * 평가용 채점 (LLM 심사): 표본 입력 + 최종 글 > 기준 6개를 1~5점으로
+ * 기준: faithfulness, glanceability, coverage, nonRedundancy, actionCorrectness, koreanStyle (설명은 summary-evaluation/judge-instruction.md)
+ * 최종 글은 브리핑 구조(finalBrief) 또는 이전 구조(finalSummary, #49 하네스로 만든 비교용 파일) 둘 다 받음
  * 생성 모델과 다른, 더 강한 모델로만 돌림. 통과한 최종 글이 없는 표본은 채점하지 않음
  */
 @Slf4j
 public class SummaryJudge {
 
     public static final List<String> CRITERIA =
-            List.of("faithfulness", "coverage", "actionGuide", "koreanStyle", "originality", "concision");
+            List.of("faithfulness", "glanceability", "coverage", "nonRedundancy", "actionCorrectness", "koreanStyle");
     public static final String ISSUES_FIELD = "issues";
 
     private static final String JUDGE_INSTRUCTION_RESOURCE = "summary-evaluation/judge-instruction.md";
@@ -57,13 +58,13 @@ public class SummaryJudge {
         Set<Long> judgedArticleIds = JsonLinesFile.readAll(scoresFile).stream()
                 .map(row -> row.path("id").asLong()).collect(Collectors.toSet());
         List<JsonNode> rowsToJudge = evaluationRows.stream()
-                .filter(row -> row.path(SummaryEvaluationRunner.FINAL_SUMMARY_FIELD).isObject())
+                .filter(row -> toFinalText(row).isObject())
                 .filter(row -> !judgedArticleIds.contains(row.path("id").asLong()))
                 .toList();
         try (JsonLinesFile.Appender scoreAppender = JsonLinesFile.openAppender(scoresFile)) {
             ParallelTaskRunner.forEach(rowsToJudge, concurrency, row -> {
                 long articleId = row.path("id").asLong();
-                JsonNode scores = requestScores(targetById.get(articleId), row.path(SummaryEvaluationRunner.FINAL_SUMMARY_FIELD));
+                JsonNode scores = requestScores(targetById.get(articleId), toFinalText(row));
                 ObjectNode scoreRow = OBJECT_MAPPER.createObjectNode();
                 scoreRow.put("id", articleId);
                 scoreRow.put("variant", row.path("variant").asText());
@@ -74,12 +75,18 @@ public class SummaryJudge {
         }
     }
 
-    private JsonNode requestScores(BackfillTarget target, JsonNode finalSummary) {
+    // 출력 줄의 최종 글: 브리핑 구조, 없으면 이전 구조
+    static JsonNode toFinalText(JsonNode evaluationRow) {
+        JsonNode finalBrief = evaluationRow.path(SummaryEvaluationRunner.FINAL_BRIEF_FIELD);
+        return finalBrief.isObject() ? finalBrief : evaluationRow.path(SummaryEvaluationRunner.LEGACY_FINAL_SUMMARY_FIELD);
+    }
+
+    private JsonNode requestScores(BackfillTarget target, JsonNode finalText) {
         Map<String, Object> judgeInput = new LinkedHashMap<>();
         judgeInput.put(ArticleSummaryPrompt.TITLE_FIELD, target.title());
         judgeInput.put("writingKind", target.writingKind().name());
         judgeInput.put(ArticleSummaryPrompt.SOURCE_TEXT_FIELD, target.sourceText());
-        judgeInput.put(BRIEFING_FIELD, finalSummary);
+        judgeInput.put(BRIEFING_FIELD, finalText);
         try {
             StructuredCompletion completion = judgeClient.requestCompletion(new StructuredCompletionRequest(
                     AiCallType.SUMMARY, judgeInstruction, OBJECT_MAPPER.writeValueAsString(judgeInput),
