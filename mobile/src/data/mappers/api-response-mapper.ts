@@ -5,7 +5,7 @@ import type { CollectSourceStatus } from '../models/collect-source-status';
 import type { TodayBriefing } from '../models/today-briefing';
 import type { TrendingKeyword } from '../models/trending-keyword';
 import type { TrendTopic, WeeklyTrend } from '../models/trend-topic';
-import { toNonBlankText } from './article-brief-mapper';
+import { toNonBlankText } from './unknown-value-guards';
 
 /** 서버 기사 응답 (enum 은 대문자 이름) */
 export interface ArticleApiResponse {
@@ -127,7 +127,7 @@ const SEMANTIC_SEARCH_MODE = 'SEMANTIC';
 // 수집 성공 상태 이름 (서버 CollectStatus.SUCCESS)
 const COLLECT_SUCCESS_STATUS = 'SUCCESS';
 
-/** 기사 응답 > 소식 (모르는 주제 general, 모르는 종류 news, 모르는 지역 overseas, 모르는·없는 중요도 routine, null > undefined) */
+/** 기사 응답 > 소식 (모르는 주제 general, 모르는 종류 news, 모르는 지역 overseas, 모르는·없는 중요도 routine, null·빈 글·공백만 > undefined) */
 export function toBriefingItem(response: ArticleApiResponse): BriefingItem {
   return {
     id: String(response.id),
@@ -135,14 +135,14 @@ export function toBriefingItem(response: ArticleApiResponse): BriefingItem {
     region: REGION_BY_API_NAME[response.region] ?? 'overseas',
     topic: TOPIC_BY_API_NAME[response.topic] ?? 'general',
     importance: IMPORTANCE_BY_API_NAME[response.importance ?? ''] ?? 'routine',
-    subjectName: response.subjectName ? response.subjectName : undefined,
-    sourceCode: response.sourceCode ? response.sourceCode : undefined,
+    subjectName: toNonBlankText(response.subjectName),
+    sourceCode: toNonBlankText(response.sourceCode),
     keywords: response.keywords ?? [],
     title: response.title,
-    translatedTitle: response.translatedTitle ? response.translatedTitle : undefined,
+    translatedTitle: toNonBlankText(response.translatedTitle),
     oneLine: toNonBlankText(response.oneLine),
     originalUrl: response.originalUrl,
-    imagePath: response.imagePath ? response.imagePath : undefined,
+    imagePath: toNonBlankText(response.imagePath),
     publisherName: response.publisherName,
     publishedAt: new Date(response.publishedAt),
     isPublishedAtEstimated: response.isPublishedAtEstimated,

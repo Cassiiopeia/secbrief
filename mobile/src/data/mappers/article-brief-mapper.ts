@@ -1,9 +1,6 @@
 import type { ArticleBrief, ArticleBriefAffectedTarget } from '../models/article-detail';
 import { isNonArrayObject, toNonBlankText } from './unknown-value-guards';
 
-// api-response-mapper 가 이 파일에서 가져다 씀 (원본은 unknown-value-guards)
-export { toNonBlankText } from './unknown-value-guards';
-
 /** 서버 브리핑 응답 (서버 ArticleBriefResponse 와 같은 필드 이름) */
 export interface ArticleBriefApiResponse {
   oneLine?: string | null;
