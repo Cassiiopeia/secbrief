@@ -14,8 +14,7 @@ import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 
 /**
  * 테스트용 분석기: 제목별 응답을 미리 정해 둠 (정하지 않은 제목은 건별 실패), 실제 API 호출 없음
- * 호출 실패 제목이 묶음에 있으면 묶음 전체가 AI_API_ERROR, 받은 묶음 크기를 기록
- * 번역 고쳐 쓰기: 제목별 고친 번역을 미리 정해 둠 (정하지 않은 제목은 null), 받은 요청을 기록
+ * 호출 실패 제목이 묶음에 있으면 묶음 전체가 AI_API_ERROR, 받은 묶음 크기·고쳐 쓰기 요청을 기록 (고친 번역도 제목별로 정해 둠)
  */
 class FakeArticleTitleAnalyzer implements ArticleTitleAnalyzer {
 

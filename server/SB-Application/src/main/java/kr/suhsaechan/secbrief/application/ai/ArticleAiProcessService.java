@@ -22,8 +22,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
 /**
- * AI 묶음 처리: 제공자 확인 > 하루 예산 확인 > 대기(PENDING) 기사 최신순 batchSize 건 > requestBatchSize 건씩 묶어 분석
- * > 한자가 섞인 번역만 묶어 1번 고쳐 쓰기 > 건별 성공·실패 기록
+ * AI 묶음 처리: 제공자·하루 예산 확인 > 대기(PENDING) 기사 최신순 batchSize 건 > requestBatchSize 건씩 분석 > 한자 번역 1번 고쳐 쓰기 > 건별 기록
  * 건별 격리 (응답에 빠진 건만 실패), 제공자 호출 실패는 시도 횟수를 쓰지 않고 틱을 멈춤, 제목은 로그에 남기지 않음
  */
 @Slf4j

@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component;
 
 /**
  * 제목 분석 흐름 (제공자 공통): 프롬프트·스키마 만들기(분야 목록은 호출마다 카탈로그에서) > 제공자 호출(StructuredCompletionClient) > 응답 해석
- * 한자가 섞인 번역 고쳐 쓰기도 같은 제공자로 (TranslatedTitleRepairPrompt)
  * 예외는 호출 실패(연결·상태 코드·제한 시간)뿐, 거부·읽을 수 없는 응답은 건별 실패 결과
  */
 @Slf4j
@@ -89,6 +88,7 @@ public class StructuredOutputArticleTitleAnalyzer implements ArticleTitleAnalyze
         }
     }
 
+    // 한자가 섞인 번역 고쳐 쓰기 (같은 제공자, TranslatedTitleRepairPrompt)
     @Override
     public List<String> repairTranslatedTitles(List<TranslatedTitleRepairRequest> requests) {
         if (requests.isEmpty()) {

@@ -6,8 +6,7 @@ import kr.suhsaechan.secbrief.member.constant.NotificationKind;
 
 /**
  * 푸시 data 키·값 단일 원본 (앱 mobile 의 알림 이동 규칙과 같아야 함)
- * 키 5개: notificationId(알림함 번호), notificationKind, articleId(기사 1건 알림만), targetTab(이전 앱용, 항상),
- * targetScreen(기사 대신 열 화면, KISA 경보단계 글 1건 알림만 alertLevel, #87. 모르는 앱은 articleId 로 기사 상세)
+ * 키 5개: notificationId, notificationKind, articleId(1건 알림만), targetTab(이전 앱용, 항상), targetScreen(경보단계 글 1건만, #87)
  */
 public final class NotificationPushData {
 
@@ -16,6 +15,7 @@ public final class NotificationPushData {
     public static final String NOTIFICATION_KIND_KEY = "notificationKind";
     public static final String ARTICLE_ID_KEY = "articleId";
     public static final String TARGET_TAB_KEY = "targetTab";
+    // 기사 대신 열 화면 (모르는 이전 앱은 articleId 로 기사 상세)
     public static final String TARGET_SCREEN_KEY = "targetScreen";
     // targetScreen 값: 사이버위기 경보 화면 (앱 notification-target-route 와 같아야 함)
     public static final String TARGET_SCREEN_ALERT_LEVEL = "alertLevel";
