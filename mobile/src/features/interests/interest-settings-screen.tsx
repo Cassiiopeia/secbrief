@@ -79,10 +79,10 @@ export function InterestSettingsScreen() {
           <SbInlineErrorState
             message={saver.saveFailure.userMessage}
             errorCode={saver.saveFailure.errorCode}
-            onRetry={() => saver.save(interests, digest)}
+            onRetry={() => saver.save(interests, digest, 'interests')}
           />
         )}
-        <SbFilledButton label={saver.isSaving ? '저장하고 있어요' : '저장하기'} onPress={() => saver.save(interests, digest)} />
+        <SbFilledButton label={saver.isSaving ? '저장하고 있어요' : '저장하기'} onPress={() => saver.save(interests, digest, 'interests')} />
         <SbPressable accessibilityLabel="나중에 고를게요" accessibilityRole="button" onPress={closeInterestScreen} feedback="dim">
           <View style={styles.laterButton}>
             <SbText variant="button" color={colors.tertiaryLabel} isCentered>
