@@ -47,7 +47,7 @@ export function DigestSettingsSection() {
         isOn={isDigest}
         isDisabled={editor.isSaving}
         accessibilityLabel="아침 요약 받기"
-        onToggled={(isOn) => editor.saveDigest({ ...editor.digest, deliveryMode: isOn ? 'DIGEST' : 'IMMEDIATE' })}
+        onToggled={(isOn) => editor.saveDeliveryMode(isOn ? 'DIGEST' : 'IMMEDIATE')}
       />
       {isDigest && (
         <SbReveal>
@@ -57,7 +57,7 @@ export function DigestSettingsSection() {
             timeLabel={timeLabel}
             isDisabled={editor.isSaving}
             accessibilityLabel={`아침 요약 받는 시각 ${timeLabel}, 바꾸기`}
-            onTimeSelected={(digestTime) => editor.saveDigest({ ...editor.digest, digestTime })}
+            onTimeSelected={editor.saveDigestTime}
           />
         </SbReveal>
       )}
@@ -65,7 +65,7 @@ export function DigestSettingsSection() {
         <SbInlineErrorState
           message={editor.saveFailure.userMessage}
           errorCode={editor.saveFailure.errorCode}
-          onRetry={() => editor.saveDigest(editor.digest)}
+          onRetry={editor.retrySave}
         />
       )}
     </>

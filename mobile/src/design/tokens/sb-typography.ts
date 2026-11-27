@@ -72,3 +72,8 @@ const COMPACT_SCALE_VARIANTS: SbTextVariant[] = ['masthead', 'capsLabel', 'timeL
 export function toSbMaximumFontScale(variant: SbTextVariant): number {
   return COMPACT_SCALE_VARIANTS.includes(variant) ? sbMaximumFontScale.compact : sbMaximumFontScale.text;
 }
+
+/** 기기 글자 배율 + 글자 토큰 > 실제로 그려지는 배율 (토큰 확대 한도에서 멈춤, SbText maxFontSizeMultiplier 와 같은 규칙) */
+export function toSbEffectiveFontScale(deviceFontScale: number, variant: SbTextVariant): number {
+  return Math.min(deviceFontScale, toSbMaximumFontScale(variant));
+}

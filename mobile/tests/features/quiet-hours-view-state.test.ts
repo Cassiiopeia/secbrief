@@ -53,10 +53,18 @@ test('구역 표시: 켜면 구간, 끝 행에 다음 날, 끄면 무엇을 하�
     endLabel: '끝 (다음 날)',
     startTimeLabel: '오후 10:00',
     endTimeLabel: '오전 8:00',
+    startAccessibilityLabel: '방해 금지 시간 시작 오후 10:00, 바꾸기',
+    endAccessibilityLabel: '방해 금지 시간 끝 (다음 날) 오전 8:00, 바꾸기',
     unavailableHint: undefined,
   });
   expect(toQuietHoursSectionView(AFTERNOON, true).endLabel).toBe('끝');
   expect(toQuietHoursSectionView(DEFAULT_QUIET_HOURS, true).switchDetail).toBe('정한 시간에는 알림을 울리지 않아요');
+});
+
+test('시작·끝 선택기 읽기 도우미 문구에 시각 글자가 들어가요 (#119)', () => {
+  const sectionView = toQuietHoursSectionView(AFTERNOON, true);
+  expect(sectionView.startAccessibilityLabel).toBe('방해 금지 시간 시작 오후 1:00, 바꾸기');
+  expect(sectionView.endAccessibilityLabel).toBe('방해 금지 시간 끝 오후 3:30, 바꾸기');
 });
 
 test('알림 종류가 모두 꺼지면 켠 값이어도 꺼짐으로 보이고 이유 한 줄', () => {

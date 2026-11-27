@@ -3,8 +3,10 @@
  */
 import type { ArticleDetail } from '@/data/models/article-detail';
 import type { TrendingKeyword } from '@/data/models/trending-keyword';
+import { sbMaximumFontScale, toSbEffectiveFontScale } from '@/design/tokens/sb-typography';
 import {
   toArticleDetailView,
+  toMaximumPublisherNameWidthUnits,
   toOriginalButtonAccessibilityLabel,
   toOriginalButtonLabel,
 } from '@/features/article-detail/article-detail-view';
@@ -192,5 +194,25 @@ describe('기사 상세', () => {
       expect(toOriginalButtonLabel(longArticle)).toBe('원문 보기');
       expect(toOriginalButtonAccessibilityLabel(longArticle)).toBe(`${longPublisherName} 원문 보기`);
     }
+  });
+  test('글자 배율만큼 이름 칸이 줄어요: 1배 13, 1.3배 8, 2배(버튼 한도 1.6배) 5 단위 (#119)', () => {
+    const buttonFontScaleAt2 = toSbEffectiveFontScale(2, 'button');
+    expect(buttonFontScaleAt2).toBe(sbMaximumFontScale.text);
+    expect(toMaximumPublisherNameWidthUnits(1)).toBe(13);
+    expect(toMaximumPublisherNameWidthUnits(toSbEffectiveFontScale(1.3, 'button'))).toBe(8);
+    expect(toMaximumPublisherNameWidthUnits(buttonFontScaleAt2)).toBe(5);
+  });
+  test('큰 글자에서 "KISA 보호나라" 는 "원문 보기", 읽기 도우미 문구는 그대로 (#119)', () => {
+    const { article } = toArticleDetailView(detail, NOW);
+    const kisaArticle = { ...article, publisherName: 'KISA 보호나라' };
+    expect(toOriginalButtonLabel(kisaArticle, 1)).toBe('KISA 보호나라 원문 보기');
+    expect(toOriginalButtonLabel(kisaArticle, toSbEffectiveFontScale(1.3, 'button'))).toBe('원문 보기');
+    expect(toOriginalButtonLabel(kisaArticle, toSbEffectiveFontScale(2, 'button'))).toBe('원문 보기');
+    expect(toOriginalButtonAccessibilityLabel(kisaArticle)).toBe('KISA 보호나라 원문 보기');
+    // 짧은 이름은 1.3배까지 그대로 (8 단위 "CISA KEV"), 2배에서는 5 단위 "NVD" 만
+    const cisaArticle = { ...article, publisherName: 'CISA KEV' };
+    expect(toOriginalButtonLabel(cisaArticle, toSbEffectiveFontScale(1.3, 'button'))).toBe('CISA KEV 원문 보기');
+    expect(toOriginalButtonLabel(cisaArticle, toSbEffectiveFontScale(2, 'button'))).toBe('원문 보기');
+    expect(toOriginalButtonLabel(article, toSbEffectiveFontScale(2, 'button'))).toBe('NVD 원문 보기');
   });
 });

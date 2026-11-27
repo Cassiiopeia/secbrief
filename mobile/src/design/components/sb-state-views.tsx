@@ -78,10 +78,12 @@ interface SbEmptyStateProps {
   /** 다른 보기로 넘어가는 버튼 (예: 전체 보기). 둘 다 줘야 보임 */
   actionLabel?: string;
   onActionPress?: () => void;
+  /** 찾지 못한 글처럼 서버가 거절한 빈 상태의 에러 코드 (SbErrorState 와 같은 자리·모양, 없으면 안 보임) */
+  errorCode?: string;
 }
 
-/** 빈 상태: 로딩과 구분되는 그림 + 제목 + 한 줄 설명 + (다른 보기로 가는 버튼) (모든 탭 공통) */
-export function SbEmptyState({ title, description, illustration = 'notFound', actionLabel, onActionPress }: SbEmptyStateProps) {
+/** 빈 상태: 로딩과 구분되는 그림 + 제목 + 한 줄 설명 + (다른 보기로 가는 버튼) + (에러 코드) (모든 탭 공통) */
+export function SbEmptyState({ title, description, illustration = 'notFound', actionLabel, onActionPress, errorCode }: SbEmptyStateProps) {
   const { colors } = useSbTheme();
   return (
     <SbStateFrame illustration={illustration}>
@@ -94,6 +96,11 @@ export function SbEmptyState({ title, description, illustration = 'notFound', ac
         </SbText>
       )}
       {actionLabel !== undefined && onActionPress !== undefined && <SbFilledButton label={actionLabel} onPress={onActionPress} />}
+      {errorCode !== undefined && (
+        <SbText variant="timeLabel" color={colors.tertiaryLabel}>
+          {errorCode}
+        </SbText>
+      )}
     </SbStateFrame>
   );
 }

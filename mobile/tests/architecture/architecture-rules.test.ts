@@ -138,6 +138,37 @@ describe('화면 코드의 움직임·그림 직접 쓰기 금지', () => {
   }
 });
 
+// 열리자마자 키보드를 올리는 검색칸 (#119 B3): 예외 목록 파일 > 이유
+const SEARCH_FIELD_FOCUS_ON_MOUNT_FILES: Record<string, string> = {
+  'features/search/search-screen.tsx': '검색만 하는 화면이라 들어오면 바로 입력',
+};
+
+describe('검색칸 키보드는 누를 때만 (#119)', () => {
+  test('SbSearchField 는 초점을 기본으로 주지 않는다 (autoFocus 고정값 없음, shouldFocusOnMount 기본 false)', () => {
+    const searchFieldSource = readSource('design/components/sb-search-field.tsx');
+    expect(searchFieldSource).toMatch(/shouldFocusOnMount = false/);
+    expect(searchFieldSource).toMatch(/autoFocus=\{shouldFocusOnMount\}/);
+    expect(searchFieldSource.split('\n').some((line) => /^\s*autoFocus\s*$/.test(line))).toBe(false);
+  });
+  test('화면에서 바로 초점을 주는 검색칸은 예외 목록 화면뿐 (관심 기술 화면은 저장하기를 가리지 않게)', () => {
+    const screenFiles = [...listSourceFiles('app'), ...listSourceFiles('features')];
+    const focusingFiles = screenFiles.filter((file) => /shouldFocusOnMount|autoFocus/.test(readSource(file)));
+    expect(focusingFiles.sort()).toEqual(Object.keys(SEARCH_FIELD_FOCUS_ON_MOUNT_FILES).sort());
+  });
+});
+
+describe('시각 선택기 읽기 도우미 문구 (#119)', () => {
+  test('iOS 선택기에 행의 accessibilityLabel 을 붙인다 (시각 글자가 빠지는 행 방지)', () => {
+    expect(readSource('design/components/sb-ios-time-picker.ios.tsx')).toMatch(/accessibilityLabelModifier\(accessibilityLabel\)/);
+    expect(readSource('design/components/sb-time-picker-row.tsx')).toMatch(/<SbIosTimePicker[\s\S]*accessibilityLabel=\{accessibilityLabel\}/);
+  });
+  test('방해 금지 시간 시작·끝 행은 같은 문구 함수를 쓴다', () => {
+    const sectionSource = readSource('features/notifications/quiet-hours-settings-section.tsx');
+    expect(sectionSource).toMatch(/accessibilityLabel=\{sectionView\.startAccessibilityLabel\}/);
+    expect(sectionSource).toMatch(/accessibilityLabel=\{sectionView\.endAccessibilityLabel\}/);
+  });
+});
+
 // 움직임 값(지속시간·지연·곡선) 원본: 디자인 시스템 안에서도 sb-motion.ts 에만 숫자로 둔다
 // 예외 목록: 파일 > 이유
 const DESIGN_MOTION_LITERAL_EXCEPTIONS: Record<string, string> = {};

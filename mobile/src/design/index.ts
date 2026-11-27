@@ -48,6 +48,7 @@ export * from './components/sb-timeline';
 export * from './components/sb-unread-dot';
 export * from './components/sb-urgent-tile';
 export * from './theme/use-is-motion-reduced';
+export * from './theme/use-sb-font-scale';
 export * from './theme/use-sb-theme';
 export * from './tokens';
 
