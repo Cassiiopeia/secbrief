@@ -111,4 +111,18 @@ class SystemConfigSecretTest {
 
         assertThat(service.getSecret(ConfigKey.ANTHROPIC_API_KEYS)).isEmpty();
     }
+
+    @Test
+    void reportsSecretStoredUnderAnotherMasterKeyAsUnreadable() {
+        // 마스터 키를 바꿔 띄운 서버: 값은 없음으로 읽히지만 "풀지 못함"으로 구분 (#87)
+        service.update(ConfigKey.ANTHROPIC_API_KEYS, SECRET_VALUE, ACTOR, null);
+        SystemConfigService serviceWithAnotherMasterKey = store.createService(new SecretCipher("another-master-key-0000000000"));
+
+        assertThat(serviceWithAnotherMasterKey.getSecret(ConfigKey.ANTHROPIC_API_KEYS)).isEmpty();
+        assertThat(serviceWithAnotherMasterKey.hasUnreadableSecret(ConfigKey.ANTHROPIC_API_KEYS)).isTrue();
+        assertThat(service.hasUnreadableSecret(ConfigKey.ANTHROPIC_API_KEYS)).isFalse();
+        // 값 없음·마스터 키 없음은 풀지 못함이 아님 (마스터 키 없음은 canStoreSecret 으로 안내)
+        assertThat(service.hasUnreadableSecret(ConfigKey.OPENAI_API_KEYS)).isFalse();
+        assertThat(store.createService(new SecretCipher("")).hasUnreadableSecret(ConfigKey.ANTHROPIC_API_KEYS)).isFalse();
+    }
 }

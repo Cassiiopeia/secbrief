@@ -1,6 +1,7 @@
 package kr.suhsaechan.secbrief.application.notification;
 
 import java.util.List;
+import java.util.Set;
 import kr.suhsaechan.secbrief.member.constant.NotificationKind;
 import kr.suhsaechan.secbrief.member.entity.HeldPush;
 import kr.suhsaechan.secbrief.member.push.PushMessage;
@@ -16,9 +17,14 @@ public final class QuietHoursDigestPolicy {
     private QuietHoursDigestPolicy() {
     }
 
-    public static PushMessage toPushMessage(String pushToken, List<HeldPush> heldPushes) {
+    /**
+     * alertLevelArticleIds: 보류분 기사 중 KISA 경보단계 글 번호 (1건 그대로 보낼 때 경보단계 화면으로 열게, #87)
+     */
+    public static PushMessage toPushMessage(String pushToken, List<HeldPush> heldPushes, Set<Long> alertLevelArticleIds) {
         if (heldPushes.size() == 1) {
-            return PushContent.from(heldPushes.get(0)).toPushMessage(pushToken);
+            HeldPush heldPush = heldPushes.get(0);
+            boolean isAlertLevelArticle = heldPush.getArticleId() != null && alertLevelArticleIds.contains(heldPush.getArticleId());
+            return PushContent.from(heldPush, isAlertLevelArticle).toPushMessage(pushToken);
         }
         int alertArticleCount = heldPushes.stream()
                 .filter(heldPush -> heldPush.getNotificationKind() == NotificationKind.ALERT)

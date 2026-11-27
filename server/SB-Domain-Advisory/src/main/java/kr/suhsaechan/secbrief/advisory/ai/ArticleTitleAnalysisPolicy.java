@@ -12,7 +12,7 @@ import kr.suhsaechan.secbrief.advisory.policy.SourceGroundingPolicy;
 
 /**
  * AI 결과 검증 (번역, 회사·제품 이름, 키워드): 원문에 없는 숫자 표기가 생기면 버림 (버전·건수 지어내기 방지)
- * 번역을 버리는 조건 5개: 국내 항목, 빈 번역, 500자 초과, 원문에 없는 숫자 표기, 원문과 같음
+ * 번역을 버리는 조건 6개: 국내 항목, 빈 번역, 500자 초과, 원문에 없는 숫자 표기, 원문과 같음, 원문에 없는 한자 (#87)
  */
 public final class ArticleTitleAnalysisPolicy {
 
@@ -43,10 +43,35 @@ public final class ArticleTitleAnalysisPolicy {
         if (trimmedTranslation.isEmpty()
                 || trimmedTranslation.length() > MAXIMUM_TRANSLATED_TITLE_LENGTH
                 || trimmedTranslation.equals(originalTitle.strip())
-                || SourceGroundingPolicy.hasNumberNotInSource(originalTitle, trimmedTranslation)) {
+                || SourceGroundingPolicy.hasNumberNotInSource(originalTitle, trimmedTranslation)
+                || !findHanjaNotInOriginal(originalTitle, trimmedTranslation).isEmpty()) {
             return null;
         }
         return trimmedTranslation;
+    }
+
+    /**
+     * 번역에 있는 한자(CJK 통합 한자) 중 원문에 없는 글자 (나온 순서, 중복 제거). 예: "범위 外 쓰기" > [外]
+     * 원문 제목에 있는 한자는 허용 (일본·중국 제품 이름 등)
+     */
+    public static List<String> findHanjaNotInOriginal(String originalTitle, String translatedTitle) {
+        if (translatedTitle == null) {
+            return List.of();
+        }
+        Set<Integer> originalHanjaCodePoints = new HashSet<>();
+        originalTitle.codePoints().filter(ArticleTitleAnalysisPolicy::isHanja).forEach(originalHanjaCodePoints::add);
+        Set<Integer> foundCodePoints = new HashSet<>();
+        List<String> hanjaNotInOriginal = new ArrayList<>();
+        translatedTitle.codePoints()
+                .filter(codePoint -> isHanja(codePoint) && !originalHanjaCodePoints.contains(codePoint))
+                .filter(foundCodePoints::add)
+                .forEach(codePoint -> hanjaNotInOriginal.add(Character.toString(codePoint)));
+        return List.copyOf(hanjaNotInOriginal);
+    }
+
+    // 한자 글자 (유니코드 HAN 문자군: 통합 한자·확장·호환 한자)
+    private static boolean isHanja(int codePoint) {
+        return Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.HAN;
     }
 
     /**

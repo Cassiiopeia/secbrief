@@ -2,7 +2,12 @@
  * 알림 누름 > 열 곳: 기사 1건, 공지, 묶음 알림, 방해 금지 시간 모아 보기, 이전 서버(targetTab), 깨진 data
  */
 import { toNotificationInboxRoute } from '@/features/navigation/app-routes';
-import { isTabRoute, toNotificationTarget, toNotificationTargetRoute } from '@/features/notifications/notification-target-route';
+import {
+  isTabRoute,
+  toDetailRouteForReceivedKind,
+  toNotificationTarget,
+  toNotificationTargetRoute,
+} from '@/features/notifications/notification-target-route';
 
 test('숫자 articleId 가 있으면 그 기사 상세 (알림 번호는 연 글로 기록)', () => {
   expect(toNotificationTarget({ notificationId: '7', notificationKind: 'ALERT', articleId: '123', targetTab: 'vulnerability' })).toEqual({
@@ -54,4 +59,26 @@ test('탭 경로만 탭으로 본다', () => {
 test('찾지 못한 글의 알림함 보기는 그 종류 칸으로 (내려간 공지는 공지사항 칸)', () => {
   expect(toNotificationInboxRoute('NOTICE')).toBe('/notifications?segment=NOTICE');
   expect(toNotificationInboxRoute('ALERT')).toBe('/notifications?segment=ALERT');
+});
+
+test('상세 경로와 받은 글 종류가 다르면 맞는 상세 경로로 (#87)', () => {
+  // notices/{알림 번호}: 공지 화면에 긴급 알림을 그리지 않고 알림 상세로
+  expect(toDetailRouteForReceivedKind('NOTICE', 'ALERT', '12')).toBe('/notifications/12');
+  expect(toDetailRouteForReceivedKind('NOTICE', 'DIGEST', '13')).toBe('/notifications/13');
+  expect(toDetailRouteForReceivedKind('ALERT', 'NOTICE', '14')).toBe('/notices/14');
+  // 맞는 경로 (아침 요약은 알림 경로로 열림)
+  expect(toDetailRouteForReceivedKind('NOTICE', 'NOTICE', '15')).toBeUndefined();
+  expect(toDetailRouteForReceivedKind('ALERT', 'ALERT', '16')).toBeUndefined();
+  expect(toDetailRouteForReceivedKind('ALERT', 'DIGEST', '17')).toBeUndefined();
+});
+
+test('KISA 경보단계 글 1건 알림(targetScreen alertLevel)은 경보단계 화면, 이전 서버 data 는 그대로 기사 상세 (#87)', () => {
+  expect(toNotificationTarget({ notificationId: '31', notificationKind: 'ALERT', articleId: '601', targetScreen: 'alertLevel' })).toEqual({
+    route: '/alert-level',
+    notificationId: 31,
+  });
+  expect(toNotificationTargetRoute({ notificationId: '32', articleId: '602' })).toBe('/articles/602');
+  // 모르는 화면 값은 무시
+  expect(toNotificationTargetRoute({ articleId: '603', targetScreen: 'unknownScreen' })).toBe('/articles/603');
+  expect(isTabRoute('/alert-level')).toBe(false);
 });

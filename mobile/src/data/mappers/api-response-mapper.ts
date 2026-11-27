@@ -1,13 +1,11 @@
 import type { ArticleImportance, ArticleKind, ArticleRegion, BriefingItem, BriefingTopic } from '../models/briefing-item';
 import type { ArticlePage } from '../models/article-page';
-import type { ArticleDetail } from '../models/article-detail';
 import type { ArticleSearchMode, ArticleSearchResult } from '../models/article-search-result';
 import type { CollectSourceStatus } from '../models/collect-source-status';
 import type { TodayBriefing } from '../models/today-briefing';
 import type { TrendingKeyword } from '../models/trending-keyword';
 import type { TrendTopic, WeeklyTrend } from '../models/trend-topic';
-import { type ArticleBriefApiResponse, toArticleBrief, toNonBlankText } from './article-brief-mapper';
-import { toResponseGuideSections } from './response-guide-mapper';
+import { toNonBlankText } from './article-brief-mapper';
 
 /** 서버 기사 응답 (enum 은 대문자 이름) */
 export interface ArticleApiResponse {
@@ -82,20 +80,6 @@ export interface TrendingKeywordApiResponse {
 
 export interface TrendingKeywordsApiResponse {
   keywords: TrendingKeywordApiResponse[];
-}
-
-export interface ArticleDetailApiResponse {
-  article: ArticleApiResponse;
-  summary?: string | null;
-  keyPoints?: string[] | null;
-  actionGuide?: string | null;
-  isAiSummarized?: boolean | null;
-  /** AI 브리핑. 이전 방식 요약만 있으면 null, 이 필드가 생기기 전 서버는 아예 안 줌 */
-  brief?: ArticleBriefApiResponse | null;
-  facts?: { label: string; value: string }[] | null;
-  relatedItems?: ArticleApiResponse[] | null;
-  /** 대응 모아보기 (#71). 이 필드가 생기기 전 서버는 아예 안 줌 (모양은 response-guide-mapper 가 확인) */
-  responseGuideSections?: unknown;
 }
 
 export interface ArticleSearchApiResponse {
@@ -226,22 +210,6 @@ export function toTrendingKeywords(response: TrendingKeywordsApiResponse): Trend
     isNew: keywordResponse.rankChange === null,
     rankChange: keywordResponse.rankChange ?? undefined,
   }));
-}
-
-/** 기사 상세 응답 > 상세 (요약이 아직 없으면 summary 없음·keyPoints 빈 배열, 없는 목록은 빈 배열, 브리핑·대응 모아보기는 읽을 수 있을 때만) */
-export function toArticleDetail(response: ArticleDetailApiResponse): ArticleDetail {
-  const article = toBriefingItem(response.article);
-  return {
-    article,
-    brief: toArticleBrief(response.brief, article.oneLine),
-    summary: response.summary ? response.summary : undefined,
-    keyPoints: response.keyPoints ?? [],
-    actionGuide: response.actionGuide ? response.actionGuide : undefined,
-    isAiSummarized: response.isAiSummarized === true,
-    facts: (response.facts ?? []).map(({ label, value }) => ({ label, value })),
-    relatedItems: (response.relatedItems ?? []).map(toBriefingItem),
-    responseGuideSections: toResponseGuideSections(response.responseGuideSections),
-  };
 }
 
 export function toArticleSearchResult(response: ArticleSearchApiResponse): ArticleSearchResult {

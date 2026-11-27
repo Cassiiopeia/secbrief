@@ -33,6 +33,7 @@ const baseDetail: ArticleDetail = {
   article: { ...nvdItem, id: '99' },
   keyPoints: [],
   isAiSummarized: false,
+  isSummaryPending: false,
   facts: [],
   relatedItems: [kisaItem],
   responseGuideSections: [],

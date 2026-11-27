@@ -150,7 +150,30 @@ class NotificationRecordDispatchTest extends PostgresContainerTestSupport {
 
         assertThat(captureSentMessagesByToken().get(AWAKE_TOKEN).data())
                 .containsEntry("articleId", String.valueOf(kevArticle.getId()))
-                .containsEntry("notificationId", String.valueOf(findOnlyNotification().getId()));
+                .containsEntry("notificationId", String.valueOf(findOnlyNotification().getId()))
+                .doesNotContainKey("targetScreen");
+    }
+
+    @Test
+    void opensAlertLevelScreenForSingleKisaAlertLevelArticleAlsoAfterQuietHours() {
+        // 푸시로 연 KISA 경보단계 글은 관제판으로 (#87): articleId 는 이전 앱용으로 그대로
+        register(AWAKE_TOKEN, Set.of(AlertCategory.KISA_URGENT), awakeWindow());
+        register(QUIET_TOKEN, Set.of(AlertCategory.KISA_URGENT), quietWindow());
+        Article alertLevelArticle = saveUrgentArticle(sourceRepository.findByCode(SourceCode.KISA_ALERT_LEVEL).orElseThrow(),
+                "CVE-2026-9250", false);
+
+        urgentAlertDispatchService.dispatchPendingAlerts();
+
+        assertThat(captureSentMessagesByToken().get(AWAKE_TOKEN).data())
+                .containsEntry("articleId", String.valueOf(alertLevelArticle.getId()))
+                .containsEntry("targetScreen", "alertLevel");
+        // 보류분에는 출처가 없어도 보낼 때 다시 판정
+        clearInvocations(pushSender);
+        register(QUIET_TOKEN, Set.of(AlertCategory.KISA_URGENT), awakeWindow());
+        assertThat(quietHoursDigestService.sendHeldPushesAfterQuietHours()).isEqualTo(1);
+        assertThat(captureSentMessagesByToken().get(QUIET_TOKEN).data())
+                .containsEntry("articleId", String.valueOf(alertLevelArticle.getId()))
+                .containsEntry("targetScreen", "alertLevel");
     }
 
     @Test
