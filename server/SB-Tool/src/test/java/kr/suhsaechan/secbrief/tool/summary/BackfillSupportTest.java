@@ -61,8 +61,8 @@ class BackfillSupportTest {
                 new BackfillResult(1L, "NVD", BackfillResult.Status.ACCEPTED, brief, 1, 1, false, null),
                 new BackfillResult(2L, "NVD", BackfillResult.Status.ACCEPTED, brief, 1, 2, true, null),
                 new BackfillResult(3L, "NVD", BackfillResult.Status.REJECTED, null, 3, 6, false, "whatHappened copies source text"),
-                BackfillResult.withoutBrief(BackfillTestData.newsTarget(4L, null), BackfillResult.Status.NOT_RECOVERABLE),
-                BackfillResult.withoutBrief(BackfillTestData.newsTarget(5L, null), BackfillResult.Status.INPUT_TOO_THIN)));
+                BackfillResult.withoutBrief(BackfillTestData.newsTarget(4L, null), BackfillResult.Status.NOT_RECOVERABLE, null),
+                BackfillResult.withoutBrief(BackfillTestData.newsTarget(5L, null), BackfillResult.Status.INPUT_TOO_THIN, null)));
 
         assertThat(report).contains("| NVD | 3 | 3 | 2 | 1 | 0 | 0 |");
         assertThat(report).contains("| THE_HACKER_NEWS | 2 | 1 | 0 | 0 | 1 | 1 |");

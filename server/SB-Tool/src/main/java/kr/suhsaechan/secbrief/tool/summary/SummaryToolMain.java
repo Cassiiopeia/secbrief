@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import kr.suhsaechan.secbrief.advisory.ai.StructuredCompletionClient;
 import kr.suhsaechan.secbrief.advisory.collector.FeedHttpClient;
+import kr.suhsaechan.secbrief.advisory.refetch.SourceTextRefetchResult;
+import kr.suhsaechan.secbrief.advisory.refetch.SourceTextRefetcher;
 import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryHarness;
 import kr.suhsaechan.secbrief.advisory.summary.StructuredOutputArticleSummarizer;
 import lombok.extern.slf4j.Slf4j;
@@ -52,22 +54,37 @@ public final class SummaryToolMain {
         }
     }
 
-    // 입력 없는 대상 > 공개 출처에서 되찾기 > 대상 전체를 --output 에 (되찾은 행은 source_text 채움)
+    // 입력 없는 대상 > 공개 출처에서 되찾기 > 대상 전체를 --output 에
+    // (되찾은 행은 source_text, 내용 없는 입력은 정리만 한 글: generate 가 INPUT_TOO_THIN 으로 셈, 못 찾은 행은 사유)
+    // --prefer-ipv4: 출처 주소의 IPv4 먼저 (운영 secbrief.feed-http.prefer-ipv4 와 같은 기본값)
     private static void recover(Map<String, String> options) {
         List<JsonNode> targetRows = JsonLinesFile.readAll(toPath(options, "targets"));
         List<BackfillTarget> targetsWithoutSourceText = targetRows.stream().map(BackfillTarget::fromJson)
                 .filter(target -> !target.hasSourceText()).toList();
-        Map<Long, String> recoveredSourceTextById =
-                new SourceTextRecoverer(new FeedHttpClient(), Clock.systemUTC()).recover(targetsWithoutSourceText);
+        FeedHttpClient feedHttpClient = new FeedHttpClient(Boolean.parseBoolean(
+                options.getOrDefault("prefer-ipv4", String.valueOf(FeedHttpClient.DEFAULT_SHOULD_PREFER_IPV4))));
+        Clock clock = Clock.systemUTC();
+        Map<Long, SourceTextRefetchResult> resultByTargetId =
+                new SourceTextRecoverer(feedHttpClient, clock, new SourceTextRefetcher(feedHttpClient, clock))
+                        .recover(targetsWithoutSourceText);
         try (JsonLinesFile.Appender outputAppender = JsonLinesFile.openAppender(toPath(options, "output"))) {
             for (JsonNode targetRow : targetRows) {
-                String recoveredSourceText = recoveredSourceTextById.get(targetRow.path("id").asLong());
-                outputAppender.append(recoveredSourceText == null
-                        ? targetRow : BackfillTarget.withSourceText(targetRow, recoveredSourceText));
+                outputAppender.append(toRecoveredRow(targetRow, resultByTargetId.get(targetRow.path("id").asLong())));
             }
         }
         log.info("[summary backfill] recover finished : targets={}, withoutInput={}, recovered={}",
-                targetRows.size(), targetsWithoutSourceText.size(), recoveredSourceTextById.size());
+                targetRows.size(), targetsWithoutSourceText.size(),
+                resultByTargetId.values().stream().filter(SourceTextRefetchResult::isRecovered).count());
+    }
+
+    // 입력이 있던 행은 그대로, 받은 글이 있으면 source_text, 없으면 사유
+    private static JsonNode toRecoveredRow(JsonNode targetRow, SourceTextRefetchResult result) {
+        if (result == null) {
+            return targetRow;
+        }
+        return result.sourceText() != null
+                ? BackfillTarget.withSourceText(targetRow, result.sourceText())
+                : BackfillTarget.withRecoveryFailureReason(targetRow, result.failureReason());
     }
 
     // 대상(입력 포함) > 브리핑 > --results (JSON Lines) + --report (마크다운)

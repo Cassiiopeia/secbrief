@@ -78,6 +78,9 @@ secbrief:
     flush-enabled: true
     # 이용 집계 저장 틱 (60초): 메모리 카운터를 api_usage_daily 에 더함
     flush-tick-milliseconds: 60000
+  feed-http:
+    # 출처 호출의 IPv4 주소를 먼저 시도 (IPv6 경로가 응답 없이 멈추는 망 대비). 주소가 여러 개면 연결 실패 시 다음 주소로 (#77)
+    prefer-ipv4: true
   collect:
     # 수집 스케줄러 켜기 (false: 수집 안 함)
     enabled: ${COLLECT_ENABLED:true}
@@ -141,6 +144,17 @@ secbrief:
     tick-milliseconds: 180000
     # 기동 후 첫 틱까지 대기 (210초: 첫 수집·제목 분석 이후)
     initial-delay-milliseconds: 210000
+  summary-refetch:
+    # 브리핑 없는 지난 기사 다시 요약 (요약 입력 다시 받기 + 운영 API 로 브리핑, #77). 기본 꺼짐: 밀린 건은 로컬 도구(claude -p)로, docs/summary-harness/backfill.md
+    enabled: false
+    # 한 틱 대상 기사 수 (기사당 제공자 호출 최대 2회, 요청 사이 2초)
+    batch-size: 5
+    # 하루(서울 날짜) 대상 기사 상한 (다시 받기 시도 기준, 요약 하루 상한 summary.daily-limit 와 별도)
+    daily-article-limit: 20
+    # 다시 요약 틱 (1시간)
+    tick-milliseconds: 3600000
+    # 기동 후 첫 틱까지 대기 (10분: 첫 수집·요약 틱 이후)
+    initial-delay-milliseconds: 600000
   image:
     # 기사 대표 이미지 스케줄러 켜기 (false: 내려받기·저장 안 함, 기사는 이미지 없이 보임)
     enabled: ${IMAGE_ENABLED:true}

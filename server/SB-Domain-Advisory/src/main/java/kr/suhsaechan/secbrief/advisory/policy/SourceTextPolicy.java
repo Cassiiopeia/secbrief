@@ -33,6 +33,14 @@ public final class SourceTextPolicy {
      * 정리한 요약 입력 또는 null: 코드 블록·태그 제거 > HTML 문자 표기 풀기 > 공백 정리 > 길이 제한 > 쓸 만한지 확인
      */
     public static String toSourceText(String rawSourceText, String cleanedTitle) {
+        String sourceText = toCleanedText(rawSourceText);
+        return isWorthSummarizing(sourceText, cleanedTitle) ? sourceText : null;
+    }
+
+    /**
+     * 정리만 한 글 (쓸 만한지 확인 없음, null 은 null): 다시 받은 입력이 내용 없는 입력인지 따로 셀 때 (로컬 적재 도구)
+     */
+    public static String toCleanedText(String rawSourceText) {
         if (rawSourceText == null) {
             return null;
         }
@@ -40,8 +48,7 @@ public final class SourceTextPolicy {
         String withoutTags = HTML_TAG.matcher(withoutCodeBlocks).replaceAll(" ");
         String unescaped = HtmlUtils.htmlUnescape(withoutTags);
         String collapsed = WHITESPACE_OR_CONTROL_RUN.matcher(unescaped).replaceAll(" ").strip();
-        String sourceText = truncate(collapsed);
-        return isWorthSummarizing(sourceText, cleanedTitle) ? sourceText : null;
+        return truncate(collapsed);
     }
 
     /**

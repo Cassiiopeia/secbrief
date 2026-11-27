@@ -49,7 +49,7 @@ class SummaryApplyFileWriterTest {
                         List.of(new AffectedTarget("Example VPN", "2.4.0 이전")), List.of("패치를 \"적용\"하세요."))),
                 accepted(6L, new ArticleBrief("빈 칸이 많은 한 줄이에요.", "무슨 일만 있어요.", null, List.of(), List.of())),
                 new BackfillResult(8L, "NVD", BackfillResult.Status.REJECTED, null, 3, 6, false, "whatHappened copies source text"),
-                BackfillResult.withoutBrief(BackfillTestData.newsTarget(9L, null), BackfillResult.Status.NOT_RECOVERABLE)));
+                BackfillResult.withoutBrief(BackfillTestData.newsTarget(9L, null), BackfillResult.Status.NOT_RECOVERABLE, null)));
 
         assertThat(applySql).contains("브리핑 2건");
         assertThat(applySql).contains("\\set ON_ERROR_STOP on\nbegin;");

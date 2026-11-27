@@ -59,6 +59,8 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 | 수집 | `collect.tick-milliseconds`, `collect.initial-delay-milliseconds` | 60초, 30초 (실제 수집 주기는 출처별 `interval_minutes`) |
 | AI 처리 | `ai.batch-size`, `ai.request-batch-size`, `ai.tick-milliseconds`, `ai.initial-delay-milliseconds` | 20건, 10건, 5분, 90초 |
 | 기사 요약 | `summary.batch-size`, `summary.tick-budget-seconds`, `summary.tick-milliseconds`, `summary.initial-delay-milliseconds` | 10건, 90초, 3분, 210초 |
+| 브리핑 없는 지난 기사 다시 요약 (#77, 기본 꺼짐: 밀린 건은 로컬 도구로) | `summary-refetch.enabled`, `summary-refetch.batch-size`, `summary-refetch.daily-article-limit`, `summary-refetch.tick-milliseconds`, `summary-refetch.initial-delay-milliseconds` | 꺼짐, 5건, 하루 20건, 1시간, 10분 ([backfill.md](../docs/summary-harness/backfill.md) 4장) |
+| 출처 호출 (수집·지표·다시 받기 공통 `FeedHttpClient`) | `feed-http.prefer-ipv4` | 켜짐 (IPv4 먼저, 주소가 여러 개면 연결 실패 시 다음 주소로. 로컬 도구는 `--prefer-ipv4`) |
 | 기사 이미지 처리 | `image.batch-size`, `image.tick-budget-seconds`, `image.tick-milliseconds`, `image.initial-delay-milliseconds` | 20건, 60초, 2분, 150초 |
 | 제목 임베딩 | `embedding.batch-size`, `embedding.request-batch-size`, `embedding.tick-milliseconds`, `embedding.initial-delay-milliseconds` | 100건, 25건, 5분, 210초 |
 | 긴급 알림 (방해 금지 보류분 발송도 같은 틱) | `push.alert-tick-milliseconds`, `push.alert-initial-delay-milliseconds`, `push.receipt-tick-milliseconds`, `push.receipt-initial-delay-milliseconds` | 5분, 2분, 15분, 3분 |

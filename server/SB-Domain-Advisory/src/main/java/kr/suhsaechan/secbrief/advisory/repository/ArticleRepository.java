@@ -112,6 +112,16 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
             + "a.publishedAt desc, a.id desc")
     List<Article> findSummaryTargets(Limit limit);
 
+    // 요약 입력 다시 받기 대상 (서버 다시 요약, 기본 꺼짐): 브리핑 없음 + 요약 입력 없음 + 이전 구조 요약(DONE)·입력 없음(NONE),
+    // 다시 받는 출처만 (SourceTextRefetchMethod), beforeId 미만 id 내림차순 (FAILED 는 다시 부르지 않음)
+    @Query("select a from Article a "
+            + "where a.id < :beforeId and a.summaryState.oneLine is null and a.summaryState.sourceText is null "
+            + "and a.summaryState.status in (kr.suhsaechan.secbrief.advisory.constant.SummaryStatus.DONE, "
+            + "kr.suhsaechan.secbrief.advisory.constant.SummaryStatus.NONE) "
+            + "and a.source.code in :sourceCodes order by a.id desc")
+    List<Article> findSourceTextRefetchTargets(@Param("beforeId") long beforeId,
+                                               @Param("sourceCodes") Collection<String> sourceCodes, Limit limit);
+
     // 관련 기사 ID (자기 제외, since 이후 게시분): 같은 CVE(0) > 같은 회사·제품(1) > 겹치는 키워드(2, 겹친 수 많은 순) > 같은 주제(3),
     // 같은 순위 안에서는 최신순. 주제가 GENERAL(분류 전·그 밖)이면 같은 주제로 묶지 않음 (무관한 최신 기사가 채워짐). cveIdPattern·subjectName 이 빈 문자열이면 그 조건은 건너뜀 (RelatedArticlePolicy 가 만듦)
     @Query(nativeQuery = true, value = """
