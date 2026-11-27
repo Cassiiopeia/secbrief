@@ -34,12 +34,12 @@ public class FeedHttpClient {
     public static final String USER_AGENT = "secbrief-collector/1.0 (+https://cassiiopeia.github.io/secbrief/support.html)";
 
     // 출처 주소의 IPv4 를 먼저 시도 (운영 설정 secbrief.feed-http.prefer-ipv4, 로컬 도구 --prefer-ipv4 의 기본값)
-    public static final boolean DEFAULT_SHOULD_PREFER_IPV4 = true;
+    public static final boolean SHOULD_PREFER_IPV4_BY_DEFAULT = true;
 
     private final RestClient restClient;
 
     @Autowired
-    public FeedHttpClient(@Value("${secbrief.feed-http.prefer-ipv4:true}") boolean shouldPreferIpv4) {
+    public FeedHttpClient(@Value("${secbrief.feed-http.prefer-ipv4}") boolean shouldPreferIpv4) {
         this(new FeedHostAddressResolver(shouldPreferIpv4));
     }
 

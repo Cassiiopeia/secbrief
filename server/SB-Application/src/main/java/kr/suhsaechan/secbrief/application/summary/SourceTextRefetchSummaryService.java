@@ -51,8 +51,8 @@ public class SourceTextRefetchSummaryService {
                                            ArticleSummarizer articleSummarizer,
                                            ArticleSummaryResultRecorder articleSummaryResultRecorder,
                                            AiDailyBudgetGuard aiDailyBudgetGuard, Clock clock,
-                                           @Value("${secbrief.summary-refetch.batch-size:5}") int batchSize,
-                                           @Value("${secbrief.summary-refetch.daily-article-limit:20}") int dailyArticleLimit) {
+                                           @Value("${secbrief.summary-refetch.batch-size}") int batchSize,
+                                           @Value("${secbrief.summary-refetch.daily-article-limit}") int dailyArticleLimit) {
         this.articleRepository = articleRepository;
         this.sourceTextRefetcher = sourceTextRefetcher;
         this.articleSummarizer = articleSummarizer;

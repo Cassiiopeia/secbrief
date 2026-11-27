@@ -62,7 +62,7 @@ public final class SummaryToolMain {
         List<BackfillTarget> targetsWithoutSourceText = targetRows.stream().map(BackfillTarget::fromJson)
                 .filter(target -> !target.hasSourceText()).toList();
         FeedHttpClient feedHttpClient = new FeedHttpClient(Boolean.parseBoolean(
-                options.getOrDefault("prefer-ipv4", String.valueOf(FeedHttpClient.DEFAULT_SHOULD_PREFER_IPV4))));
+                options.getOrDefault("prefer-ipv4", String.valueOf(FeedHttpClient.SHOULD_PREFER_IPV4_BY_DEFAULT))));
         Clock clock = Clock.systemUTC();
         Map<Long, SourceTextRefetchResult> resultByTargetId =
                 new SourceTextRecoverer(feedHttpClient, clock, new SourceTextRefetcher(feedHttpClient, clock))

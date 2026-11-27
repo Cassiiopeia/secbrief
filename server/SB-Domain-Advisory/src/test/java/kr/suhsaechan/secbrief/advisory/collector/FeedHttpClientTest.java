@@ -27,7 +27,7 @@ class FeedHttpClientTest {
     private static final String FEED_ETAG = "\"feed-v1\"";
     private static final String FEED_LAST_MODIFIED = "Wed, 25 Nov 2026 00:00:00 GMT";
 
-    private final FeedHttpClient feedHttpClient = new FeedHttpClient(FeedHttpClient.DEFAULT_SHOULD_PREFER_IPV4);
+    private final FeedHttpClient feedHttpClient = new FeedHttpClient(FeedHttpClient.SHOULD_PREFER_IPV4_BY_DEFAULT);
     private final AtomicReference<Headers> receivedHeaders = new AtomicReference<>();
     private final AtomicReference<String> receivedRawQuery = new AtomicReference<>();
     private HttpServer server;
