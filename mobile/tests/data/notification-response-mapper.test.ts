@@ -102,3 +102,16 @@ test('최근 번호: 없거나 숫자가 아니면 없음', () => {
   expect(toLatestAppNotificationIds({ latestAlertId: 42, latestNoticeId: null })).toEqual({ latestAlertId: 42, latestNoticeId: undefined });
   expect(toLatestAppNotificationIds({})).toEqual({ latestAlertId: undefined, latestNoticeId: undefined });
 });
+
+test('공백만 있는 글은 없는 값으로 보고 앞뒤 빈칸은 정리 (커서·대표 기사 제목·공지 링크·대응, #85)', () => {
+  expect(toAppNotificationPage({ items: [], nextCursor: '  ' }).nextCursor).toBeUndefined();
+  expect(toAppNotificationSummary({ ...ALERT_SUMMARY, leadArticleTitle: '   ' })?.leadArticleTitle).toBeUndefined();
+  expect(toAppNotificationSummary({ ...ALERT_SUMMARY, leadArticleTitle: ' 대표 기사 ' })?.leadArticleTitle).toBe('대표 기사');
+  const detail = toAppNotificationDetail({
+    ...ALERT_SUMMARY,
+    linkUrl: ' https://secbrief.suhsaechan.kr/notice ',
+    articleGuides: [{ articleId: 501, actions: [' 패치해요 ', '  ', '', 3, '점검해요'] }],
+  });
+  expect(detail?.linkUrl).toBe('https://secbrief.suhsaechan.kr/notice');
+  expect(detail?.articleGuides[0].actions).toEqual(['패치해요', '점검해요']);
+});

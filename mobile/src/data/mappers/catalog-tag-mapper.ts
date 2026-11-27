@@ -1,5 +1,5 @@
 import { CATALOG_TAG_KINDS, type CatalogTag, type CatalogTagKind, type TagCatalog } from '../models/catalog-tag';
-import { isNonArrayObject } from './unknown-value-guards';
+import { isNonArrayObject, toNonBlankText } from './unknown-value-guards';
 
 /**
  * 카탈로그 응답·저장값 > 카탈로그 (모양을 믿지 않고 읽음)
@@ -17,19 +17,17 @@ export function toTagCatalog(value: unknown): TagCatalog | undefined {
 function toCatalogTag(value: unknown): CatalogTag | undefined {
   if (!isNonArrayObject(value)) return undefined;
   const kind = CATALOG_TAG_KINDS.find((tagKind): tagKind is CatalogTagKind => tagKind === value.kind);
-  if (kind === undefined || !isNonBlankText(value.code) || !isNonBlankText(value.name)) return undefined;
+  const code = toNonBlankText(value.code);
+  const name = toNonBlankText(value.name);
+  if (kind === undefined || code === undefined || name === undefined) return undefined;
   return {
     kind,
-    code: value.code,
-    name: value.name,
-    shortName: isNonBlankText(value.shortName) ? value.shortName : value.name,
-    groupCode: isNonBlankText(value.groupCode) ? value.groupCode : undefined,
-    fieldCode: isNonBlankText(value.fieldCode) ? value.fieldCode : undefined,
+    code,
+    name,
+    shortName: toNonBlankText(value.shortName) ?? name,
+    groupCode: toNonBlankText(value.groupCode),
+    fieldCode: toNonBlankText(value.fieldCode),
     displayOrder: typeof value.displayOrder === 'number' ? value.displayOrder : 0,
     isWidelyUsed: value.isWidelyUsed === true,
   };
-}
-
-function isNonBlankText(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
 }

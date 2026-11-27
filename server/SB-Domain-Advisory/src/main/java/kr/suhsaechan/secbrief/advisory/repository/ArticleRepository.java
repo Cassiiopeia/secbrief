@@ -48,21 +48,21 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
     // 알림 판정 대기열: 처리 전 + AI 판단이 끝나 분류된 것, 또는 AI 대기 기한(holdDeadline 이전 수집)을 넘긴 것 (#97: 판단 전에 보내지 않음)
     @Query("select a from Article a join fetch a.source "
             + "where a.urgentNotifiedAt is null "
-            + "and ((a.aiStatus <> kr.suhsaechan.secbrief.advisory.constant.AiStatus.PENDING and a.classifiedAt is not null) "
+            + "and ((a.aiStatus <> kr.suhsaechan.secbrief.advisory.constant.AiStatus.PENDING and a.classificationState.classifiedAt is not null) "
             + "or a.collectedAt <= :holdDeadline) "
             + "order by a.id asc")
     List<Article> findAlertCandidates(@Param("holdDeadline") Instant holdDeadline, Limit limit);
 
     // 분류 대기열: 분류 전 + (AI 판단이 끝남 또는 AI 대기 기한을 넘김), 오래된 것부터 (백필·다시 분류 포함)
     @Query("select a from Article a join fetch a.source "
-            + "where a.classifiedAt is null "
+            + "where a.classificationState.classifiedAt is null "
             + "and (a.aiStatus <> kr.suhsaechan.secbrief.advisory.constant.AiStatus.PENDING or a.collectedAt <= :holdDeadline) "
             + "order by a.id asc")
     List<Article> findClassificationTargets(@Param("holdDeadline") Instant holdDeadline, Limit limit);
 
     // 전체 다시 분류 (관리자 화면, 알림 처리 시각은 건드리지 않아 다시 알리지 않음)
     @Modifying
-    @Query("update Article a set a.classifiedAt = null")
+    @Query("update Article a set a.classificationState.classifiedAt = null")
     int requestReclassificationOfAll();
 
     // 긴급 알림 발송 처리 표시 (받을 기기가 없어도 처리한 것으로 표시)
@@ -72,7 +72,7 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
 
     // 수집 시각 since 이후 분류 값 (오늘 새 소식 건수, 최신 수집 먼저)
     @Query("select new kr.suhsaechan.secbrief.advisory.repository.NewArticleTagRow(a.source.code, a.kind, a.isKev, "
-            + "a.fieldCode, a.ecosystemCode, a.productCode, a.packageName, a.subjectName, a.collectedAt) "
+            + "a.classificationState.fieldCode, a.classificationState.ecosystemCode, a.classificationState.productCode, a.classificationState.packageName, a.subjectName, a.collectedAt) "
             + "from Article a where a.collectedAt >= :since order by a.collectedAt desc, a.id desc")
     List<NewArticleTagRow> findNewArticleTagRows(@Param("since") Instant since);
 

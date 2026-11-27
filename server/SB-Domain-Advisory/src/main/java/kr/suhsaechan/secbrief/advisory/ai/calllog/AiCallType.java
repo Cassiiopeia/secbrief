@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum AiCallType {
     TITLE_ANALYSIS("제목 분석"),
+    // 한자가 섞인 번역 제목 고쳐 쓰기 (제목 분석 뒤 1회, #87)
+    TITLE_TRANSLATION_REPAIR("제목 번역 고쳐 쓰기"),
     SUMMARY("요약");
 
     private final String label;

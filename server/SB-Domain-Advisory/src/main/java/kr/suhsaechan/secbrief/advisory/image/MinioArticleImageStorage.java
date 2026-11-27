@@ -42,10 +42,10 @@ public class MinioArticleImageStorage implements ArticleImageStorage {
     // 버킷 확인·생성을 마쳤는지 (첫 저장 때 1회)
     private volatile boolean isBucketReady;
 
-    public MinioArticleImageStorage(@Value("${secbrief.image-storage.endpoint:}") String endpoint,
-                                    @Value("${secbrief.image-storage.access-key:}") String accessKey,
-                                    @Value("${secbrief.image-storage.secret-key:}") String secretKey,
-                                    @Value("${secbrief.image-storage.bucket:secbrief}") String bucket) {
+    public MinioArticleImageStorage(@Value("${secbrief.image-storage.endpoint}") String endpoint,
+                                    @Value("${secbrief.image-storage.access-key}") String accessKey,
+                                    @Value("${secbrief.image-storage.secret-key}") String secretKey,
+                                    @Value("${secbrief.image-storage.bucket}") String bucket) {
         this.bucket = bucket;
         this.minioClient = createClientIfConfigured(endpoint, accessKey, secretKey, bucket);
     }

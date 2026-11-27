@@ -10,6 +10,7 @@ import kr.suhsaechan.secbrief.common.crypto.SecretCipher;
 import kr.suhsaechan.secbrief.common.crypto.SecretMask;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
@@ -80,6 +81,15 @@ public class SystemConfigService {
         }
         String plainValue = secretCipher.decrypt(key.name(), storedValue);
         return plainValue == null ? "" : plainValue;
+    }
+
+    /** 저장된 비밀값이 있는데 풀지 못하는지 (마스터 키 불일치·변조, 마스터 키 없음은 canStoreSecret 으로 따로 안내) */
+    public boolean hasUnreadableSecret(ConfigKey key) {
+        String storedValue = systemConfigCache.findStoredValue(key);
+        if (storedValue == null || storedValue.isBlank() || !secretCipher.isAvailable()) {
+            return false;
+        }
+        return secretCipher.decrypt(key.name(), storedValue) == null;
     }
 
     /** 비밀값을 저장할 수 있는지 (마스터 키 설정 여부) */
@@ -239,6 +249,6 @@ public class SystemConfigService {
     }
 
     private static String truncate(String text, int maximumLength) {
-        return text.length() <= maximumLength ? text : text.substring(0, maximumLength);
+        return TextTruncation.truncateKeepingSurrogatePairs(text, maximumLength);
     }
 }

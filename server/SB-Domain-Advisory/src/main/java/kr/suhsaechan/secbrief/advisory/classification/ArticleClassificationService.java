@@ -79,9 +79,9 @@ public class ArticleClassificationService {
         return article.getKind() != ArticleKind.NEWS
                 && !ArticleClassifier.hasRuleField(classification)
                 && classification.fieldCode() != null
-                && article.getAiFieldCode() == null
+                && article.getClassificationState().getAiFieldCode() == null
                 && article.getAiStatus() == AiStatus.DONE
-                && article.getFieldSource() == null;
+                && article.getClassificationState().getFieldSource() == null;
     }
 
     private void apply(Article article, ArticleClassification classification, TagCatalog catalog) {

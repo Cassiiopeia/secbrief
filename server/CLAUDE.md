@@ -21,6 +21,7 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 ## 규칙
 
 - 예외는 `CustomException(ErrorCode)` 하나만 던진다. 도메인별 예외 클래스를 만들지 않는다.
+- 목록 API 의 `size` 는 거부하지 않고 조정한다 (`PageSizePolicy`: 없음·1 미만 > 기본값, 최대 초과 > 최대값). 기사 목록·검색·인기 키워드·알림함 공통 (#85).
 - 성공 응답은 `ApiResponse.of(data)`, 실패 응답은 전역 예외 처리가 `ErrorResponse`로 만든다.
 - 스키마 변경은 Flyway 파일로만 한다 (`ddl-auto: validate`). 파일명은 `V{version.yml 버전}__설명.sql`.
 - 주기 작업은 `SB-Web`의 `web.scheduler` 패키지에 둔다.
@@ -30,6 +31,8 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 - 기사 요약은 브리핑 구조다 (한 줄 결론·무슨 일·왜 중요·영향 대상·대응, #67). 작성 규칙은 `SB-Domain-Advisory/src/main/resources/summary-harness/*.md` 가 단일 원본이다 (공통 규칙 + 글 종류별 안내 + 고쳐 쓰기).
   고칠 때는 [docs/summary-harness](../docs/summary-harness/README.md) 의 평가 순서로 이전 판과 비교한다. 요약 1건의 제공자 호출은 시도마다 최대 2회다.
   이전 구조 열(`summary`, `summary_key_points`, `summary_action_guide`)은 브리핑에서 옮긴 값을 함께 저장한다 (`ArticleBrief.toLegacySummary` 한 곳, 이전 앱 빌드용).
+  상세 응답 `isSummaryPending` 은 `summary_status = PENDING` 일 때만 true 다 (입력 없음·실패·완료는 false, 앱은 true 일 때만 "준비 중" 카드, #87).
+- 제목 번역은 한글로만 쓴다 (`ArticleTitleAnalysisPrompt` 지시). 원문에 없는 한자가 섞이면(`ArticleTitleAnalysisPolicy.findHanjaNotInOriginal`) 그 건만 묶어 고쳐 쓰기를 1번 부르고(`TranslatedTitleRepairPrompt`, 호출 기록 `TITLE_TRANSLATION_REPAIR`), 그래도 남으면 번역을 버려 원문 제목으로 보인다 (#87).
 
 ## 외부 연동 설정 (환경변수 또는 운영 설정 파일)
 
@@ -79,7 +82,7 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 | `PUT /api/v1/push-devices` | 요청에 `quietHours {isEnabled, startTime "HH:mm", endTime, timeZone}` 선택 (없으면 저장값 유지), 응답에 `quietHours` 항상 |
 
 - 긴급 알림 틱마다 알릴 기사 전체를 알림함 기록(`notification` kind ALERT + `notification_article`) 1건으로 남기고, 그 번호를 푸시 data 에 싣는다. 발송이 전부 실패하면 기록을 지우고 기사를 대기로 남긴다.
-- 푸시 data 키 원본은 `NotificationPushData` 다: `notificationId`, `notificationKind`(`ALERT`·`NOTICE`·`QUIET_HOURS_DIGEST`), `articleId`(기사 1건 알림만), `targetTab`(이전 앱용, 항상). 앱 `toNotificationTargetRoute` 와 함께 바꾼다.
+- 푸시 data 키 원본은 `NotificationPushData` 다: `notificationId`, `notificationKind`(`ALERT`·`NOTICE`·`QUIET_HOURS_DIGEST`), `articleId`(기사 1건 알림만), `targetTab`(이전 앱용, 항상), `targetScreen`(KISA 경보단계 글 1건 알림만 `alertLevel`, 방해 금지 보류분은 보낼 때 다시 판정, #87). 앱 `toNotificationTargetRoute` 와 함께 바꾼다.
 - 방해 금지 시간은 기기 시간대 기준 `[시작, 끝)`, 끝이 이르면 자정을 넘긴다. 켰을 때 시작 == 끝은 `QUIET_HOURS_SAME_TIME`, 모르는 시간대는 `INVALID_TIME_ZONE`. 기존·새 기기 모두 기본 꺼짐.
 - 방해 금지 시간이면 그 기기가 받을 글을 `push_device_held_push` 에 보류하고 (KEV 도 예외 없음), 끝난 뒤 첫 알림 틱에 1건이면 그대로, 여러 건이면 모음 1건을 보낸다. 실패하면 보류분을 남긴다.
 - 공지사항은 관리자 화면(`/admin/notices`)에서 쓰고, 올릴 때 "푸시도 보내기"를 고르면 알림을 켠 기기 전체에 보낸다 (방해 금지면 보류). 고칠 때는 다시 보내지 않는다. 발송 기록 화면은 `/admin/alerts`.

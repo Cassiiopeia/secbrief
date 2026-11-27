@@ -28,38 +28,69 @@ const BROAD_TAG_ROW_DETAIL = '그중 주요 소식만 알려 드려요';
  * 목록·이름·묶음은 서버 카탈로그 그대로 (카탈로그를 못 받았으면 안내만)
  */
 export function InterestPickerTabBody({ tab, interests, catalogIndex, onToggled }: InterestPickerTabBodyProps) {
+  // 제품 검색어는 칸을 오가도 유지 (이 본문이 칸마다 다시 만들어지지 않음)
   const [productQuery, setProductQuery] = useState('');
   if (tab === 'field' || tab === 'ecosystem') {
-    const tags = tab === 'field' ? catalogIndex.fields : catalogIndex.ecosystems;
-    const pickedCodes = tab === 'field' ? interests.fieldCodes : interests.ecosystemCodes;
-    return (
-      <>
-        <SbInlineNotice
-          message={
-            tab === 'field'
-              ? '분야는 넓어서 그중 주요 소식(널리 쓰는 제품, 악용 중, CVSS 9.0 이상이면서 AI 가 중요하다고 본 것)만 알려 드려요.'
-              : '오픈소스 패키지를 쓰는 언어별로 골라요. GitHub 권고에 적힌 생태계 그대로 나눠요.'
-          }
-        />
-        {tags.length === 0 && <SbInlineNotice message="목록을 불러오지 못했어요. 잠시 후 다시 열어 주세요." />}
-        {tags.map((tag) => (
-          <SbPickRow
-            key={tag.code}
-            title={tag.name}
-            detail={BROAD_TAG_ROW_DETAIL}
-            isPicked={pickedCodes.includes(tag.code)}
-            pickedLabel="받기"
-            unpickedLabel="안 받기"
-            onToggled={() => onToggled(tab, tag.code)}
-          />
-        ))}
-      </>
-    );
+    return <BroadTagPickerBody tab={tab} interests={interests} catalogIndex={catalogIndex} onToggled={(code) => onToggled(tab, code)} />;
   }
+  return (
+    <ProductPickerBody
+      productQuery={productQuery}
+      onProductQueryChanged={setProductQuery}
+      interests={interests}
+      catalogIndex={catalogIndex}
+      onToggled={(code) => onToggled('product', code)}
+    />
+  );
+}
 
-  const searchResults = searchProducts(catalogIndex, productQuery);
-  const pickedOutsideGroups = toPickedProductsOutsideGroups(interests, catalogIndex);
-  const onProductToggled = (code: string) => onToggled('product', code);
+interface BroadTagPickerBodyProps {
+  tab: 'field' | 'ecosystem';
+  interests: AlertInterests;
+  catalogIndex: TagCatalogIndex;
+  onToggled: (code: string) => void;
+}
+
+// 분야·생태계 칸: 안내 > (목록 없음 안내) > 받기·안 받기 행
+function BroadTagPickerBody({ tab, interests, catalogIndex, onToggled }: BroadTagPickerBodyProps) {
+  const tags = tab === 'field' ? catalogIndex.fields : catalogIndex.ecosystems;
+  const pickedCodes = tab === 'field' ? interests.fieldCodes : interests.ecosystemCodes;
+  return (
+    <>
+      <SbInlineNotice
+        message={
+          tab === 'field'
+            ? '분야는 넓어서 그중 주요 소식(널리 쓰는 제품, 악용 중, CVSS 9.0 이상이면서 AI 가 중요하다고 본 것)만 알려 드려요.'
+            : '오픈소스 패키지를 쓰는 언어별로 골라요. GitHub 권고에 적힌 생태계 그대로 나눠요.'
+        }
+      />
+      {tags.length === 0 && <SbInlineNotice message="목록을 불러오지 못했어요. 잠시 후 다시 열어 주세요." />}
+      {tags.map((tag) => (
+        <SbPickRow
+          key={tag.code}
+          title={tag.name}
+          detail={BROAD_TAG_ROW_DETAIL}
+          isPicked={pickedCodes.includes(tag.code)}
+          pickedLabel="받기"
+          unpickedLabel="안 받기"
+          onToggled={() => onToggled(tag.code)}
+        />
+      ))}
+    </>
+  );
+}
+
+interface ProductPickerBodyProps {
+  productQuery: string;
+  onProductQueryChanged: (productQuery: string) => void;
+  interests: AlertInterests;
+  catalogIndex: TagCatalogIndex;
+  onToggled: (code: string) => void;
+}
+
+// 제품 칸: 검색칸 > 검색어가 있으면 검색 결과, 없으면 검색으로 고른 것 + 인기 묶음 칩
+function ProductPickerBody({ productQuery, onProductQueryChanged, interests, catalogIndex, onToggled }: ProductPickerBodyProps) {
+  const trimmedProductQuery = productQuery.trim();
   return (
     <>
       <SbSearchField
@@ -68,32 +99,65 @@ export function InterestPickerTabBody({ tab, interests, catalogIndex, onToggled 
         accessibilityLabel="제품 이름 찾기"
         clearAccessibilityLabel="찾는 글자 지우기"
         maximumLength={PRODUCT_QUERY_MAXIMUM_LENGTH}
-        onChangeText={setProductQuery}
+        onChangeText={onProductQueryChanged}
       />
-      {productQuery.trim().length > 0 ? (
-        <>
-          <SbSectionHeader title={`검색 결과 ${searchResults.length}개`} />
-          {searchResults.length === 0 ? (
-            <SbInlineNotice message={`"${productQuery.trim()}" 은 아직 목록에 없어요. 이름을 다르게 찾아보세요.`} />
-          ) : (
-            <SbPickChips options={searchResults} pickedValues={interests.productCodes} onToggled={onProductToggled} />
-          )}
-        </>
+      {trimmedProductQuery.length > 0 ? (
+        <ProductSearchResults
+          trimmedProductQuery={trimmedProductQuery}
+          searchResults={searchProducts(catalogIndex, productQuery)}
+          pickedProductCodes={interests.productCodes}
+          onToggled={onToggled}
+        />
       ) : (
+        <ProductGroupChips interests={interests} catalogIndex={catalogIndex} onToggled={onToggled} />
+      )}
+    </>
+  );
+}
+
+interface ProductSearchResultsProps {
+  trimmedProductQuery: string;
+  searchResults: ReturnType<typeof searchProducts>;
+  pickedProductCodes: string[];
+  onToggled: (code: string) => void;
+}
+
+// 검색 결과 n개 > 칩 (없으면 다른 이름으로 찾아보라는 안내)
+function ProductSearchResults({ trimmedProductQuery, searchResults, pickedProductCodes, onToggled }: ProductSearchResultsProps) {
+  return (
+    <>
+      <SbSectionHeader title={`검색 결과 ${searchResults.length}개`} />
+      {searchResults.length === 0 ? (
+        <SbInlineNotice message={`"${trimmedProductQuery}" 은 아직 목록에 없어요. 이름을 다르게 찾아보세요.`} />
+      ) : (
+        <SbPickChips options={searchResults} pickedValues={pickedProductCodes} onToggled={onToggled} />
+      )}
+    </>
+  );
+}
+
+interface ProductGroupChipsProps {
+  interests: AlertInterests;
+  catalogIndex: TagCatalogIndex;
+  onToggled: (code: string) => void;
+}
+
+// 검색으로 고른 것(묶음 밖) > 인기 묶음별 칩
+function ProductGroupChips({ interests, catalogIndex, onToggled }: ProductGroupChipsProps) {
+  const pickedOutsideGroups = toPickedProductsOutsideGroups(interests, catalogIndex);
+  return (
+    <>
+      {pickedOutsideGroups.length > 0 && (
         <>
-          {pickedOutsideGroups.length > 0 && (
-            <>
-              <SbSectionHeader title="검색으로 고른 것" />
-              <SbPickChips options={pickedOutsideGroups} pickedValues={interests.productCodes} onToggled={onProductToggled} />
-            </>
-          )}
-          {toProductGroupSections(catalogIndex).map((section) => (
-            <InterestProductGroup key={section.groupCode} title={section.title}>
-              <SbPickChips options={section.options} pickedValues={interests.productCodes} onToggled={onProductToggled} />
-            </InterestProductGroup>
-          ))}
+          <SbSectionHeader title="검색으로 고른 것" />
+          <SbPickChips options={pickedOutsideGroups} pickedValues={interests.productCodes} onToggled={onToggled} />
         </>
       )}
+      {toProductGroupSections(catalogIndex).map((section) => (
+        <InterestProductGroup key={section.groupCode} title={section.title}>
+          <SbPickChips options={section.options} pickedValues={interests.productCodes} onToggled={onToggled} />
+        </InterestProductGroup>
+      ))}
     </>
   );
 }

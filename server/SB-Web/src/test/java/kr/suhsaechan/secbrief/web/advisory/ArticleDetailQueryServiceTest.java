@@ -129,6 +129,10 @@ class ArticleDetailQueryServiceTest extends PostgresContainerTestSupport {
             assertThat(detail.facts()).isEmpty();
             assertThat(detail.article().originalUrl()).startsWith("https://");
         });
+        // 대기만 "준비 중" (입력 없음·실패는 요약 카드를 숨김, #87)
+        assertThat(articleDetailQueryService.findArticleDetail(pendingId).isSummaryPending()).isTrue();
+        assertThat(articleDetailQueryService.findArticleDetail(noneId).isSummaryPending()).isFalse();
+        assertThat(articleDetailQueryService.findArticleDetail(failedId).isSummaryPending()).isFalse();
     }
 
     @Test

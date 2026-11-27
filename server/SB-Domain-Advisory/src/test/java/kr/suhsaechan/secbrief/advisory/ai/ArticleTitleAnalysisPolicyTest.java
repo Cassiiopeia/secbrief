@@ -51,6 +51,27 @@ class ArticleTitleAnalysisPolicyTest {
     }
 
     @Test
+    void dropsTranslationWithHanjaNotInOriginal() {
+        // 실제 사례 (#87): "Out-of-bounds Write" 를 "범위 外 쓰기" 로 옮김
+        assertThat(toAcceptedTranslation("Out-of-bounds Write in Example Router Firmware", OVERSEAS,
+                "Example Router 펌웨어의 범위 外 쓰기")).isNull();
+        assertThat(toAcceptedTranslation("Use After Free in Example Browser", OVERSEAS, "Example Browser 해제 後 사용")).isNull();
+        assertThat(toAcceptedTranslation("Out-of-bounds Write in Example Router Firmware", OVERSEAS,
+                "Example Router 펌웨어의 범위 밖 쓰기")).isEqualTo("Example Router 펌웨어의 범위 밖 쓰기");
+    }
+
+    @Test
+    void keepsHanjaThatAppearsInOriginalTitle() {
+        assertThat(toAcceptedTranslation("三菱電機 MELSEC iQ-R flaw", OVERSEAS, "三菱電機 MELSEC iQ-R 취약점"))
+                .isEqualTo("三菱電機 MELSEC iQ-R 취약점");
+        // 원문에 있는 한자는 허용, 원문에 없는 한자만 걸림
+        assertThat(ArticleTitleAnalysisPolicy.findHanjaNotInOriginal("三菱電機 MELSEC flaw", "三菱電機 MELSEC 범위 外 外 쓰기"))
+                .containsExactly("外");
+        assertThat(ArticleTitleAnalysisPolicy.findHanjaNotInOriginal("Example flaw", "Example 취약점 (CVE-2026-1234)")).isEmpty();
+        assertThat(ArticleTitleAnalysisPolicy.findHanjaNotInOriginal("Example flaw", null)).isEmpty();
+    }
+
+    @Test
     void cleansKeywordsRemovingHashSignAndExtraWhitespace() {
         assertThat(toAcceptedKeywords("Red Hat patches Linux kernel zero-day",
                 List.of(" #제로데이 ", "Red   Hat", "#Linux")))

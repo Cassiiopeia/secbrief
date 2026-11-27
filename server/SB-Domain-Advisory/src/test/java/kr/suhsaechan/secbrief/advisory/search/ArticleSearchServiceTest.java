@@ -138,9 +138,8 @@ class ArticleSearchServiceTest {
     }
 
     @Test
-    void rejectsInvalidQueryOrSizeBeforeAnyLookup() {
+    void rejectsInvalidQueryBeforeAnyLookup() {
         assertThatThrownBy(() -> service.search(" 가 ", null)).extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
-        assertThatThrownBy(() -> service.search("병원 해킹", 51)).extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
         verify(provider, never()).embed(any());
         verify(articleRepository, never()).findAllById(any());
     }
@@ -151,6 +150,14 @@ class ArticleSearchServiceTest {
         when(articleRepository.findAllById(List.of(2L))).thenReturn(List.of(firstSemanticArticle));
 
         assertThat(service.search("병원 해킹", 5).items()).extracting(ArticleResponse::id).containsExactly(2L);
+    }
+
+    @Test
+    void clampsOversizedRequestToMaximumSize() {
+        when(index.findMostSimilarArticleIds(eq(QUERY_VECTOR), eq(50), eq(MINIMUM_SIMILARITY))).thenReturn(List.of(2L));
+        when(articleRepository.findAllById(List.of(2L))).thenReturn(List.of(firstSemanticArticle));
+
+        assertThat(service.search("병원 해킹", 51).items()).extracting(ArticleResponse::id).containsExactly(2L);
     }
 
     private static Article createArticle(Long id, String title) {

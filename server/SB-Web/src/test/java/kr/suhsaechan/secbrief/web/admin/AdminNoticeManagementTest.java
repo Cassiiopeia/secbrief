@@ -97,7 +97,8 @@ class AdminNoticeManagementTest extends PostgresContainerTestSupport {
 
     @Test
     void publishesNoticeWithoutPushKeepingLineBreaks() throws Exception {
-        postNotice("서비스 점검 안내", "11월 30일 새벽 2시에 점검해요.\n10분이면 끝나요.", "", true, false)
+        // 브라우저 textarea 는 CRLF 로 보냄: LF 로 저장 (#87)
+        postNotice("서비스 점검 안내", "11월 30일 새벽 2시에 점검해요.\r\n10분이면 끝나요.", "", true, false)
                 .andExpect(redirectedUrl(NOTICES_PATH))
                 .andExpect(flash().attribute("flashMessage", "공지사항을 올렸어요"));
 

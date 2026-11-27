@@ -1,8 +1,10 @@
 /**
  * 브리핑 응답 변환: 없음·null·다른 형태·빈 글·상한 초과를 모두 견딤 (예시 값, 실제 기사 아님)
  */
-import { toArticleBrief, toNonBlankText } from '@/data/mappers/article-brief-mapper';
-import { type ArticleApiResponse, toArticleDetail, toBriefingItem } from '@/data/mappers/api-response-mapper';
+import { toArticleBrief } from '@/data/mappers/article-brief-mapper';
+import { toNonBlankText } from '@/data/mappers/unknown-value-guards';
+import { type ArticleApiResponse, toBriefingItem } from '@/data/mappers/api-response-mapper';
+import { toArticleDetail } from '@/data/mappers/article-detail-mapper';
 
 const fullBriefResponse = {
   oneLine: '예시 게이트웨이의 인증 우회 취약점이 공개됐어요',

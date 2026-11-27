@@ -25,6 +25,7 @@ import kr.suhsaechan.secbrief.common.audit.AdminAuditLogRepository;
 import kr.suhsaechan.secbrief.common.config.ConfigKey;
 import kr.suhsaechan.secbrief.common.config.SystemConfigCache;
 import kr.suhsaechan.secbrief.common.config.SystemConfigService;
+import kr.suhsaechan.secbrief.common.crypto.SecretCipher;
 import kr.suhsaechan.secbrief.web.support.AdminTestAccounts;
 import kr.suhsaechan.secbrief.web.support.PostgresContainerTestSupport;
 import org.junit.jupiter.api.AfterEach;
@@ -111,7 +112,8 @@ class AdminAiKeyPageTest extends PostgresContainerTestSupport {
                 .andExpect(content().string(containsString("키·주소 없음")))
                 .andExpect(content().string(containsString("name=\"_csrf\"")))
                 // 테스트 설정에는 마스터 키가 있어 안내 배너가 없음
-                .andExpect(content().string(not(containsString("SECRET_MASTER_KEY_MISSING"))));
+                .andExpect(content().string(not(containsString("SECRET_MASTER_KEY_MISSING"))))
+                .andExpect(content().string(not(containsString("AI_KEY_LIST_UNREADABLE"))));
     }
 
     @Test
@@ -240,6 +242,32 @@ class AdminAiKeyPageTest extends PostgresContainerTestSupport {
         postAsAdmin(post(AI_KEYS_PATH + "/provider-priority"))
                 .andExpect(flash().attribute("flashError", containsString("CONFIG_VALUE_REQUIRED")));
         assertThat(systemConfigService.getString(ConfigKey.AI_PROVIDER_PRIORITY)).isEqualTo("ollama,anthropic");
+    }
+
+    @Test
+    void warnsAndBlocksChangesWhenStoredKeysWereEncryptedWithAnotherMasterKey() throws Exception {
+        // 다른 마스터 키로 저장한 목록 (서버 로그 decrypt failed): 빈 목록처럼 보이면 안 되고, 덮어쓰지 않음 (#87)
+        String valueFromAnotherMasterKey = new SecretCipher("another-master-key-0000000000")
+                .encrypt(ConfigKey.ANTHROPIC_API_KEYS.name(), "[{\"id\":\"a1b2c3d4\",\"nickname\":\"운영\",\"apiKey\":\"" + FIRST_API_KEY + "\",\"isEnabled\":true}]");
+        jdbcTemplate.update("insert into system_config (config_key, config_value) values ('ANTHROPIC_API_KEYS', ?)",
+                valueFromAnotherMasterKey);
+        systemConfigCache.invalidate();
+
+        getAsAdmin(AI_KEYS_PATH).andExpect(status().isOk())
+                .andExpect(content().string(containsString("AI_KEY_LIST_UNREADABLE")))
+                .andExpect(content().string(containsString("저장한 키를 읽지 못해 보여 줄 수 없어요")))
+                .andExpect(content().string(containsString("저장한 키 목록을 읽지 못했어요")));
+        postAsAdmin(post(ANTHROPIC_KEYS_PATH).param("nickname", "새 키").param("apiKey", SECOND_API_KEY))
+                .andExpect(redirectedUrl(ANTHROPIC_SECTION_URL))
+                .andExpect(flash().attribute("flashError", containsString("AI_KEY_LIST_UNREADABLE")));
+
+        // 암호문은 그대로 (덮어쓰기·이력 없음), 다른 제공자 구역은 그대로 추가 가능
+        assertThat(jdbcTemplate.queryForObject(
+                "select config_value from system_config where config_key = 'ANTHROPIC_API_KEYS'", String.class))
+                .isEqualTo(valueFromAnotherMasterKey);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from system_config_history", Long.class)).isZero();
+        postAsAdmin(post(AI_KEYS_PATH + "/openai").param("nickname", "운영").param("apiKey", SECOND_API_KEY))
+                .andExpect(flash().attribute("flashMessage", containsString("OpenAI 운영 키를 추가했어요")));
     }
 
     private ResultActions getAsAdmin(String path) throws Exception {

@@ -158,9 +158,11 @@ public class AdminAiKeyController {
     private AdminAiKeyProviderSection toProviderSection(KeyedAiProvider provider, boolean canStoreSecret) {
         AiApiKeyService keyService = findKeyService(provider);
         List<AiApiKeyView> storedKeyViews = keyService.findStoredKeyViews();
+        boolean isStoredKeyListUnreadable = keyService.isStoredKeyListUnreadable();
         return new AdminAiKeyProviderSection(provider, aiProviderModelService.findModel(provider), storedKeyViews,
                 keyService.findDeployPropertyKeyViews(), keyService.isUsingDeployPropertyKeys(),
-                canStoreSecret && storedKeyViews.size() < AiApiKeyPolicy.MAXIMUM_KEY_COUNT);
+                isStoredKeyListUnreadable,
+                canStoreSecret && !isStoredKeyListUnreadable && storedKeyViews.size() < AiApiKeyPolicy.MAXIMUM_KEY_COUNT);
     }
 
     private AiApiKeyService findKeyService(KeyedAiProvider provider) {

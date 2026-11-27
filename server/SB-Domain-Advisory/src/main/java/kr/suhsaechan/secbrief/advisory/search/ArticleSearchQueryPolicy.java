@@ -3,9 +3,10 @@ package kr.suhsaechan.secbrief.advisory.search;
 import java.util.Locale;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.common.request.PageSizePolicy;
 
 /**
- * 검색 요청 규칙: 질의 정리·길이 확인(2~100자), 결과 크기(기본 30, 1~50), CVE 번호 질의 판정
+ * 검색 요청 규칙: 질의 정리·길이 확인(2~100자), 결과 크기(기본 30, 최대 50으로 조정), CVE 번호 질의 판정
  * 질의 문자열은 예외 메시지·로그에 넣지 않음 (길이만)
  */
 public final class ArticleSearchQueryPolicy {
@@ -32,16 +33,10 @@ public final class ArticleSearchQueryPolicy {
     }
 
     /**
-     * 결과 크기: null 이면 30, 1~50 밖이면 INVALID_REQUEST
+     * 결과 크기: null·1 미만이면 30, 50 넘으면 50 (PageSizePolicy)
      */
     public static int toSearchSize(Integer size) {
-        if (size == null) {
-            return DEFAULT_SEARCH_SIZE;
-        }
-        if (size < 1 || size > MAXIMUM_SEARCH_SIZE) {
-            throw new CustomException(ErrorCode.INVALID_REQUEST, "size out of range");
-        }
-        return size;
+        return PageSizePolicy.toClampedPageSize(size, DEFAULT_SEARCH_SIZE, MAXIMUM_SEARCH_SIZE);
     }
 
     /** CVE 번호로 찾는 질의인지 (의미 검색을 거치지 않고 글자 일치로 찾음) */

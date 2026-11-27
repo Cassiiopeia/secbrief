@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { QUERY_RETRY_DELAY_MILLISECONDS, shouldRetryQuery } from '@/core/error/app-failure';
 import { SbToastHost, sbFontFamily } from '@/design';
 import { TagCatalogSyncEffect } from '@/features/catalog/use-tag-catalog';
 import { NotificationLaunchEffects } from '@/features/notifications/notification-launch-effects';
@@ -12,8 +13,10 @@ import { NotificationLaunchEffects } from '@/features/notifications/notification
 // 글꼴을 다 불러올 때까지 시작 화면 유지
 SplashScreen.preventAutoHideAsync();
 
-// 서버 상태 캐시 (앱 전체에서 하나)
-const queryClient = new QueryClient();
+// 서버 상태 캐시 (앱 전체에서 하나): 조회 실패는 1번만 1초 뒤 다시 (서버 장애 때 오류 코드를 빨리 보임, #87)
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: shouldRetryQuery, retryDelay: QUERY_RETRY_DELAY_MILLISECONDS } },
+});
 
 /** 앱 최상위: 글꼴 불러오기 > 서버 상태 캐시 > 화면 스택 > 알림 시작 처리 > 분류 카탈로그 동기화 > 알림 막대(화면 맨 위) */
 export default function RootLayout() {

@@ -6,7 +6,7 @@ import kr.suhsaechan.secbrief.member.constant.NotificationKind;
 
 /**
  * 푸시 data 키·값 단일 원본 (앱 mobile 의 알림 이동 규칙과 같아야 함)
- * 키 4개: notificationId(알림함 번호), notificationKind, articleId(기사 1건 알림만), targetTab(이전 앱용, 항상)
+ * 키 5개: notificationId, notificationKind, articleId(1건 알림만), targetTab(이전 앱용, 항상), targetScreen(경보단계 글 1건만, #87)
  */
 public final class NotificationPushData {
 
@@ -15,6 +15,10 @@ public final class NotificationPushData {
     public static final String NOTIFICATION_KIND_KEY = "notificationKind";
     public static final String ARTICLE_ID_KEY = "articleId";
     public static final String TARGET_TAB_KEY = "targetTab";
+    // 기사 대신 열 화면 (모르는 이전 앱은 articleId 로 기사 상세)
+    public static final String TARGET_SCREEN_KEY = "targetScreen";
+    // targetScreen 값: 사이버위기 경보 화면 (앱 notification-target-route 와 같아야 함)
+    public static final String TARGET_SCREEN_ALERT_LEVEL = "alertLevel";
     // 방해 금지 시간이 끝나고 보내는 모음 알림 (앱이 알림함을 엶)
     public static final String QUIET_HOURS_DIGEST_KIND = "QUIET_HOURS_DIGEST";
     // targetTab 값: 긴급 소식은 취약점 탭, 공지는 오늘 탭 (이전 앱은 vulnerability 가 아니면 오늘 탭을 엶)
@@ -25,16 +29,27 @@ public final class NotificationPushData {
     }
 
     /**
-     * 알림함 1건 > data (articleId 는 값 있을 때만)
+     * 알림함 1건 > data (articleId 는 값 있을 때만, 경보단계 화면 이동 없음)
      */
     public static Map<String, String> forNotification(long notificationId, NotificationKind notificationKind,
                                                       Long articleId) {
+        return forNotification(notificationId, notificationKind, articleId, false);
+    }
+
+    /**
+     * 알림함 1건 > data (articleId 는 값 있을 때만, 경보단계 글 1건이면 targetScreen 도)
+     */
+    public static Map<String, String> forNotification(long notificationId, NotificationKind notificationKind,
+                                                      Long articleId, boolean isAlertLevelArticle) {
         Map<String, String> pushData = new HashMap<>();
         pushData.put(NOTIFICATION_ID_KEY, String.valueOf(notificationId));
         pushData.put(NOTIFICATION_KIND_KEY, notificationKind.name());
         pushData.put(TARGET_TAB_KEY, toTargetTab(notificationKind));
         if (articleId != null) {
             pushData.put(ARTICLE_ID_KEY, String.valueOf(articleId));
+        }
+        if (articleId != null && isAlertLevelArticle) {
+            pushData.put(TARGET_SCREEN_KEY, TARGET_SCREEN_ALERT_LEVEL);
         }
         return Map.copyOf(pushData);
     }

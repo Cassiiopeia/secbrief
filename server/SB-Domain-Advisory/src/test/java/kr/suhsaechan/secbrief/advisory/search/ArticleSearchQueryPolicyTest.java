@@ -10,7 +10,7 @@ import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import org.junit.jupiter.api.Test;
 
 /**
- * 검색 요청 규칙: 질의 trim 후 2~100자, 크기 기본 30·1~50, 벗어나면 INVALID_REQUEST (질의는 메시지에 없음), CVE 번호 질의 판정
+ * 검색 요청 규칙: 질의 trim 후 2~100자 벗어나면 INVALID_REQUEST (질의는 메시지에 없음), 크기 기본 30·최대 50으로 조정, CVE 번호 질의 판정
  */
 class ArticleSearchQueryPolicyTest {
 
@@ -31,12 +31,12 @@ class ArticleSearchQueryPolicyTest {
     }
 
     @Test
-    void sizeDefaultsToThirtyAndRejectsOutOfRange() {
+    void sizeDefaultsToThirtyAndClampsOutOfRange() {
         assertThat(toSearchSize(null)).isEqualTo(30);
         assertThat(toSearchSize(1)).isEqualTo(1);
         assertThat(toSearchSize(50)).isEqualTo(50);
-        assertThatThrownBy(() -> toSearchSize(0)).extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
-        assertThatThrownBy(() -> toSearchSize(51)).extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
+        assertThat(toSearchSize(0)).isEqualTo(30);
+        assertThat(toSearchSize(51)).isEqualTo(50);
     }
 
     @Test

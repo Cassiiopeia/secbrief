@@ -3,6 +3,7 @@ package kr.suhsaechan.secbrief.application.notification;
 import kr.suhsaechan.secbrief.advisory.catalog.TagCatalog;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
+import kr.suhsaechan.secbrief.advisory.entity.ArticleClassificationState;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
 
 /**
@@ -16,8 +17,10 @@ public record AlertCandidate(Article article, AlertCategory urgentCategory, bool
         AlertCategory urgentCategory = article.isUrgent() && UrgentAlertPolicy.isAlertWorthy(article, catalog)
                 ? UrgentAlertPolicy.toAlertCategory(article)
                 : null;
+        ArticleClassificationState classification = article.getClassificationState();
         return new AlertCandidate(article, urgentCategory, article.isUrgent(), article.getKind() == ArticleKind.NEWS,
-                article.getProductCode(), article.getFieldCode(), article.getEcosystemCode(), article.isNotable());
+                classification.getProductCode(), classification.getFieldCode(), classification.getEcosystemCode(),
+                classification.isNotable());
     }
 
     public long articleId() {

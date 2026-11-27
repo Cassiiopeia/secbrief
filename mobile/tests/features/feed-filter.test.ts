@@ -141,6 +141,7 @@ describe('기사 상세', () => {
     keyPoints: ['핵심 하나', ' ', '핵심 둘'],
     actionGuide: undefined,
     isAiSummarized: true,
+    isSummaryPending: false,
     facts: [{ label: '영향 버전', value: '원문에 없음' }, { label: ' ', value: '값' }],
     relatedItems: [nvdItem, kisaItem],
     responseGuideSections: [],

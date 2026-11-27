@@ -276,6 +276,37 @@ class AiApiKeyServiceTest {
         assertThat(service.findStoredKeys()).isEmpty();
     }
 
+    @Test
+    void refusesEveryChangeWhileStoredKeyListCannotBeDecrypted() {
+        // 마스터 키 불일치: 목록은 빈 값으로 읽히지만 덮어쓰면 기존 키가 사라짐 (#87)
+        when(systemConfigService.hasUnreadableSecret(ConfigKey.ANTHROPIC_API_KEYS)).thenReturn(true);
+
+        assertThat(service.isStoredKeyListUnreadable()).isTrue();
+        assertThat(service.findStoredKeys()).isEmpty();
+        assertErrorCode(() -> service.add("운영", FIRST_API_KEY, ACTOR), ErrorCode.AI_KEY_LIST_UNREADABLE);
+        assertErrorCode(() -> service.remove("a1b2c3d4", ACTOR), ErrorCode.AI_KEY_LIST_UNREADABLE);
+        assertErrorCode(() -> service.setEnabled("a1b2c3d4", false, ACTOR), ErrorCode.AI_KEY_LIST_UNREADABLE);
+        assertErrorCode(() -> service.replaceApiKey("a1b2c3d4", SECOND_API_KEY, ACTOR), ErrorCode.AI_KEY_LIST_UNREADABLE);
+        verify(systemConfigService, never()).update(any(), any(), any(), any());
+        verify(systemConfigService, never()).resetToDefault(any(), any(), any());
+    }
+
+    @Test
+    void refusesChangeWhenStoredKeyListIsBrokenJson() {
+        storedSecret = "[{broken";
+
+        assertThat(service.isStoredKeyListUnreadable()).isTrue();
+        assertErrorCode(() -> service.add("운영", FIRST_API_KEY, ACTOR), ErrorCode.AI_KEY_LIST_UNREADABLE);
+        assertThat(storedSecret).isEqualTo("[{broken");
+    }
+
+    @Test
+    void readableEmptyListIsNotUnreadable() {
+        assertThat(service.isStoredKeyListUnreadable()).isFalse();
+        service.add("운영", FIRST_API_KEY, ACTOR);
+        assertThat(service.isStoredKeyListUnreadable()).isFalse();
+    }
+
     private void givenThreeKeys() {
         service.add("첫째", FIRST_API_KEY, ACTOR);
         service.add("둘째", SECOND_API_KEY, ACTOR);

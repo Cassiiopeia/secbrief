@@ -1,0 +1,4 @@
+# no-value-default-in-code freeze list: lines can only be removed, never added
+# Remove a file from this list once it is fixed (the rule test flags leftover lines)
+server/SB-Common/src/main/java/kr/suhsaechan/secbrief/common/crypto/SecretCipher.java
+server/SB-Domain-Member/src/main/java/kr/suhsaechan/secbrief/member/push/ExpoPushSender.java

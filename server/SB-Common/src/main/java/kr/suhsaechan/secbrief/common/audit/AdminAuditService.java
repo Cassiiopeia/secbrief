@@ -1,6 +1,7 @@
 package kr.suhsaechan.secbrief.common.audit;
 
 import java.time.Clock;
+import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -50,7 +51,8 @@ public class AdminAuditService {
         }
     }
 
-    private static String truncate(String text, int maximumLength) {
-        return text == null || text.length() <= maximumLength ? text : text.substring(0, maximumLength);
+    // null 은 그대로 (대상 번호·상세는 선택값)
+    static String truncate(String text, int maximumLength) {
+        return text == null ? null : TextTruncation.truncateKeepingSurrogatePairs(text, maximumLength);
     }
 }

@@ -3,12 +3,14 @@ package kr.suhsaechan.secbrief.web.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Base64;
 import java.util.List;
 import kr.suhsaechan.secbrief.common.config.ConfigKey;
 import kr.suhsaechan.secbrief.common.config.SystemConfigCache;
 import kr.suhsaechan.secbrief.common.config.SystemConfigHistory;
 import kr.suhsaechan.secbrief.common.config.SystemConfigService;
 import kr.suhsaechan.secbrief.common.config.SystemConfigView;
+import kr.suhsaechan.secbrief.common.crypto.SecretCipher;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import kr.suhsaechan.secbrief.web.support.PostgresContainerTestSupport;
@@ -123,11 +125,8 @@ class SystemConfigStoreTest extends PostgresContainerTestSupport {
         String movedCipherText = jdbcTemplate.queryForObject(
                 "select config_value from system_config where config_key = 'KEY_FROM_ANOTHER_ROW'", String.class);
         systemConfigService.update(ConfigKey.ANTHROPIC_API_KEYS, SECRET_VALUE.replace("운영", "예비"), ACTOR, null);
-        // 변조: 한 글자 바꿈
-        String tamperedCipherText = findStoredValue(ConfigKey.ANTHROPIC_API_KEYS);
-        char lastCharacter = tamperedCipherText.charAt(tamperedCipherText.length() - 2);
-        tamperedCipherText = tamperedCipherText.substring(0, tamperedCipherText.length() - 2)
-                + (lastCharacter == 'A' ? 'B' : 'A') + tamperedCipherText.charAt(tamperedCipherText.length() - 1);
+        // 변조: 디코딩한 바이트 1개 뒤집기 (base64 글자를 바꾸면 끝 여분 비트에 걸려 변조가 안 될 수 있음)
+        String tamperedCipherText = toTamperedCipherText(findStoredValue(ConfigKey.ANTHROPIC_API_KEYS));
         jdbcTemplate.update("update system_config set config_value = ? where config_key = ?",
                 tamperedCipherText, ConfigKey.ANTHROPIC_API_KEYS.name());
         systemConfigCache.invalidate();
@@ -136,6 +135,13 @@ class SystemConfigStoreTest extends PostgresContainerTestSupport {
         assertThat(movedCipherText).startsWith("enc:v1:");
         // 모르는 키 이름의 행이 있어도 조회는 됨
         assertThat(systemConfigService.getInt(ConfigKey.AI_TITLE_BATCH_SIZE)).isEqualTo(20);
+    }
+
+    // 암호문 > 가운데 바이트 1개를 뒤집은 암호문 (접두어 유지)
+    private static String toTamperedCipherText(String storedValue) {
+        byte[] payload = Base64.getDecoder().decode(storedValue.substring(SecretCipher.ENCRYPTED_PREFIX.length()));
+        payload[payload.length / 2] ^= 0x01;
+        return SecretCipher.ENCRYPTED_PREFIX + Base64.getEncoder().encodeToString(payload);
     }
 
     private String findStoredValue(ConfigKey key) {

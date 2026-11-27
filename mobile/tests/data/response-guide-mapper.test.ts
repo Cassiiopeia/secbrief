@@ -2,7 +2,7 @@
  * 대응 모아보기 응답 읽기: 기사 상세 구역(모르는 구역·이유·깨진 기사 버림, 화면 순서 정렬), 이전 서버(필드 없음), 알림 상세 기사별 요약
  * (공개 출처 형식의 예시 값, 실제 기사 아님)
  */
-import { toArticleDetail } from '@/data/mappers/api-response-mapper';
+import { toArticleDetail } from '@/data/mappers/article-detail-mapper';
 import { toAppNotificationDetail } from '@/data/mappers/notification-response-mapper';
 import { toResponseGuideSections } from '@/data/mappers/response-guide-mapper';
 
@@ -135,4 +135,11 @@ describe('알림 상세 기사별 대응 안내 요약', () => {
     });
     expect(detail?.articleGuides[0]).toMatchObject({ actions: [], officialCount: 0, factCount: 0, newsCount: 0, leadOfficialItem: undefined });
   });
+});
+
+test('항목 글 칸: 공백만 있으면 없는 값, 앞뒤 빈칸은 정리 (#85)', () => {
+  const sections = toResponseGuideSections([
+    { section: 'OFFICIAL', totalCount: 1, items: [{ article: KISA_NOTICE, sourceName: ' CISA KEV ', matchReason: 'SAME_CVE', matchedCveId: '  ', actionDueDate: ' 2026-12-11 ' }] },
+  ]);
+  expect(sections[0].items[0]).toMatchObject({ sourceName: 'CISA KEV', matchedCveId: undefined, actionDueDate: '2026-12-11' });
 });

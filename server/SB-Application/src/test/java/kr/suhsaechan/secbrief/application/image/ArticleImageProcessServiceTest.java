@@ -85,9 +85,9 @@ class ArticleImageProcessServiceTest {
         when(downloader.download(toImageUrl(7L))).thenReturn(ORIGINAL_BYTES);
         when(resizer.toResizedJpeg(ORIGINAL_BYTES)).thenReturn(RESIZED_BYTES);
 
-        ImageProcessResult result = service.processPendingImages();
+        ImageProcessResult imageProcessResult = service.processPendingImages();
 
-        assertThat(result).isEqualTo(new ImageProcessResult(1, 0, false));
+        assertThat(imageProcessResult).isEqualTo(new ImageProcessResult(1, 0, false));
         assertThat(fakeStorage.getStoredBytesByObjectKey()).containsOnlyKeys("articles/2026/11/7.jpg");
         assertThat(fakeStorage.getStoredBytesByObjectKey().get("articles/2026/11/7.jpg")).isEqualTo(RESIZED_BYTES);
         verify(recorder).recordStored(7L, "articles/2026/11/7.jpg");
@@ -101,9 +101,9 @@ class ArticleImageProcessServiceTest {
         when(downloader.download(toImageUrl(1L))).thenReturn(ORIGINAL_BYTES);
         when(resizer.toResizedJpeg(ORIGINAL_BYTES)).thenReturn(RESIZED_BYTES);
 
-        ImageProcessResult result = service.processPendingImages();
+        ImageProcessResult imageProcessResult = service.processPendingImages();
 
-        assertThat(result).isEqualTo(new ImageProcessResult(1, 1, false));
+        assertThat(imageProcessResult).isEqualTo(new ImageProcessResult(1, 1, false));
         verify(recorder).recordFailure(2L);
         verify(recorder).recordStored(eq(1L), anyString());
         assertThat(fakeStorage.getStoredBytesByObjectKey()).containsOnlyKeys("articles/2026/11/1.jpg");
@@ -128,10 +128,10 @@ class ArticleImageProcessServiceTest {
         when(downloader.download(anyString())).thenReturn(ORIGINAL_BYTES);
         when(resizer.toResizedJpeg(ORIGINAL_BYTES)).thenReturn(RESIZED_BYTES);
 
-        ImageProcessResult result = service.processPendingImages();
+        ImageProcessResult imageProcessResult = service.processPendingImages();
 
         // 기사 탓이 아니라 시도 횟수를 올리지 않고, 남은 건도 내려받지 않음
-        assertThat(result).isEqualTo(new ImageProcessResult(0, 0, false));
+        assertThat(imageProcessResult).isEqualTo(new ImageProcessResult(0, 0, false));
         verifyNoInteractions(recorder);
         verify(downloader, never()).download(toImageUrl(1L));
     }

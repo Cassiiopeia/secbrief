@@ -20,6 +20,7 @@ import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
 import kr.suhsaechan.secbrief.advisory.service.ArticleSpecifications;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
+import kr.suhsaechan.secbrief.common.exception.ExceptionLogText;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,7 +51,7 @@ public class ArticleSearchService {
     @Autowired
     public ArticleSearchService(TextEmbeddingProvider textEmbeddingProvider, ArticleEmbeddingIndex articleEmbeddingIndex,
                                 ArticleRepository articleRepository,
-                                @Value("${secbrief.embedding.minimum-similarity:0.5}") double minimumSimilarity) {
+                                @Value("${secbrief.embedding.minimum-similarity}") double minimumSimilarity) {
         this(textEmbeddingProvider, articleEmbeddingIndex, articleRepository, minimumSimilarity,
                 Duration.ofSeconds(QUERY_EMBEDDING_WAIT_LIMIT_SECONDS));
     }
@@ -97,7 +98,7 @@ public class ArticleSearchService {
                     articleEmbeddingIndex.findMostSimilarArticleIds(queryVector, searchSize, minimumSimilarity));
         } catch (RuntimeException exception) {
             log.warn("[article search] semantic failed 502 : fallback to keyword : queryLength={}, cause={}",
-                    searchText.length(), toLogCause(exception));
+                    searchText.length(), ExceptionLogText.toLogCause(exception));
             return List.of();
         }
     }
@@ -140,12 +141,5 @@ public class ArticleSearchService {
         log.info("[article search] searched : mode={}, queryLength={}, results={}",
                 searchMode, searchText.length(), articles.size());
         return new ArticleSearchResponse(articles.stream().map(ArticleResponse::from).toList(), searchMode);
-    }
-
-    // 업무 예외는 원인 문구(영어 고정 문구), 그 밖은 예외 종류만
-    private static String toLogCause(RuntimeException exception) {
-        return exception instanceof CustomException customException && customException.getDetail() != null
-                ? customException.getDetail()
-                : exception.getClass().getSimpleName();
     }
 }
