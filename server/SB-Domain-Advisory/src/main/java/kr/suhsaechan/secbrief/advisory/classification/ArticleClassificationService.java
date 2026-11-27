@@ -80,13 +80,13 @@ public class ArticleClassificationService {
                 && !ArticleClassifier.hasRuleField(classification)
                 && classification.fieldCode() != null
                 && article.getClassificationState().getAiFieldCode() == null
-                && article.getAiStatus() == AiStatus.DONE
+                && article.getAiAnalysisState().getStatus() == AiStatus.DONE
                 && article.getClassificationState().getFieldSource() == null;
     }
 
     private void apply(Article article, ArticleClassification classification, TagCatalog catalog) {
         boolean isNotable = ArticleNotablePolicy.isNotable(article.isKev(), classification.productCode(),
-                article.getCvssScore(), article.getAiStatus(), article.getImportance(), catalog);
+                article.getCvssScore(), article.getAiAnalysisState().getStatus(), article.getImportance(), catalog);
         article.applyClassification(classification, isNotable, clock.instant());
     }
 }

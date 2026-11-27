@@ -3,7 +3,11 @@
  */
 import type { ArticleDetail } from '@/data/models/article-detail';
 import type { TrendingKeyword } from '@/data/models/trending-keyword';
-import { toArticleDetailView, toOriginalButtonLabel } from '@/features/article-detail/article-detail-view';
+import {
+  toArticleDetailView,
+  toOriginalButtonAccessibilityLabel,
+  toOriginalButtonLabel,
+} from '@/features/article-detail/article-detail-view';
 import { toKeywordRankViews, toTrendingHashtags } from '@/features/keywords/keyword-view-state';
 import { hasTopicChips, toNewsFeedQuery, toNewsHref, toNewsSelection } from '@/features/news/news-feed-filter';
 import { isSearchQueryTooShort, toSearchModeNotice, toSearchQuery } from '@/features/search/search-query';
@@ -173,5 +177,20 @@ describe('기사 상세', () => {
   test('원문 보기 버튼에는 게시자 이름', () => {
     const { article } = toArticleDetailView(detail, NOW);
     expect(toOriginalButtonLabel(article)).toBe('NVD 원문 보기');
+    expect(toOriginalButtonAccessibilityLabel(article)).toBe('NVD 원문 보기');
+  });
+  test('게시자 이름이 360pt 폭 버튼에 안 들어가면 "원문 보기"만, 읽기 도우미 문구는 게시자 이름까지 (#112)', () => {
+    const { article } = toArticleDetailView(detail, NOW);
+    // 13 단위까지 그대로: 반각 13자, 한글 섞인 "KISA 경보단계"(5 + 4x2)
+    for (const fittingPublisherName of ['데일리시큐', 'CISA KEV', 'KISA 보호나라', 'KISA 경보단계', 'A'.repeat(13)]) {
+      const fittingArticle = { ...article, publisherName: fittingPublisherName };
+      expect(toOriginalButtonLabel(fittingArticle)).toBe(`${fittingPublisherName} 원문 보기`);
+    }
+    // 14 단위부터 줄임: 반각 14자, 한글 7자는 14 단위
+    for (const longPublisherName of ['BleepingComputer', 'The Hacker News', 'GitHub Advisory', 'Red Hat 보안 권고', 'A'.repeat(14), '가'.repeat(7)]) {
+      const longArticle = { ...article, publisherName: longPublisherName };
+      expect(toOriginalButtonLabel(longArticle)).toBe('원문 보기');
+      expect(toOriginalButtonAccessibilityLabel(longArticle)).toBe(`${longPublisherName} 원문 보기`);
+    }
   });
 });

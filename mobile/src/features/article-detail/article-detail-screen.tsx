@@ -34,7 +34,7 @@ import { openKeywordArticles } from '../keywords/open-keyword-articles';
 import { ARTICLE_DETAIL_FOCUSES, type ArticleDetailFocus } from '../navigation/app-routes';
 import { goBackOrHome } from '../navigation/go-back-or-home';
 import { ArticleDetailBrief } from './article-detail-brief';
-import { toArticleShareContent, toOriginalButtonLabel } from './article-detail-view';
+import { toArticleShareContent, toOriginalButtonAccessibilityLabel, toOriginalButtonLabel } from './article-detail-view';
 import { useArticleDetail } from './use-article-detail';
 
 const BACK_ACCESSIBILITY_LABEL = '뒤로';
@@ -69,6 +69,7 @@ export function ArticleDetailScreen() {
           primaryAction={
             <SbFilledButton
               label={toOriginalButtonLabel(article)}
+              accessibilityLabel={toOriginalButtonAccessibilityLabel(article)}
               trailingIconName="open-in-new"
               onPress={() => openOriginalArticle(article.originalUrl)}
             />

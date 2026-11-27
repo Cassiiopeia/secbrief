@@ -57,9 +57,9 @@ class ArticleAiResultRecorderTest extends PostgresContainerTestSupport {
         recorder.recordSuccess(articleId, new ArticleTitleAnalysis(ArticleTopic.VULNERABILITY, "Ivanti 취약점 3개 패치", ArticleImportance.ROUTINE, null));
 
         Article article = articleRepository.findById(articleId).orElseThrow();
-        assertThat(article.getTopic()).isEqualTo(ArticleTopic.VULNERABILITY);
-        assertThat(article.getTranslatedTitle()).isNull();
-        assertThat(article.getAiStatus()).isEqualTo(AiStatus.DONE);
+        assertThat(article.getAiAnalysisState().getTopic()).isEqualTo(ArticleTopic.VULNERABILITY);
+        assertThat(article.getAiAnalysisState().getTranslatedTitle()).isNull();
+        assertThat(article.getAiAnalysisState().getStatus()).isEqualTo(AiStatus.DONE);
     }
 
     @Test
@@ -68,7 +68,7 @@ class ArticleAiResultRecorderTest extends PostgresContainerTestSupport {
         recorder.recordFailure(articleId);
         recorder.recordFailure(articleId);
 
-        assertThat(articleRepository.findById(articleId).orElseThrow().getAiStatus()).isEqualTo(AiStatus.FAILED);
-        assertThat(articleRepository.findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(20))).isEmpty();
+        assertThat(articleRepository.findById(articleId).orElseThrow().getAiAnalysisState().getStatus()).isEqualTo(AiStatus.FAILED);
+        assertThat(articleRepository.findByAiAnalysisState_StatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(20))).isEmpty();
     }
 }

@@ -144,7 +144,7 @@ public class ArticleSummaryProcessService {
     // 글 종류: 출처 코드·기사 종류·주제로 판정 (작성 안내를 고르는 기준)
     private static ArticleSummaryRequest toSummaryRequest(Article article, String sourceText) {
         return new ArticleSummaryRequest(article.getTitle(), article.getRegion(), article.getKind(),
-                SummaryWritingKind.of(article.getSource().getCode(), article.getKind(), article.getTopic()), sourceText);
+                SummaryWritingKind.of(article.getSource().getCode(), article.getKind(), article.getAiAnalysisState().getTopic()), sourceText);
     }
 
     // 실패 기록마저 실패하면 다음 틱에 다시 (failureReason: 영어 고정 문구 또는 예외 종류)

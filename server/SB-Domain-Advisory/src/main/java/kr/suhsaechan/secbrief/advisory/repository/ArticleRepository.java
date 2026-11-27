@@ -35,7 +35,7 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
     List<String> findSettledOriginalUrls(@Param("originalUrls") Collection<String> originalUrls);
 
     // AI 처리 대기열: 게시일 최신순 (같으면 id 큰 것) limit 건 (새 소식이 오래된 대기 건에 밀리지 않게)
-    List<Article> findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus aiStatus, Limit limit);
+    List<Article> findByAiAnalysisState_StatusOrderByPublishedAtDescIdDesc(AiStatus aiStatus, Limit limit);
 
     // 이미지 저장 대기열: 최신 항목부터 limit 건 (화면 위쪽에 보이는 기사 먼저)
     List<Article> findByImageState_StatusOrderByIdDesc(ImageStatus imageStatus, Limit limit);
@@ -48,7 +48,7 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
     // 알림 판정 대기열: 처리 전 + AI 판단이 끝나 분류된 것, 또는 AI 대기 기한(holdDeadline 이전 수집)을 넘긴 것 (#97: 판단 전에 보내지 않음)
     @Query("select a from Article a join fetch a.source "
             + "where a.urgentNotifiedAt is null "
-            + "and ((a.aiStatus <> kr.suhsaechan.secbrief.advisory.constant.AiStatus.PENDING and a.classificationState.classifiedAt is not null) "
+            + "and ((a.aiAnalysisState.status <> kr.suhsaechan.secbrief.advisory.constant.AiStatus.PENDING and a.classificationState.classifiedAt is not null) "
             + "or a.collectedAt <= :holdDeadline) "
             + "order by a.id asc")
     List<Article> findAlertCandidates(@Param("holdDeadline") Instant holdDeadline, Limit limit);
@@ -56,7 +56,7 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
     // 분류 대기열: 분류 전 + (AI 판단이 끝남 또는 AI 대기 기한을 넘김), 오래된 것부터 (백필·다시 분류 포함)
     @Query("select a from Article a join fetch a.source "
             + "where a.classificationState.classifiedAt is null "
-            + "and (a.aiStatus <> kr.suhsaechan.secbrief.advisory.constant.AiStatus.PENDING or a.collectedAt <= :holdDeadline) "
+            + "and (a.aiAnalysisState.status <> kr.suhsaechan.secbrief.advisory.constant.AiStatus.PENDING or a.collectedAt <= :holdDeadline) "
             + "order by a.id asc")
     List<Article> findClassificationTargets(@Param("holdDeadline") Instant holdDeadline, Limit limit);
 
@@ -72,7 +72,7 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
 
     // 수집 시각 since 이후 분류 값 (오늘 새 소식 건수, 최신 수집 먼저)
     @Query("select new kr.suhsaechan.secbrief.advisory.repository.NewArticleTagRow(a.source.code, a.kind, a.isKev, "
-            + "a.classificationState.fieldCode, a.classificationState.ecosystemCode, a.classificationState.productCode, a.classificationState.packageName, a.subjectName, a.collectedAt) "
+            + "a.classificationState.fieldCode, a.classificationState.ecosystemCode, a.classificationState.productCode, a.classificationState.packageName, a.aiAnalysisState.subjectName, a.collectedAt) "
             + "from Article a where a.collectedAt >= :since order by a.collectedAt desc, a.id desc")
     List<NewArticleTagRow> findNewArticleTagRows(@Param("since") Instant since);
 
@@ -90,13 +90,13 @@ public interface ArticleRepository extends JpaRepository<Article, Long>, JpaSpec
     int clearUrgentPublishedBefore(@Param("sourceCode") String sourceCode, @Param("expiredBefore") Instant expiredBefore);
 
     // 주제별 건수: 게시일 [start, end)
-    @Query("select new kr.suhsaechan.secbrief.advisory.repository.TopicCount(a.topic, count(a)) "
-            + "from Article a where a.publishedAt >= :start and a.publishedAt < :end group by a.topic")
+    @Query("select new kr.suhsaechan.secbrief.advisory.repository.TopicCount(a.aiAnalysisState.topic, count(a)) "
+            + "from Article a where a.publishedAt >= :start and a.publishedAt < :end group by a.aiAnalysisState.topic")
     List<TopicCount> countByTopicBetween(@Param("start") Instant start, @Param("end") Instant end);
 
     // 키워드별 건수: 게시일 [start, end), 저장된 표기 그대로 (대소문자 합치기는 KeywordTrendQueryService 가 함)
     @Query("select new kr.suhsaechan.secbrief.advisory.repository.KeywordCount(k, count(a)) "
-            + "from Article a join a.keywords k where a.publishedAt >= :start and a.publishedAt < :end group by k")
+            + "from Article a join a.aiAnalysisState.keywords k where a.publishedAt >= :start and a.publishedAt < :end group by k")
     List<KeywordCount> countByKeywordBetween(@Param("start") Instant start, @Param("end") Instant end);
 
     // 요약 기록용 행 잠금 조회: 수집 병합(NVD 링크 교체)과 요약 기록이 같은 행의 요약 열을 서로 덮지 않게 함 (트랜잭션 안에서만)

@@ -29,7 +29,7 @@ class ArticleKeywordStateTest {
 
     @Test
     void newArticleHasNoKeywords() {
-        assertThat(article.getKeywords()).isEmpty();
+        assertThat(article.getAiAnalysisState().getKeywords()).isEmpty();
     }
 
     @Test
@@ -37,7 +37,7 @@ class ArticleKeywordStateTest {
         article.replaceKeywords(List.of("원격 코드 실행", "linux", "Example Web Framework"));
         article.replaceKeywords(List.of("제로데이", "apache", "Linux"));
 
-        assertThat(article.getKeywords()).containsExactly("apache", "Linux", "제로데이");
+        assertThat(article.getAiAnalysisState().getKeywords()).containsExactly("apache", "Linux", "제로데이");
     }
 
     @Test
@@ -46,7 +46,7 @@ class ArticleKeywordStateTest {
 
         article.recordAiFailure();
 
-        assertThat(article.getKeywords()).isEmpty();
+        assertThat(article.getAiAnalysisState().getKeywords()).isEmpty();
     }
 
     @Test
@@ -59,6 +59,6 @@ class ArticleKeywordStateTest {
                         "https://nvd.nist.gov/vuln/detail/CVE-2026-5555", "NVD", NOW, false,
                         "CVE-2026-5555", new BigDecimal("9.8"), "3.1", false, true));
 
-        assertThat(article.getKeywords()).isEmpty();
+        assertThat(article.getAiAnalysisState().getKeywords()).isEmpty();
     }
 }

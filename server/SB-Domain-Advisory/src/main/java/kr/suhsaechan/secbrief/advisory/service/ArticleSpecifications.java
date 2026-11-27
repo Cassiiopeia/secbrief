@@ -129,7 +129,7 @@ public final class ArticleSpecifications {
     }
 
     public static Specification<Article> hasTopic(ArticleTopic topic) {
-        return (root, query, builder) -> builder.equal(root.get("topic"), topic);
+        return (root, query, builder) -> builder.equal(root.get("aiAnalysisState").get("topic"), topic);
     }
 
     public static Specification<Article> hasImportanceAtLeast(ArticleImportance minimumImportance) {
@@ -159,8 +159,8 @@ public final class ArticleSpecifications {
                     builder.like(builder.lower(textExpression), containsPattern, LIKE_ESCAPE_CHARACTER);
             return builder.or(
                     containsSearchText.apply(root.get("title")),
-                    containsSearchText.apply(root.get("translatedTitle")),
-                    containsSearchText.apply(root.get("subjectName")),
+                    containsSearchText.apply(root.get("aiAnalysisState").get("translatedTitle")),
+                    containsSearchText.apply(root.get("aiAnalysisState").get("subjectName")),
                     containsSearchText.apply(root.get("cveId")),
                     hasAnyKeyword(root, query, builder, containsSearchText));
         };
@@ -212,7 +212,7 @@ public final class ArticleSpecifications {
     private static Predicate hasAnyKeyword(Root<Article> root, CriteriaQuery<?> query, CriteriaBuilder builder,
                                            Function<Expression<String>, Predicate> keywordCondition) {
         Subquery<Integer> keywordSubquery = query.subquery(Integer.class);
-        Join<Article, String> keyword = keywordSubquery.correlate(root).join("keywords");
+        Join<Article, String> keyword = keywordSubquery.correlate(root).join("aiAnalysisState").join("keywords");
         return builder.exists(keywordSubquery.select(builder.literal(1)).where(keywordCondition.apply(keyword)));
     }
 

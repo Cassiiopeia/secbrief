@@ -50,26 +50,26 @@ test('새 주제 SUPPLY_CHAIN·POLICY 를 받는다', () => {
   expect(toBriefingItem({ ...sampleArticleResponse, topic: 'POLICY' }).topic).toBe('policy');
 });
 test('원문 제목과 번역 제목을 따로 둔다', () => {
-  const item = toBriefingItem({ ...sampleArticleResponse, title: 'Critical flaw in Next.js', translatedTitle: 'Next.js 심각 취약점' });
-  expect(item.title).toBe('Critical flaw in Next.js');
-  expect(item.translatedTitle).toBe('Next.js 심각 취약점');
+  const briefingItem = toBriefingItem({ ...sampleArticleResponse, title: 'Critical flaw in Next.js', translatedTitle: 'Next.js 심각 취약점' });
+  expect(briefingItem.title).toBe('Critical flaw in Next.js');
+  expect(briefingItem.translatedTitle).toBe('Next.js 심각 취약점');
   expect(toBriefingItem({ ...sampleArticleResponse, translatedTitle: null }).translatedTitle).toBeUndefined();
   expect(toBriefingItem({ ...sampleArticleResponse, translatedTitle: '' }).translatedTitle).toBeUndefined();
 });
 test('REMOTE_ACCESS 는 remoteAccess, 날짜는 Date', () => {
-  const item = toBriefingItem({ ...sampleArticleResponse, topic: 'REMOTE_ACCESS', publishedAt: '2026-11-23T00:00:00Z' });
-  expect(item.topic).toBe('remoteAccess');
-  expect(item.publishedAt.toISOString()).toBe('2026-11-23T00:00:00.000Z');
+  const briefingItem = toBriefingItem({ ...sampleArticleResponse, topic: 'REMOTE_ACCESS', publishedAt: '2026-11-23T00:00:00Z' });
+  expect(briefingItem.topic).toBe('remoteAccess');
+  expect(briefingItem.publishedAt.toISOString()).toBe('2026-11-23T00:00:00.000Z');
 });
 test('null cvss·cve 는 undefined', () => {
-  const item = toBriefingItem({ ...sampleArticleResponse, cvssScore: null, cveId: null });
-  expect(item.cvssScore).toBeUndefined();
-  expect(item.cveId).toBeUndefined();
+  const briefingItem = toBriefingItem({ ...sampleArticleResponse, cvssScore: null, cveId: null });
+  expect(briefingItem.cvssScore).toBeUndefined();
+  expect(briefingItem.cveId).toBeUndefined();
 });
 test('모르는 종류는 news, 모르는 지역은 overseas', () => {
-  const item = toBriefingItem({ ...sampleArticleResponse, kind: 'BLOG', region: 'MARS' });
-  expect(item.kind).toBe('news');
-  expect(item.region).toBe('overseas');
+  const briefingItem = toBriefingItem({ ...sampleArticleResponse, kind: 'BLOG', region: 'MARS' });
+  expect(briefingItem.kind).toBe('news');
+  expect(briefingItem.region).toBe('overseas');
 });
 test('nextCursor null 은 undefined', () => {
   expect(toArticlePage({ items: [], nextCursor: null }).nextCursor).toBeUndefined();
@@ -106,9 +106,9 @@ test('importance: 서버 이름 > 앱 값, 없거나 모르는 값은 routine', 
   expect(toBriefingItem(sampleArticleResponse).importance).toBe('routine');
 });
 test('subjectName·sourceCode: 값이 있으면 그대로, null·필드 없음은 undefined', () => {
-  const item = toBriefingItem({ ...sampleArticleResponse, subjectName: 'VMware', sourceCode: 'CISA_KEV' });
-  expect(item.subjectName).toBe('VMware');
-  expect(item.sourceCode).toBe('CISA_KEV');
+  const briefingItem = toBriefingItem({ ...sampleArticleResponse, subjectName: 'VMware', sourceCode: 'CISA_KEV' });
+  expect(briefingItem.subjectName).toBe('VMware');
+  expect(briefingItem.sourceCode).toBe('CISA_KEV');
   expect(toBriefingItem({ ...sampleArticleResponse, subjectName: null, sourceCode: null }).subjectName).toBeUndefined();
   expect(toBriefingItem(sampleArticleResponse).sourceCode).toBeUndefined();
 });
@@ -166,6 +166,6 @@ test('기사 상세: 요약 대기는 서버가 true 를 줄 때만 (이전 서�
 });
 
 test('공백만 있는 글은 없는 값으로 보고 앞뒤 빈칸은 정리 (회사·출처·번역 제목·이미지 경로, #85)', () => {
-  const item = toBriefingItem({ ...sampleArticleResponse, subjectName: '  ', sourceCode: ' NVD ', translatedTitle: ' ', imagePath: '\t' });
-  expect([item.subjectName, item.sourceCode, item.translatedTitle, item.imagePath]).toEqual([undefined, 'NVD', undefined, undefined]);
+  const briefingItem = toBriefingItem({ ...sampleArticleResponse, subjectName: '  ', sourceCode: ' NVD ', translatedTitle: ' ', imagePath: '\t' });
+  expect([briefingItem.subjectName, briefingItem.sourceCode, briefingItem.translatedTitle, briefingItem.imagePath]).toEqual([undefined, 'NVD', undefined, undefined]);
 });

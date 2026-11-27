@@ -113,7 +113,7 @@ class ArticleSummaryRepairProcessTest {
     @Test
     void choosesWritingKindFromSourceCodeAndTopic() {
         Article eventArticle = createArticle(1L, "Webinar headline");
-        ReflectionTestUtils.setField(eventArticle, "topic", ArticleTopic.EVENT);
+        ReflectionTestUtils.setField(eventArticle.getAiAnalysisState(), "topic", ArticleTopic.EVENT);
         givenPendingArticles(eventArticle, createArticle(2L, "News headline"));
 
         service.processPendingSummaries();

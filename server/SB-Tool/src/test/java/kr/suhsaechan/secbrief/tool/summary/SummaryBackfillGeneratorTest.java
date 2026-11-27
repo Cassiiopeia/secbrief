@@ -34,13 +34,13 @@ class SummaryBackfillGeneratorTest {
     void acceptsCleanSummaryWithOneAttemptAndOneCall() {
         CountingSummarizer summarizer = new CountingSummarizer(CLEAN_BRIEF);
 
-        BackfillResult result = new SummaryBackfillGenerator(summarizer, 1)
+        BackfillResult articleBackfillResult = new SummaryBackfillGenerator(summarizer, 1)
                 .generateOne(BackfillTestData.newsTarget(1L, BackfillTestData.SOURCE_TEXT));
 
-        assertThat(result.status()).isEqualTo(BackfillResult.Status.ACCEPTED);
-        assertThat(result.acceptedBrief()).isEqualTo(CLEAN_BRIEF);
-        assertThat(result.attemptCount()).isEqualTo(1);
-        assertThat(result.modelCallCount()).isEqualTo(1);
+        assertThat(articleBackfillResult.status()).isEqualTo(BackfillResult.Status.ACCEPTED);
+        assertThat(articleBackfillResult.acceptedBrief()).isEqualTo(CLEAN_BRIEF);
+        assertThat(articleBackfillResult.attemptCount()).isEqualTo(1);
+        assertThat(articleBackfillResult.modelCallCount()).isEqualTo(1);
         assertThat(summarizer.callCount.get()).isEqualTo(1);
     }
 
@@ -48,16 +48,16 @@ class SummaryBackfillGeneratorTest {
     void stopsAfterThreeAttemptsAndSixCallsWhenEveryDraftIsRejected() {
         CountingSummarizer summarizer = new CountingSummarizer(REJECTED_BRIEF);
 
-        BackfillResult result = new SummaryBackfillGenerator(summarizer, 1)
+        BackfillResult articleBackfillResult = new SummaryBackfillGenerator(summarizer, 1)
                 .generateOne(BackfillTestData.newsTarget(1L, BackfillTestData.SOURCE_TEXT));
 
         int maximumCallCount = ArticleSummaryState.MAXIMUM_ATTEMPT_COUNT * ArticleSummaryHarness.MAXIMUM_MODEL_CALLS_PER_ATTEMPT;
-        assertThat(result.status()).isEqualTo(BackfillResult.Status.REJECTED);
-        assertThat(result.acceptedBrief()).isNull();
-        assertThat(result.attemptCount()).isEqualTo(ArticleSummaryState.MAXIMUM_ATTEMPT_COUNT);
-        assertThat(result.modelCallCount()).isEqualTo(maximumCallCount).isEqualTo(6);
+        assertThat(articleBackfillResult.status()).isEqualTo(BackfillResult.Status.REJECTED);
+        assertThat(articleBackfillResult.acceptedBrief()).isNull();
+        assertThat(articleBackfillResult.attemptCount()).isEqualTo(ArticleSummaryState.MAXIMUM_ATTEMPT_COUNT);
+        assertThat(articleBackfillResult.modelCallCount()).isEqualTo(maximumCallCount).isEqualTo(6);
         assertThat(summarizer.callCount.get()).isEqualTo(maximumCallCount);
-        assertThat(result.failureReason())
+        assertThat(articleBackfillResult.failureReason())
                 .isEqualTo("whatHappened has number not in source > repair: whatHappened has number not in source");
     }
 
@@ -104,7 +104,7 @@ class SummaryBackfillGeneratorTest {
             assertThat(resultRow.has("title")).isFalse();
             assertThat(resultRow.toString()).doesNotContain("Attackers are exploiting");
         }
-        assertThat(resultRows.stream().map(BackfillResult::fromJson).filter(result -> result.id() == 1L).findFirst().orElseThrow())
+        assertThat(resultRows.stream().map(BackfillResult::fromJson).filter(backfillResult -> backfillResult.id() == 1L).findFirst().orElseThrow())
                 .isEqualTo(new BackfillResult(1L, "THE_HACKER_NEWS", BackfillResult.Status.ACCEPTED, CLEAN_BRIEF, 1, 1, false, null));
     }
 
