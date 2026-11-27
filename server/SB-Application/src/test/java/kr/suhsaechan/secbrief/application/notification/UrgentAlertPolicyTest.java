@@ -87,6 +87,14 @@ class UrgentAlertPolicyTest {
     }
 
     @Test
+    void dropsHalfOfEmojiWhenCuttingDisplayTitle() {
+        // 118자 + 이모지(2칸) > 119칸째가 이모지 앞 절반
+        Article article = createArticle(nvdSource, "가".repeat(118) + "🔒" + "나".repeat(10), false, NOW);
+
+        assertThat(UrgentAlertPolicy.toDisplayTitle(article)).isEqualTo("가".repeat(118) + "…");
+    }
+
+    @Test
     void writesCountAndMostImportantTitleForSeveralArticles() {
         // 대표 기사: 악용 중(KEV) > KISA 긴급 > 고위험, 같은 종류면 최신 게시
         UrgentAlertContent content = UrgentAlertPolicy.toContent(List.of(

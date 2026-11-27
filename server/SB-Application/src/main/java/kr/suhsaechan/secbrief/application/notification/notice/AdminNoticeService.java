@@ -9,6 +9,7 @@ import kr.suhsaechan.secbrief.application.notification.PushDeliveryPlan;
 import kr.suhsaechan.secbrief.application.notification.PushDeliveryRecorder;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import kr.suhsaechan.secbrief.member.constant.NotificationKind;
 import kr.suhsaechan.secbrief.member.entity.Notification;
 import kr.suhsaechan.secbrief.member.push.PushSendOutcome;
@@ -121,8 +122,10 @@ public class AdminNoticeService {
     }
 
     // 줄바꿈은 공백으로 (알림 본문은 한 덩어리), 길면 자름
-    private static String toPushBody(String noticeBody) {
+    static String toPushBody(String noticeBody) {
         String flattenedBody = noticeBody.replaceAll("\\s+", " ").strip();
-        return flattenedBody.length() <= PUSH_BODY_LENGTH ? flattenedBody : flattenedBody.substring(0, PUSH_BODY_LENGTH - 1) + "…";
+        return flattenedBody.length() <= PUSH_BODY_LENGTH
+                ? flattenedBody
+                : TextTruncation.truncateKeepingSurrogatePairs(flattenedBody, PUSH_BODY_LENGTH - 1) + "…";
     }
 }

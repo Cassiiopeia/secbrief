@@ -1,0 +1,4 @@
+description=설정 기본값은 application.yml 한 곳 (코드의 ${secbrief.키:기본값} 금지, server/CLAUDE.md)
+paths=server/SB-Common/src/main/java/,server/SB-Domain-Member/src/main/java/,server/SB-Domain-Advisory/src/main/java/,server/SB-Application/src/main/java/,server/SB-Web/src/main/java/
+extensions=.java
+pattern=\$\{secbrief\.[a-z0-9.\-]+:

@@ -1,5 +1,2 @@
 # no-new-log-cause-copy freeze list: lines can only be removed, never added
 # Remove a file from this list once it is fixed (the rule test flags leftover lines)
-server/SB-Application/src/main/java/kr/suhsaechan/secbrief/application/embedding/ArticleEmbeddingProcessService.java
-server/SB-Application/src/main/java/kr/suhsaechan/secbrief/application/image/ArticleImageProcessService.java
-server/SB-Domain-Advisory/src/main/java/kr/suhsaechan/secbrief/advisory/search/ArticleSearchService.java

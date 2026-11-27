@@ -51,9 +51,9 @@ public class OllamaStructuredCompletionClient implements StructuredCompletionCli
     private final String apiKey;
 
     public OllamaStructuredCompletionClient(AiCallLogService aiCallLogService,
-                                      @Value("${secbrief.ai.ollama.base-url:}") String baseUrl,
-                                      @Value("${secbrief.ai.ollama.model:}") String model,
-                                      @Value("${secbrief.ai.ollama.api-key:}") String apiKey) {
+                                      @Value("${secbrief.ai.ollama.base-url}") String baseUrl,
+                                      @Value("${secbrief.ai.ollama.model}") String model,
+                                      @Value("${secbrief.ai.ollama.api-key}") String apiKey) {
         this.aiCallLogService = aiCallLogService;
         // 읽기 제한은 본문을 받는 중에도 적용 (멈춘 응답이 스케줄러 스레드를 붙잡지 않게)
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();

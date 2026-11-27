@@ -9,6 +9,7 @@ import kr.suhsaechan.secbrief.advisory.constant.AiStatus;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.SourceCode;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
+import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
 
 /**
@@ -59,7 +60,7 @@ public final class UrgentAlertPolicy {
         if (article.getAiStatus() == AiStatus.DONE) {
             return article.getImportance() != ArticleImportance.ROUTINE;
         }
-        return ArticleNotablePolicy.isNotableByRulesOnly(article.isKev(), article.getProductCode(), catalog);
+        return ArticleNotablePolicy.isNotableByRulesOnly(article.isKev(), article.getClassificationState().getProductCode(), catalog);
     }
 
     /**
@@ -122,6 +123,6 @@ public final class UrgentAlertPolicy {
         String displayTitle = article.getTranslatedTitle() != null ? article.getTranslatedTitle() : article.getTitle();
         return displayTitle.length() <= MAXIMUM_BODY_TITLE_LENGTH
                 ? displayTitle
-                : displayTitle.substring(0, MAXIMUM_BODY_TITLE_LENGTH - ELLIPSIS.length()) + ELLIPSIS;
+                : TextTruncation.truncateKeepingSurrogatePairs(displayTitle, MAXIMUM_BODY_TITLE_LENGTH - ELLIPSIS.length()) + ELLIPSIS;
     }
 }

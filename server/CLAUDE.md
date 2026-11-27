@@ -21,6 +21,7 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 ## 규칙
 
 - 예외는 `CustomException(ErrorCode)` 하나만 던진다. 도메인별 예외 클래스를 만들지 않는다.
+- 목록 API 의 `size` 는 거부하지 않고 조정한다 (`PageSizePolicy`: 없음·1 미만 > 기본값, 최대 초과 > 최대값). 기사 목록·검색·인기 키워드·알림함 공통 (#85).
 - 성공 응답은 `ApiResponse.of(data)`, 실패 응답은 전역 예외 처리가 `ErrorResponse`로 만든다.
 - 스키마 변경은 Flyway 파일로만 한다 (`ddl-auto: validate`). 파일명은 `V{version.yml 버전}__설명.sql`.
 - 주기 작업은 `SB-Web`의 `web.scheduler` 패키지에 둔다.

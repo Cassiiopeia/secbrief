@@ -10,6 +10,7 @@ import kr.suhsaechan.secbrief.common.crypto.SecretCipher;
 import kr.suhsaechan.secbrief.common.crypto.SecretMask;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
@@ -248,6 +249,6 @@ public class SystemConfigService {
     }
 
     private static String truncate(String text, int maximumLength) {
-        return text.length() <= maximumLength ? text : text.substring(0, maximumLength);
+        return TextTruncation.truncateKeepingSurrogatePairs(text, maximumLength);
     }
 }

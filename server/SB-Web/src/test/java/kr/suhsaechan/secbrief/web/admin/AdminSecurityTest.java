@@ -74,14 +74,14 @@ class AdminSecurityTest extends PostgresContainerTestSupport {
     @Test
     void publicApiPassesWithoutLoginAndCreatesNoSession() throws Exception {
         mockMvc.perform(get("/api/health")).andExpect(status().isOk());
-        MvcResult result = mockMvc.perform(get("/api/v1/sources"))
+        MvcResult sourceListMvcResult = mockMvc.perform(get("/api/v1/sources"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isArray())
                 .andReturn();
 
-        assertThat(result.getRequest().getSession(false)).isNull();
+        assertThat(sourceListMvcResult.getRequest().getSession(false)).isNull();
         // 보안 기본 헤더가 공개 API 응답에 붙지 않음 (보안 추가 전과 같은 헤더)
-        assertThat(result.getResponse().getHeaderNames()).doesNotContain("Cache-Control", "X-Frame-Options", "Pragma");
+        assertThat(sourceListMvcResult.getResponse().getHeaderNames()).doesNotContain("Cache-Control", "X-Frame-Options", "Pragma");
         mockMvc.perform(get("/actuator/health")).andExpect(status().isOk());
     }
 

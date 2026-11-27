@@ -164,3 +164,8 @@ test('기사 상세: 요약 대기는 서버가 true 를 줄 때만 (이전 서�
   expect(toArticleDetail({ article: sampleArticleResponse, isSummaryPending: null }).isSummaryPending).toBe(false);
   expect(toArticleDetail({ article: sampleArticleResponse }).isSummaryPending).toBe(false);
 });
+
+test('공백만 있는 글은 없는 값으로 보고 앞뒤 빈칸은 정리 (회사·출처·번역 제목·이미지 경로, #85)', () => {
+  const item = toBriefingItem({ ...sampleArticleResponse, subjectName: '  ', sourceCode: ' NVD ', translatedTitle: ' ', imagePath: '\t' });
+  expect([item.subjectName, item.sourceCode, item.translatedTitle, item.imagePath]).toEqual([undefined, 'NVD', undefined, undefined]);
+});

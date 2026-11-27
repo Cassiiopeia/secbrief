@@ -19,6 +19,7 @@ import kr.suhsaechan.secbrief.advisory.fact.SourceFactLabel;
 import kr.suhsaechan.secbrief.advisory.policy.ArticleUrgencyPolicy;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -123,7 +124,7 @@ public final class NvdResponseParser {
         if (description.length() <= MAXIMUM_DESCRIPTION_TITLE_LENGTH) {
             return description;
         }
-        return description.substring(0, MAXIMUM_DESCRIPTION_TITLE_LENGTH) + TRUNCATION_MARK;
+        return TextTruncation.truncateKeepingSurrogatePairs(description, MAXIMUM_DESCRIPTION_TITLE_LENGTH) + TRUNCATION_MARK;
     }
 
     // 응답 값 그대로 5개: 고른 점수 항목의 점수·버전·벡터·심각도 + CWE (없는 필드는 싣지 않음)

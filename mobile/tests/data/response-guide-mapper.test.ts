@@ -136,3 +136,10 @@ describe('알림 상세 기사별 대응 안내 요약', () => {
     expect(detail?.articleGuides[0]).toMatchObject({ actions: [], officialCount: 0, factCount: 0, newsCount: 0, leadOfficialItem: undefined });
   });
 });
+
+test('항목 글 칸: 공백만 있으면 없는 값, 앞뒤 빈칸은 정리 (#85)', () => {
+  const sections = toResponseGuideSections([
+    { section: 'OFFICIAL', totalCount: 1, items: [{ article: KISA_NOTICE, sourceName: ' CISA KEV ', matchReason: 'SAME_CVE', matchedCveId: '  ', actionDueDate: ' 2026-12-11 ' }] },
+  ]);
+  expect(sections[0].items[0]).toMatchObject({ sourceName: 'CISA KEV', matchedCveId: undefined, actionDueDate: '2026-12-11' });
+});
