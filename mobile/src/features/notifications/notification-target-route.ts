@@ -1,3 +1,5 @@
+import type { AppNotificationKind } from '@/data/models/app-notification';
+
 import {
   APP_ROUTES,
   type ArticleDetailRoute,
@@ -67,6 +69,21 @@ export function toNotificationTargetRoute(notificationData: unknown): Notificati
 /** 열 경로가 하단 탭인지 (탭은 바꾸기, 그 밖은 쌓기) */
 export function isTabRoute(route: NotificationTargetRoute): boolean {
   return route === TODAY_TAB_ROUTE || route === VULNERABILITY_TAB_ROUTE;
+}
+
+/**
+ * 상세 경로 종류 <-> 받은 글 종류가 다르면 맞는 상세 경로, 맞으면 undefined (#87)
+ * 공지 경로(notices)는 NOTICE 만, 알림 경로(notifications)는 ALERT·DIGEST (아침 요약은 알림 경로로 열림)
+ */
+export function toDetailRouteForReceivedKind(
+  routeKind: AppNotificationKind,
+  receivedKind: AppNotificationKind,
+  notificationId: string,
+): NoticeDetailRoute | NotificationDetailRoute | undefined {
+  const isNoticeRoute = routeKind === 'NOTICE';
+  const isNoticeReceived = receivedKind === 'NOTICE';
+  if (isNoticeRoute === isNoticeReceived) return undefined;
+  return isNoticeReceived ? toNoticeDetailRoute(notificationId) : toNotificationDetailRoute(notificationId);
 }
 
 function toNumericId(value: unknown): string | undefined {

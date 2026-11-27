@@ -6,7 +6,6 @@ import {
   type SourceStatusApiResponse,
   toApiImportance,
   toApiTopic,
-  toArticleDetail,
   toArticlePage,
   toArticleSearchResult,
   toBriefingItem,
@@ -14,6 +13,7 @@ import {
   toTodayBriefing,
   toTrendingKeywords,
 } from '@/data/mappers/api-response-mapper';
+import { toArticleDetail } from '@/data/mappers/article-detail-mapper';
 
 const sampleArticleResponse: ArticleApiResponse = {
   id: 7,
