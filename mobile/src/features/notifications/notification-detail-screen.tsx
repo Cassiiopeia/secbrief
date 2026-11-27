@@ -11,17 +11,12 @@ import { goBackOrHome } from '../navigation/go-back-or-home';
 import { AlertDetailContent } from './alert-detail-content';
 import { DigestDetailContent } from './digest-detail-content';
 import { NoticeDetailContent } from './notice-detail-content';
+import { toNotificationDetailHeaderTitle, toNotificationNotFoundView } from './notification-detail-texts';
 import { toDetailRouteForReceivedKind } from './notification-target-route';
 import { NOTIFICATION_NOT_FOUND_ERROR_CODE, useAppNotificationDetail } from './use-app-notification-detail';
 import { useNotificationReadStateUpdaters } from './use-notification-read-state';
 
 const BACK_ACCESSIBILITY_LABEL = '뒤로';
-// 종류별 머리 제목, 찾지 못했을 때 안내
-const DETAIL_TEXTS: Record<AppNotificationKind, { headerTitle: string; notFoundTitle: string; notFoundDescription: string }> = {
-  ALERT: { headerTitle: '알림', notFoundTitle: '보관 기간이 지난 알림이에요', notFoundDescription: '알림은 30일 동안 보관해요.' },
-  NOTICE: { headerTitle: '공지사항', notFoundTitle: '내려간 공지사항이에요', notFoundDescription: '알림함에서 다른 공지사항을 볼 수 있어요.' },
-  DIGEST: { headerTitle: '아침 요약', notFoundTitle: '보관 기간이 지난 요약이에요', notFoundDescription: '요약은 30일 동안 보관해요.' },
-};
 
 /** 긴급 알림 상세 라우트 화면 (app/notifications/[notificationId]) */
 export function NotificationDetailScreen() {
@@ -55,7 +50,7 @@ function AppNotificationDetailFrame({ notificationId, expectedKind }: { notifica
 
   return (
     <SbScreen>
-      <SbScreenHeader title={DETAIL_TEXTS[kind].headerTitle} backAccessibilityLabel={BACK_ACCESSIBILITY_LABEL} onBackPress={goBackOrHome} />
+      <SbScreenHeader title={toNotificationDetailHeaderTitle(kind)} backAccessibilityLabel={BACK_ACCESSIBILITY_LABEL} onBackPress={goBackOrHome} />
       <ScrollView contentContainerStyle={styles.content}>{renderBody()}</ScrollView>
     </SbScreen>
   );
@@ -66,13 +61,15 @@ function AppNotificationDetailFrame({ notificationId, expectedKind }: { notifica
     if (detailQuery.isError) {
       const failure = toAppFailure(detailQuery.error);
       if (failure.errorCode === NOTIFICATION_NOT_FOUND_ERROR_CODE) {
+        const notFoundView = toNotificationNotFoundView(kind, failure.errorCode);
         return (
           <SbEmptyState
-            title={DETAIL_TEXTS[kind].notFoundTitle}
-            description={DETAIL_TEXTS[kind].notFoundDescription}
+            title={notFoundView.title}
+            description={notFoundView.description}
             illustration="notFound"
             actionLabel="알림함 보기"
-            onActionPress={() => router.replace(toNotificationInboxRoute(kind === 'NOTICE' ? 'NOTICE' : 'ALERT'))}
+            onActionPress={() => router.replace(toNotificationInboxRoute(notFoundView.inboxSegment))}
+            errorCode={notFoundView.errorCode}
           />
         );
       }
