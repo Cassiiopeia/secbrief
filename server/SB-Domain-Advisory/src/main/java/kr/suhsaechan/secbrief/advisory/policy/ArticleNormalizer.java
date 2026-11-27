@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 import kr.suhsaechan.secbrief.advisory.collector.CollectedArticle;
 import kr.suhsaechan.secbrief.advisory.entity.Source;
 import kr.suhsaechan.secbrief.advisory.fact.SourceFactPolicy;
+import kr.suhsaechan.secbrief.common.exception.ExceptionLogText;
 import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import org.springframework.web.util.HtmlUtils;
 
@@ -20,15 +21,12 @@ public final class ArticleNormalizer {
     public static final Duration FUTURE_PUBLISHED_AT_TOLERANCE = Duration.ofHours(1);
     // article.title 열 길이
     public static final int MAXIMUM_TITLE_LENGTH = 500;
-    // collect_run.error_message 열 길이
-    public static final int MAXIMUM_ERROR_MESSAGE_LENGTH = 500;
     // article.original_url 열 길이 (넘으면 잘라 쓰면 링크가 깨지므로 버림)
     private static final int MAXIMUM_ORIGINAL_URL_LENGTH = 1000;
     // article.image_source_url 열 길이 (넘으면 이미지 없음으로 처리)
     private static final int MAXIMUM_IMAGE_SOURCE_URL_LENGTH = 1000;
     // article.publisher_name 열 길이
     private static final int MAXIMUM_PUBLISHER_NAME_LENGTH = 100;
-    private static final String UNKNOWN_ERROR_MESSAGE = "unknown";
 
     private static final Pattern HTML_TAG = Pattern.compile("</?[a-zA-Z][^>]*>");
     // 일반 공백 + 줄바꿈 + 줄바꿈 없는 공백(NBSP)
@@ -83,11 +81,7 @@ public final class ArticleNormalizer {
      * 오류 메시지 정리 (제어문자 > ?, 500자 제한, null > unknown)
      */
     public static String toSanitizedErrorMessage(String rawMessage) {
-        if (rawMessage == null) {
-            return UNKNOWN_ERROR_MESSAGE;
-        }
-        String withoutControlCharacters = CONTROL_CHARACTER.matcher(rawMessage).replaceAll("?");
-        return TextTruncation.truncateKeepingSurrogatePairs(withoutControlCharacters, MAXIMUM_ERROR_MESSAGE_LENGTH);
+        return ExceptionLogText.toSanitizedErrorMessage(rawMessage);
     }
 
     // HTML 태그 제거 > 문자 참조 풀기(&#39; &amp; 등, KISA 피드가 제목을 이렇게 줌) > 연속 공백 하나로 > trim > 500자 제한
