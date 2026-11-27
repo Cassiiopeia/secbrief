@@ -97,6 +97,7 @@ class ArticleDetailControllerTest {
                 .andExpect(jsonPath("$.data.actionGuide").value("2.4.1로 올리세요. 관리 포트를 닫으세요."))
                 .andExpect(jsonPath("$.data.isAiSummarized").value(true))
                 .andExpect(jsonPath("$.data.aiSummarized").doesNotExist())
+                .andExpect(jsonPath("$.data.isSummaryPending").value(false))
                 .andExpect(jsonPath("$.data.facts[0].label").value("조치 기한"))
                 .andExpect(jsonPath("$.data.facts[0].value").value("2026-12-11"))
                 .andExpect(jsonPath("$.data.relatedItems", hasSize(1)))
@@ -184,6 +185,9 @@ class ArticleDetailControllerTest {
                 .andExpect(jsonPath("$.data.keyPoints", hasSize(0)))
                 .andExpect(jsonPath("$.data.actionGuide").value(nullValue()))
                 .andExpect(jsonPath("$.data.isAiSummarized").value(false))
+                // 요약 입력이 있는 새 기사 = 대기
+                .andExpect(jsonPath("$.data.isSummaryPending").value(true))
+                .andExpect(jsonPath("$.data.summaryPending").doesNotExist())
                 .andExpect(jsonPath("$.data.facts", hasSize(0)))
                 .andExpect(jsonPath("$.data.relatedItems", hasSize(0)))
                 .andExpect(jsonPath("$.data.responseGuideSections", hasSize(0)));

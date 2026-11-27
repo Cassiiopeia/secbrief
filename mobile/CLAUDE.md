@@ -50,7 +50,7 @@ mobile/
 - **분류 태그(기술 분야·생태계·제품·제품 묶음)는 서버 카탈로그가 단일 원본이다 (#93).** `GET /api/v1/catalog/tags` 를 ETag 로 받아 기기에 저장(`secbrief.tagCatalog`)하고 앱 시작·앞으로 올 때 다시 묻는다 (`TagCatalogSyncEffect`). 앱에 목록·이름·묶음을 쓰지 않는다 (`tests/architecture` 가 서버 시드 이름·code 를 글자로 쓰면 막음). 모르는 code 는 그리지 않는다.
 - 관심 기술·받는 방식은 기기에 저장(`secbrief.alertInterests`, `secbrief.alertDigest`)하고 기기 등록 때 서버에도 보낸다. 서버가 돌려준 code(지워진 것은 빠짐)로 기기 값을 맞춘다. 알림을 못 쓰는 기기(웹)는 기기에만 저장해 내 기술 칩에만 쓴다.
 - 경보단계 문구(국내 5단계 이름·색조·뜻, 해외 지표 이름·단계별 뜻)는 `features/alert-level/alert-level-texts.ts` 가 단일 원본이다. 뜻은 KISA·CIS·SANS 공개 안내를 짧게 옮긴 것만 쓴다. 단계 색은 `alertLevel*` 토큰 5개(`SbLevelGauge`).
-- 기사 상세는 AI 글(요약·핵심)이 하나도 없으면 요약 카드를 숨기고 확인된 정보·원문 보기로 바로 이어진다.
+- 기사 상세는 AI 글(요약·핵심)이 하나도 없으면 요약 카드를 숨기고 확인된 정보·원문 보기로 바로 이어진다. 서버가 `isSummaryPending: true` 를 준 기사만 그 자리에 "AI 요약을 준비하고 있어요" 카드를 보인다 (#87).
 - 대응 모아보기 문구(구역 이름·설명·묶인 이유)는 `features/response-guide/response-guide-texts.ts` 가 단일 원본이다. 행은 `ResponseGuideRow` 하나를 기사 상세와 알림 상세가 함께 쓴다.
 - 시각 선택기는 `@expo/ui/community/datetime-picker` (디자인 시스템 `SbTimePickerRow`): iOS 행 안 선택기, Android 시각 창, 웹은 글자만.
 

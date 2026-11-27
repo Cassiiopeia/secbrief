@@ -90,6 +90,8 @@ export interface ArticleDetailApiResponse {
   keyPoints?: string[] | null;
   actionGuide?: string | null;
   isAiSummarized?: boolean | null;
+  /** 요약 대기 중 (#87). 이 필드가 생기기 전 서버는 아예 안 줌 */
+  isSummaryPending?: boolean | null;
   /** AI 브리핑. 이전 방식 요약만 있으면 null, 이 필드가 생기기 전 서버는 아예 안 줌 */
   brief?: ArticleBriefApiResponse | null;
   facts?: { label: string; value: string }[] | null;
@@ -238,6 +240,7 @@ export function toArticleDetail(response: ArticleDetailApiResponse): ArticleDeta
     keyPoints: response.keyPoints ?? [],
     actionGuide: response.actionGuide ? response.actionGuide : undefined,
     isAiSummarized: response.isAiSummarized === true,
+    isSummaryPending: response.isSummaryPending === true,
     facts: (response.facts ?? []).map(({ label, value }) => ({ label, value })),
     relatedItems: (response.relatedItems ?? []).map(toBriefingItem),
     responseGuideSections: toResponseGuideSections(response.responseGuideSections),

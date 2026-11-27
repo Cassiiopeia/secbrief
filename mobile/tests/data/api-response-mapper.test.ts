@@ -159,3 +159,8 @@ test('기사 상세: 요약이 없으면 undefined·빈 배열, 값은 받은 �
   expect(detail.relatedItems[0].id).toBe('7');
   expect(detail.isAiSummarized).toBe(true);
 });
+test('기사 상세: 요약 대기는 서버가 true 를 줄 때만 (이전 서버는 필드 없음 > false, #87)', () => {
+  expect(toArticleDetail({ article: sampleArticleResponse, isSummaryPending: true }).isSummaryPending).toBe(true);
+  expect(toArticleDetail({ article: sampleArticleResponse, isSummaryPending: null }).isSummaryPending).toBe(false);
+  expect(toArticleDetail({ article: sampleArticleResponse }).isSummaryPending).toBe(false);
+});
