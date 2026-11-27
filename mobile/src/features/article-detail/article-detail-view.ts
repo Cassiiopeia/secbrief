@@ -76,9 +76,37 @@ function toMoreArticlesLink(topic: BriefingTopic): MoreArticlesLink {
   return { label: `다른 ${toTopicLabel(topic)} 소식 보러 가기`, browseKey: toTopicBrowseKey(topic) };
 }
 
-/** 원문 보기 버튼 문구 (게시자 이름과 함께) */
+// 원문 보기 버튼 (#112): 링크 복사·공유 아이콘 옆 남은 폭에 게시자 이름이 들어가는지 폭 단위로 어림
+const ORIGINAL_BUTTON_SUFFIX = '원문 보기';
+// 게시자 이름 최대 폭 (반각 1 · 전각 2 단위): 360pt 폭·글자 배율 1배 웹 실측 > 글자 칸 150px, " 원문 보기" 55px
+// 13 단위 "KISA 경보단계" 138px 들어감, 15 단위 "GitHub 보안 권고" 156px 잘림
+const MAXIMUM_PUBLISHER_NAME_WIDTH_UNITS_IN_ORIGINAL_BUTTON = 13;
+// 전각 글자: 한글 자모·음절, CJK 기호·한자, 전각 영숫자
+const FULL_WIDTH_CHARACTER_PATTERN = /[\u1100-\u11FF\u3000-\u9FFF\uAC00-\uD7AF\uFF00-\uFFEF]/;
+const FULL_WIDTH_CHARACTER_UNITS = 2;
+const HALF_WIDTH_CHARACTER_UNITS = 1;
+
+/** 원문 보기 버튼 문구: 게시자 이름이 버튼에 들어가면 "{게시자} 원문 보기", 길면 "원문 보기" */
 export function toOriginalButtonLabel(article: ArticleRowView): string {
-  return `${article.publisherName} 원문 보기`;
+  return isPublisherNameFittingOriginalButton(article.publisherName) ? toOriginalButtonAccessibilityLabel(article) : ORIGINAL_BUTTON_SUFFIX;
+}
+
+/** 원문 보기 버튼 읽기 도우미 문구: 버튼 문구가 줄어도 항상 "{게시자} 원문 보기" */
+export function toOriginalButtonAccessibilityLabel(article: ArticleRowView): string {
+  return `${article.publisherName} ${ORIGINAL_BUTTON_SUFFIX}`;
+}
+
+function isPublisherNameFittingOriginalButton(publisherName: string): boolean {
+  return toTextWidthUnits(publisherName) <= MAXIMUM_PUBLISHER_NAME_WIDTH_UNITS_IN_ORIGINAL_BUTTON;
+}
+
+// 글자 폭 어림 (전각 2, 그 밖 1)
+function toTextWidthUnits(text: string): number {
+  return Array.from(text).reduce(
+    (widthUnits, character) =>
+      widthUnits + (FULL_WIDTH_CHARACTER_PATTERN.test(character) ? FULL_WIDTH_CHARACTER_UNITS : HALF_WIDTH_CHARACTER_UNITS),
+    0,
+  );
 }
 
 /** 공유 내용 (Share.share 첫 인자): iOS 는 url 칸이 따로 있음, Android 는 url 을 무시해 글에 이어 붙임 */
