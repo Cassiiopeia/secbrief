@@ -41,8 +41,8 @@ public class ArticleEmbeddingProcessService {
     public ArticleEmbeddingProcessService(TextEmbeddingProvider textEmbeddingProvider,
                                           ArticleEmbeddingRepository articleEmbeddingRepository,
                                           ArticleEmbeddingResultRecorder articleEmbeddingResultRecorder, Clock clock,
-                                          @Value("${secbrief.embedding.batch-size:100}") int batchSize,
-                                          @Value("${secbrief.embedding.request-batch-size:25}") int requestBatchSize) {
+                                          @Value("${secbrief.embedding.batch-size}") int batchSize,
+                                          @Value("${secbrief.embedding.request-batch-size}") int requestBatchSize) {
         this.textEmbeddingProvider = textEmbeddingProvider;
         this.articleEmbeddingRepository = articleEmbeddingRepository;
         this.articleEmbeddingResultRecorder = articleEmbeddingResultRecorder;

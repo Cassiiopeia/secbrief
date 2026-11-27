@@ -51,7 +51,7 @@ public class ArticleSearchService {
     @Autowired
     public ArticleSearchService(TextEmbeddingProvider textEmbeddingProvider, ArticleEmbeddingIndex articleEmbeddingIndex,
                                 ArticleRepository articleRepository,
-                                @Value("${secbrief.embedding.minimum-similarity:0.5}") double minimumSimilarity) {
+                                @Value("${secbrief.embedding.minimum-similarity}") double minimumSimilarity) {
         this(textEmbeddingProvider, articleEmbeddingIndex, articleRepository, minimumSimilarity,
                 Duration.ofSeconds(QUERY_EMBEDDING_WAIT_LIMIT_SECONDS));
     }

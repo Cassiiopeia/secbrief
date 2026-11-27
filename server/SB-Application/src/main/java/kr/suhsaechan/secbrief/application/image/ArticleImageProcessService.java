@@ -39,8 +39,8 @@ public class ArticleImageProcessService {
     public ArticleImageProcessService(ArticleImageStorage articleImageStorage, ArticleImageDownloader articleImageDownloader,
                                       ArticleImageResizer articleImageResizer, ArticleRepository articleRepository,
                                       ArticleImageResultRecorder articleImageResultRecorder, Clock clock,
-                                      @Value("${secbrief.image.batch-size:20}") int batchSize,
-                                      @Value("${secbrief.image.tick-budget-seconds:60}") long tickBudgetSeconds) {
+                                      @Value("${secbrief.image.batch-size}") int batchSize,
+                                      @Value("${secbrief.image.tick-budget-seconds}") long tickBudgetSeconds) {
         this.articleImageStorage = articleImageStorage;
         this.articleImageDownloader = articleImageDownloader;
         this.articleImageResizer = articleImageResizer;
