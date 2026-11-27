@@ -21,6 +21,7 @@ import kr.suhsaechan.secbrief.application.notification.UrgentAlertPolicy;
 import kr.suhsaechan.secbrief.application.notification.inbox.NotificationDigestResponse.DigestFieldSectionResponse;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
 import kr.suhsaechan.secbrief.member.constant.NotificationKind;
 import kr.suhsaechan.secbrief.member.entity.Notification;
@@ -204,11 +205,10 @@ public class NotificationQueryService {
     }
 
     // 공지는 앞부분만 (목록 미리 보기)
-    private static String toListBody(Notification notification) {
-        String body = notification.getBody();
-        return notification.isNotice() && body.length() > NOTICE_PREVIEW_LENGTH
-                ? body.substring(0, NOTICE_PREVIEW_LENGTH)
-                : body;
+    static String toListBody(Notification notification) {
+        return notification.isNotice()
+                ? TextTruncation.truncateKeepingSurrogatePairs(notification.getBody(), NOTICE_PREVIEW_LENGTH)
+                : notification.getBody();
     }
 
     private static int toPageSize(Integer pageSize) {
