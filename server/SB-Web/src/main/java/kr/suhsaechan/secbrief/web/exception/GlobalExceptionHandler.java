@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.util.DisconnectedClientHelper;
 
 /**
  * 전역 예외 처리: 모든 예외 > 표준 에러 응답 {errorCode, message}
@@ -82,9 +83,17 @@ public class GlobalExceptionHandler {
         return toResponse(ErrorCode.RESOURCE_NOT_FOUND);
     }
 
-    /** 처리되지 않은 예외: 원인은 로그에만, 응답은 고정 문구 */
+    /**
+     * 처리되지 않은 예외: 원인은 로그에만, 응답은 고정 문구
+     * 클라이언트가 끊은 연결 (Broken pipe, ClientAbortException, AsyncRequestNotUsableException): 장애 아님 > debug 한 줄, 응답 안 씀 (#58)
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnhandledException(Exception exception, HttpServletRequest request) {
+        if (DisconnectedClientHelper.isClientDisconnectedException(exception)) {
+            log.debug("[exception] client disconnected : path={}, type={}",
+                request.getRequestURI(), exception.getClass().getSimpleName());
+            return null;
+        }
         log.error("[exception] failed 500 : unhandled : path={}", request.getRequestURI(), exception);
         return toResponse(ErrorCode.INTERNAL_SERVER_ERROR);
     }

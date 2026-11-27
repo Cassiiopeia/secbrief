@@ -17,7 +17,7 @@ public enum SourceTextRefetchMethod {
     REDHAT_CSAF_JSON,
     // Debian: 보안 공지 메일 보관 페이지 > 안 되면 보안 추적 페이지 (패키지·CVE·고친 버전)
     DEBIAN_ANNOUNCEMENT_PAGE,
-    // KISA 보호나라 4곳: 게시글 페이지의 본문 칸
+    // KISA 보호나라 4곳: 게시글 페이지의 본문 칸 (표는 행마다 머리글과 짝지은 글)
     KISA_BOARD_VIEW_PAGE,
     // 기사·공지 페이지 본문의 문단 (BleepingComputer, Node.js)
     ARTICLE_PAGE_BODY,
