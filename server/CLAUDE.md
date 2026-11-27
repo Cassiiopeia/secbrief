@@ -27,6 +27,8 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 - 주기 작업은 `SB-Web`의 `web.scheduler` 패키지에 둔다.
 - 비밀값은 환경변수로만 받는다. `application-dev.yml`, `application-prod.yml`은 커밋하지 않는다.
 - 로그는 영어로 쓰고 기능 접두사를 붙인다 (`[advisory collect] failed 502 : ...`). 외부에서 들어온 값은 정리한 뒤 넣는다.
+- 클라이언트가 끊은 연결(Broken pipe, `ClientAbortException`, `AsyncRequestNotUsableException`)은 전역 예외 처리가 debug 한 줄만 남기고 응답을 쓰지 않는다 (판정은 Spring `DisconnectedClientHelper`, #58).
+- 기동할 때 이 서버보다 먼저 시작해 끝나지 않은 수집 기록은 `FAILED` + `COLLECT_INTERRUPTED` 로 표시한다 (`UnfinishedCollectRunCleaner`). 새 상태값을 만들지 않는 이유: 배포 전환·되돌리기 중 이전 서버가 읽지 못함. 관리자 출처 표의 최근 실패 사유는 "중단됨"으로 보인다 (#58).
 
 - 기사 요약은 브리핑 구조다 (한 줄 결론·무슨 일·왜 중요·영향 대상·대응, #67). 작성 규칙은 `SB-Domain-Advisory/src/main/resources/summary-harness/*.md` 가 단일 원본이다 (공통 규칙 + 글 종류별 안내 + 고쳐 쓰기).
   고칠 때는 [docs/summary-harness](../docs/summary-harness/README.md) 의 평가 순서로 이전 판과 비교한다. 요약 1건의 제공자 호출은 시도마다 최대 2회다.
