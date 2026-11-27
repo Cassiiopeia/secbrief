@@ -1,7 +1,6 @@
 package kr.suhsaechan.secbrief.web.advisory;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -16,8 +15,6 @@ import kr.suhsaechan.secbrief.advisory.dto.ArticleSearchCondition;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
 import kr.suhsaechan.secbrief.advisory.service.ArticleQueryService;
-import kr.suhsaechan.secbrief.common.exception.CustomException;
-import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
 import kr.suhsaechan.secbrief.web.support.ArticleTestWriter;
 import kr.suhsaechan.secbrief.web.support.PostgresContainerTestSupport;
 import org.junit.jupiter.api.BeforeEach;
@@ -119,9 +116,14 @@ class ArticleQueryServiceTest extends PostgresContainerTestSupport {
     }
 
     @Test
-    void rejectsSizeAboveFifty() {
-        assertThatThrownBy(() -> articleQueryService.findArticles(new ArticleSearchCondition(null, null, null, null, null, null, null, 51)))
-                .isInstanceOf(CustomException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
+    void clampsSizeAboveFiftyToFifty() {
+        for (int index = 0; index < ArticleSearchCondition.MAXIMUM_PAGE_SIZE + 1; index++) {
+            articleTestWriter.saveNews(BASE.plusSeconds(index), ArticleTopic.GENERAL);
+        }
+
+        ArticlePageResponse page = articleQueryService.findArticles(new ArticleSearchCondition(null, null, null, null, null, null, null, 51));
+
+        assertThat(page.items()).hasSize(ArticleSearchCondition.MAXIMUM_PAGE_SIZE);
+        assertThat(page.nextCursor()).isNotNull();
     }
 }

@@ -31,12 +31,12 @@ class ArticleSearchQueryPolicyTest {
     }
 
     @Test
-    void sizeDefaultsToThirtyAndRejectsOutOfRange() {
+    void sizeDefaultsToThirtyAndClampsOutOfRange() {
         assertThat(toSearchSize(null)).isEqualTo(30);
         assertThat(toSearchSize(1)).isEqualTo(1);
         assertThat(toSearchSize(50)).isEqualTo(50);
-        assertThatThrownBy(() -> toSearchSize(0)).extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
-        assertThatThrownBy(() -> toSearchSize(51)).extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
+        assertThat(toSearchSize(0)).isEqualTo(30);
+        assertThat(toSearchSize(51)).isEqualTo(50);
     }
 
     @Test

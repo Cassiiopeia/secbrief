@@ -21,6 +21,7 @@ import kr.suhsaechan.secbrief.application.notification.UrgentAlertPolicy;
 import kr.suhsaechan.secbrief.application.notification.inbox.NotificationDigestResponse.DigestFieldSectionResponse;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.common.request.PageSizePolicy;
 import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
 import kr.suhsaechan.secbrief.member.constant.NotificationKind;
@@ -212,9 +213,6 @@ public class NotificationQueryService {
     }
 
     private static int toPageSize(Integer pageSize) {
-        if (pageSize == null || pageSize < 1) {
-            return DEFAULT_PAGE_SIZE;
-        }
-        return Math.min(pageSize, MAXIMUM_PAGE_SIZE);
+        return PageSizePolicy.toClampedPageSize(pageSize, DEFAULT_PAGE_SIZE, MAXIMUM_PAGE_SIZE);
     }
 }
