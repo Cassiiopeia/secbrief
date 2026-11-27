@@ -14,6 +14,9 @@ export interface QuietHoursSectionView {
   endLabel: string;
   startTimeLabel: string;
   endTimeLabel: string;
+  /** 시작·끝 선택기 읽기 도우미 문구 (행 이름 + 시각, 예: 방해 금지 시간 끝 (다음 날) 오전 8:00, 바꾸기) */
+  startAccessibilityLabel: string;
+  endAccessibilityLabel: string;
   /** 정할 수 없을 때 이유 한 줄 (알림 종류가 모두 꺼짐), 정할 수 있으면 없음 */
   unavailableHint?: string;
 }
@@ -25,6 +28,7 @@ export const QUIET_HOURS_SAME_TIME_MESSAGE = '시작과 끝을 다르게 정해 
 const QUIET_HOURS_OFF_DETAIL = '정한 시간에는 알림을 울리지 않아요';
 const QUIET_HOURS_WITHOUT_ALERT_HINT = '알림 종류를 하나 이상 켜면 정할 수 있어요.';
 const NEXT_DAY_LABEL = '다음 날';
+export const QUIET_HOURS_TITLE = '방해 금지 시간';
 
 /** 끝이 시작보다 이른 구간인지 (자정을 넘음, 예: 22:00 ~ 08:00). 같은 시각은 아님 */
 export function isQuietHoursCrossingMidnight(quietHours: QuietHours): boolean {
@@ -55,15 +59,26 @@ export function toQuietHoursWithTime(quietHours: QuietHours, edge: QuietHoursEdg
 /** 저장값 + 켠 알림 종류 > 구역 표시 내용 (알림 종류가 모두 꺼졌으면 꺼짐으로 보이고 이유 한 줄) */
 export function toQuietHoursSectionView(quietHours: QuietHours, hasEnabledAlertCategory: boolean): QuietHoursSectionView {
   const isOn = quietHours.isEnabled && hasEnabledAlertCategory;
+  const startLabel = '시작';
+  const endLabel = isQuietHoursCrossingMidnight(quietHours) ? `끝 (${NEXT_DAY_LABEL})` : '끝';
+  const startTimeLabel = toKoreanClockTime(quietHours.startTime);
+  const endTimeLabel = toKoreanClockTime(quietHours.endTime);
   return {
     isOn,
     switchDetail: isOn ? toQuietHoursRangeLabel(quietHours) : QUIET_HOURS_OFF_DETAIL,
-    startLabel: '시작',
-    endLabel: isQuietHoursCrossingMidnight(quietHours) ? `끝 (${NEXT_DAY_LABEL})` : '끝',
-    startTimeLabel: toKoreanClockTime(quietHours.startTime),
-    endTimeLabel: toKoreanClockTime(quietHours.endTime),
+    startLabel,
+    endLabel,
+    startTimeLabel,
+    endTimeLabel,
+    startAccessibilityLabel: toTimePickerAccessibilityLabel(startLabel, startTimeLabel),
+    endAccessibilityLabel: toTimePickerAccessibilityLabel(endLabel, endTimeLabel),
     unavailableHint: hasEnabledAlertCategory ? undefined : QUIET_HOURS_WITHOUT_ALERT_HINT,
   };
+}
+
+// 시각 선택기 읽기 도우미 문구: 구역 이름 + 행 이름 + 시각 + 할 일
+function toTimePickerAccessibilityLabel(edgeLabel: string, timeLabel: string): string {
+  return `${QUIET_HOURS_TITLE} ${edgeLabel} ${timeLabel}, 바꾸기`;
 }
 
 /** 방해 금지 시간 저장 확인 문구 (알림 막대): 켬·끔이 바뀌면 켰어요·껐어요, 시각만 바뀌면 바꿨어요 */

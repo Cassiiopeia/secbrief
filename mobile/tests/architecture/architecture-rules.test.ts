@@ -157,6 +157,18 @@ describe('검색칸 키보드는 누를 때만 (#119)', () => {
   });
 });
 
+describe('시각 선택기 읽기 도우미 문구 (#119)', () => {
+  test('iOS 선택기에 행의 accessibilityLabel 을 붙인다 (시각 글자가 빠지는 행 방지)', () => {
+    expect(readSource('design/components/sb-ios-time-picker.ios.tsx')).toMatch(/accessibilityLabelModifier\(accessibilityLabel\)/);
+    expect(readSource('design/components/sb-time-picker-row.tsx')).toMatch(/<SbIosTimePicker[\s\S]*accessibilityLabel=\{accessibilityLabel\}/);
+  });
+  test('방해 금지 시간 시작·끝 행은 같은 문구 함수를 쓴다', () => {
+    const sectionSource = readSource('features/notifications/quiet-hours-settings-section.tsx');
+    expect(sectionSource).toMatch(/accessibilityLabel=\{sectionView\.startAccessibilityLabel\}/);
+    expect(sectionSource).toMatch(/accessibilityLabel=\{sectionView\.endAccessibilityLabel\}/);
+  });
+});
+
 // 움직임 값(지속시간·지연·곡선) 원본: 디자인 시스템 안에서도 sb-motion.ts 에만 숫자로 둔다
 // 예외 목록: 파일 > 이유
 const DESIGN_MOTION_LITERAL_EXCEPTIONS: Record<string, string> = {};
