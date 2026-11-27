@@ -54,6 +54,7 @@ export function SearchScreen() {
           accessibilityLabel="검색어 입력"
           clearAccessibilityLabel="검색어 지우기"
           maximumLength={SEARCH_QUERY_MAXIMUM_LENGTH}
+          shouldFocusOnMount
           onChangeText={setInputText}
         />
       </SbScreenHeader>
