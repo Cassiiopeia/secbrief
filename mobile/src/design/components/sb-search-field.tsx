@@ -13,6 +13,8 @@ interface SbSearchFieldProps {
   /** 지우기 버튼 읽기 도우미 문구 */
   clearAccessibilityLabel: string;
   maximumLength: number;
+  /** 열리자마자 초점(키보드)을 줄지: 검색 화면만 켬, 고르기 화면 안 검색칸은 누를 때만 (기본 꺼짐) */
+  shouldFocusOnMount?: boolean;
   onChangeText: (text: string) => void;
 }
 
@@ -20,13 +22,14 @@ const FOCUS_BORDER_WIDTH = 2;
 // 웹 브라우저 기본 초점 고리 끄기 (outline-style: auto 는 굵기 0 을 무시함). 웹 전용 CSS 값이라 React Native 타입에 없음
 const webFocusRingOffStyle = (Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) as unknown as TextStyle;
 
-/** 검색 입력창: 돋보기 + 입력 + (글이 있으면) 지우기 버튼. 열리면 바로 입력할 수 있게 초점을 주고, 초점은 알약 테두리로 표시 */
+/** 검색 입력창: 돋보기 + 입력 + (글이 있으면) 지우기 버튼. 초점은 알약 테두리로 표시 */
 export function SbSearchField({
   value,
   placeholder,
   accessibilityLabel,
   clearAccessibilityLabel,
   maximumLength,
+  shouldFocusOnMount = false,
   onChangeText,
 }: SbSearchFieldProps) {
   const { colors } = useSbTheme();
@@ -46,7 +49,7 @@ export function SbSearchField({
         accessibilityLabel={accessibilityLabel}
         maxLength={maximumLength}
         maxFontSizeMultiplier={sbMaximumFontScale.compact}
-        autoFocus
+        autoFocus={shouldFocusOnMount}
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"

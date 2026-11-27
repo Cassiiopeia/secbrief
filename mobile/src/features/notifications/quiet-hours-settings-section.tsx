@@ -2,11 +2,9 @@ import { hasAnyAlertInterest } from '@/data/models/alert-interest';
 import { SbInlineErrorState, SbInlineNotice, SbReveal, SbSwitchRow, SbTimePickerRow } from '@/design';
 
 import { useAlertInterests } from '../interests/use-alert-interests';
-import { QUIET_HOURS_EXPLANATION, QUIET_HOURS_SAME_TIME_MESSAGE, toQuietHoursSectionView } from './quiet-hours-view-state';
+import { QUIET_HOURS_EXPLANATION, QUIET_HOURS_SAME_TIME_MESSAGE, QUIET_HOURS_TITLE, toQuietHoursSectionView } from './quiet-hours-view-state';
 import { useAlertCategorySettings } from './use-alert-category-settings';
 import { useQuietHoursSettings } from './use-quiet-hours-settings';
-
-const QUIET_HOURS_TITLE = '방해 금지 시간';
 
 /**
  * 설정 탭 방해 금지 시간: 스위치 > (켰을 때) 시작·끝 시각 + 보류 알림 안내 > 상태 안내 (알림 종류 없음 / 같은 시각 / 저장 실패)
@@ -41,7 +39,7 @@ export function QuietHoursSettingsSection() {
             timeOfDay={settings.quietHours.startTime}
             timeLabel={sectionView.startTimeLabel}
             isDisabled={isLocked}
-            accessibilityLabel={`${QUIET_HOURS_TITLE} ${sectionView.startLabel} ${sectionView.startTimeLabel}, 바꾸기`}
+            accessibilityLabel={sectionView.startAccessibilityLabel}
             onTimeSelected={(timeOfDay) => settings.onTimeSelected('start', timeOfDay)}
           />
           <SbTimePickerRow
@@ -50,7 +48,7 @@ export function QuietHoursSettingsSection() {
             timeOfDay={settings.quietHours.endTime}
             timeLabel={sectionView.endTimeLabel}
             isDisabled={isLocked}
-            accessibilityLabel={`${QUIET_HOURS_TITLE} ${sectionView.endLabel} ${sectionView.endTimeLabel}, 바꾸기`}
+            accessibilityLabel={sectionView.endAccessibilityLabel}
             onTimeSelected={(timeOfDay) => settings.onTimeSelected('end', timeOfDay)}
           />
           <SbInlineNotice message={QUIET_HOURS_EXPLANATION} />

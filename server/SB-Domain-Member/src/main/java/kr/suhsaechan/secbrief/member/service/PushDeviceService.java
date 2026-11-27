@@ -96,9 +96,18 @@ public class PushDeviceService {
                 : existingDevice.map(PushDevice::getAlertInterests).orElse(AlertInterests.none());
 
         if (enabledAlertCategories.isEmpty() && alertInterests.isEmpty()) {
+            // 기기 행은 지워도 방해 금지 시간·받는 방식은 돌려줌: 요청 값 > 지운 행의 값 > 기본값 (앱이 사용자 설정을 기본값으로 덮지 않게, #119)
+            // 관심 기술은 비어 있어야 지우므로 늘 없음
+            QuietHours keptQuietHours = requestedQuietHours
+                    .or(() -> existingDevice.map(PushDevice::getQuietHours))
+                    .orElseGet(QuietHours::disabledByDefault);
+            DigestSettingsResponse keptDigest = Optional.ofNullable(request.digest())
+                    .map(DigestSettingsResponse::from)
+                    .or(() -> existingDevice.map(DigestSettingsResponse::from))
+                    .orElseGet(DigestSettingsResponse::defaultSettings);
             existingDevice.ifPresent(pushDeviceRepository::delete);
             log.info("[push device] unregistered : platform={}", request.platform());
-            return PushDeviceResponse.unregistered();
+            return PushDeviceResponse.unregistered(keptQuietHours, keptDigest);
         }
         PushDevice pushDevice = existingDevice.orElseGet(
                 () -> PushDevice.create(request.pushToken(), request.platform(), enabledAlertCategories));

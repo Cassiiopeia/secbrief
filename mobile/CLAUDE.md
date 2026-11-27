@@ -54,7 +54,7 @@ mobile/
 - 경보단계 문구(국내 5단계 이름·색조·뜻, 해외 지표 이름·단계별 뜻)는 `features/alert-level/alert-level-texts.ts` 가 단일 원본이다. 뜻은 KISA·CIS·SANS 공개 안내를 짧게 옮긴 것만 쓴다. 단계 색은 `alertLevel*` 토큰 5개(`SbLevelGauge`).
 - 기사 상세는 AI 글(요약·핵심)이 하나도 없으면 요약 카드를 숨기고 확인된 정보·원문 보기로 바로 이어진다. 서버가 `isSummaryPending: true` 를 준 기사만 그 자리에 "AI 요약을 준비하고 있어요" 카드를 보인다 (#87).
 - 대응 모아보기 문구(구역 이름·설명·묶인 이유)는 `features/response-guide/response-guide-texts.ts` 가 단일 원본이다. 행은 `ResponseGuideRow` 하나를 기사 상세와 알림 상세가 함께 쓴다.
-- 시각 선택기는 `@expo/ui/community/datetime-picker` (디자인 시스템 `SbTimePickerRow`): iOS 행 안 선택기, Android 시각 창, 웹은 글자만.
+- 시각 선택기는 디자인 시스템 `SbTimePickerRow` 한 곳: iOS 행 안 SwiftUI 선택기(`@expo/ui/swift-ui` `DatePicker`, 읽기 도우미 문구를 선택기에 붙임, #119), Android 시각 창(`@expo/ui/community/datetime-picker`), 웹은 글자만.
 
 의존 방향: `core ← data ← features · design ← app`. 계층 밖은 `@/계층/...` 로만 import 한다.
 

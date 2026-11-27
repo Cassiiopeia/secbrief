@@ -7,6 +7,7 @@ import { toClockTime } from '@/core/format/briefing-date-formatter';
 import { useSbTheme } from '../theme/use-sb-theme';
 import { sbMaximumLines } from '../tokens';
 import { playSbHaptic } from './sb-haptics';
+import { SbIosTimePicker } from './sb-ios-time-picker';
 import { SbPressable } from './sb-pressable';
 import { SbRowFrame } from './sb-row-frame';
 import { SbText } from './sb-text';
@@ -18,6 +19,7 @@ interface SbTimePickerRowProps {
   /** 행에 보일 시각 글자 (예: 오후 10:00) */
   timeLabel: string;
   isDisabled?: boolean;
+  /** 읽기 도우미 문구 (행 이름 + 시각, 예: 방해 금지 시간 끝 오전 8:00, 바꾸기). iOS 는 선택기 자체에 붙임 */
   accessibilityLabel: string;
   onTimeSelected: (timeOfDay: string) => void;
 }
@@ -57,14 +59,12 @@ export function SbTimePickerRow({ title, timeOfDay, timeLabel, isDisabled = fals
         title={title}
         isTitleDimmed={isDisabled}
         trailing={
-          <DateTimePicker
-            value={toDate(timeOfDay)}
-            mode="time"
-            display="compact"
-            disabled={isDisabled}
-            locale="ko_KR"
-            themeVariant={isDark ? 'dark' : 'light'}
-            onValueChange={(_event, date) => onValueChange(date)}
+          <SbIosTimePicker
+            selectedDate={toDate(timeOfDay)}
+            isDisabled={isDisabled}
+            isDark={isDark}
+            accessibilityLabel={accessibilityLabel}
+            onDateSelected={onValueChange}
           />
         }
       />
