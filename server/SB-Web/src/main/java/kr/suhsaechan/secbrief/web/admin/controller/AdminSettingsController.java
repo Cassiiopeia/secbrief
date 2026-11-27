@@ -12,6 +12,7 @@ import kr.suhsaechan.secbrief.common.config.SystemConfigService;
 import kr.suhsaechan.secbrief.common.config.SystemConfigView;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import kr.suhsaechan.secbrief.web.admin.support.AdminFlash;
 import kr.suhsaechan.secbrief.web.admin.support.AdminSettingGroup;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequiredArgsConstructor
 public class AdminSettingsController {
 
+    // 거부 로그에 남기는 설정 키 최대 길이
+    private static final int MAXIMUM_LOGGED_KEY_NAME_LENGTH = 100;
     private static final String SETTINGS_PATH = "/admin/settings";
     private static final String SETTINGS_VIEW = "admin/settings";
     private static final String SETTINGS_HISTORY_VIEW = "admin/settings-history";
@@ -141,6 +144,6 @@ public class AdminSettingsController {
         String sanitizedKeyName = configKeyName.replaceAll("[^A-Z0-9_]", "?");
         log.warn("[admin settings] rejected {} : code={}, key={}", exception.getErrorCode().getStatus().value(),
                 exception.getErrorCode().name(),
-                sanitizedKeyName.length() > 100 ? sanitizedKeyName.substring(0, 100) : sanitizedKeyName);
+                TextTruncation.truncateKeepingSurrogatePairs(sanitizedKeyName, MAXIMUM_LOGGED_KEY_NAME_LENGTH));
     }
 }
