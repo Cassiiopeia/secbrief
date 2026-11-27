@@ -71,3 +71,14 @@ test('상세 경로와 받은 글 종류가 다르면 맞는 상세 경로로 (#
   expect(toDetailRouteForReceivedKind('ALERT', 'ALERT', '16')).toBeUndefined();
   expect(toDetailRouteForReceivedKind('ALERT', 'DIGEST', '17')).toBeUndefined();
 });
+
+test('KISA 경보단계 글 1건 알림(targetScreen alertLevel)은 경보단계 화면, 이전 서버 data 는 그대로 기사 상세 (#87)', () => {
+  expect(toNotificationTarget({ notificationId: '31', notificationKind: 'ALERT', articleId: '601', targetScreen: 'alertLevel' })).toEqual({
+    route: '/alert-level',
+    notificationId: 31,
+  });
+  expect(toNotificationTargetRoute({ notificationId: '32', articleId: '602' })).toBe('/articles/602');
+  // 모르는 화면 값은 무시
+  expect(toNotificationTargetRoute({ articleId: '603', targetScreen: 'unknownScreen' })).toBe('/articles/603');
+  expect(isTabRoute('/alert-level')).toBe(false);
+});

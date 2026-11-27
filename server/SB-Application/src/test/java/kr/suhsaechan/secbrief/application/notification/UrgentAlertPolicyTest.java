@@ -61,8 +61,21 @@ class UrgentAlertPolicyTest {
                 .doesNotContainKey("articleId").containsEntry("notificationId", "8");
         assertThat(NotificationPushData.forNotification(9L, NotificationKind.NOTICE, null))
                 .containsEntry("notificationKind", "NOTICE").containsEntry("targetTab", "today");
+        // KISA 경보단계 글 1건: 앱이 경보단계 화면을 엶 (#87), 기사 번호 없는 묶음 알림에는 싣지 않음
+        assertThat(NotificationPushData.forNotification(10L, NotificationKind.ALERT, 43L, true))
+                .containsEntry("targetScreen", "alertLevel").containsEntry("articleId", "43");
+        assertThat(NotificationPushData.forNotification(11L, NotificationKind.ALERT, null, true))
+                .doesNotContainKey("targetScreen");
         assertThat(NotificationPushData.forQuietHoursDigest(true))
                 .containsExactlyInAnyOrderEntriesOf(Map.of("notificationKind", "QUIET_HOURS_DIGEST", "targetTab", "vulnerability"));
+    }
+
+    @Test
+    void recognizesKisaAlertLevelArticleOnly() {
+        Source alertLevelSource = createSource(SourceCode.KISA_ALERT_LEVEL, ArticleKind.ADVISORY, ArticleRegion.DOMESTIC, FeedFormat.RSS, NOW);
+
+        assertThat(UrgentAlertPolicy.isAlertLevelArticle(createArticle(alertLevelSource, "사이버위기 경보 상향", false, NOW))).isTrue();
+        assertThat(UrgentAlertPolicy.isAlertLevelArticle(createArticle(kisaSource, "긴급 보안 업데이트 권고", false, NOW))).isFalse();
     }
 
     @Test

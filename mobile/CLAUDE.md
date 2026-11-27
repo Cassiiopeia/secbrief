@@ -46,7 +46,7 @@ mobile/
   앱이 있으면 유니버설 링크(`ios.associatedDomains`)·앱 링크(`android.intentFilters`, autoVerify)로 앱이 바로 열리고, `app/+native-intent.tsx` 가 `/a/{id}` 를 기사 상세로 바꾼다 (`incoming-link-route.ts`). 앱이 없으면 서버 미리보기 페이지가 열린다.
 - 조회 재시도는 앱 전체 기본값 한 곳(`app/_layout` QueryClient + `core/error/app-failure` `shouldRetryQuery`): 1번만 1초 뒤, 찾지 못함·시간 초과는 다시 부르지 않는다 (#87).
 - 알림 상세(`notifications/[id]`)·공지 상세(`notices/[id]`)는 받은 글 종류가 경로와 다르면 맞는 경로로 바꿔 연다 (`toDetailRouteForReceivedKind`).
-- 알림을 누르면 `notification-target-route.ts` 가 열 곳을 정한다: `articleId` 기사 상세 > `notificationKind=NOTICE` 공지 상세 > `notificationId` 알림 상세 > `QUIET_HOURS_DIGEST` 알림함 > 이전 서버의 `targetTab`. 이동은 화면 스택이 준비된 뒤 (`use-is-root-navigator-ready`).
+- 알림을 누르면 `notification-target-route.ts` 가 열 곳을 정한다: `targetScreen=alertLevel` 경보단계 화면 (#87) > `articleId` 기사 상세 > `notificationKind=NOTICE` 공지 상세 > `notificationId` 알림 상세 > `QUIET_HOURS_DIGEST` 알림함 > 이전 서버의 `targetTab`. 이동은 화면 스택이 준비된 뒤 (`use-is-root-navigator-ready`).
 - 알림함 읽음 기록(본 번호·연 글)과 방해 금지 시간은 기기에만 둔다 (`secbrief.notificationReadState`, `secbrief.quietHours`). 방해 금지 시간은 알림 기기 등록(`PUT /api/v1/push-devices` 의 `quietHours`)으로 서버에도 보낸다.
 - 알림 종류 문구(이름·배지·알린 이유)는 `features/notifications/alert-category-texts.ts` 가 단일 원본이다.
 - **분류 태그(기술 분야·생태계·제품·제품 묶음)는 서버 카탈로그가 단일 원본이다 (#93).** `GET /api/v1/catalog/tags` 를 ETag 로 받아 기기에 저장(`secbrief.tagCatalog`)하고 앱 시작·앞으로 올 때 다시 묻는다 (`TagCatalogSyncEffect`). 앱에 목록·이름·묶음을 쓰지 않는다 (`tests/architecture` 가 서버 시드 이름·code 를 글자로 쓰면 막음). 모르는 code 는 그리지 않는다.

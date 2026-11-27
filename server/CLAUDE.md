@@ -79,7 +79,7 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 | `PUT /api/v1/push-devices` | 요청에 `quietHours {isEnabled, startTime "HH:mm", endTime, timeZone}` 선택 (없으면 저장값 유지), 응답에 `quietHours` 항상 |
 
 - 긴급 알림 틱마다 알릴 기사 전체를 알림함 기록(`notification` kind ALERT + `notification_article`) 1건으로 남기고, 그 번호를 푸시 data 에 싣는다. 발송이 전부 실패하면 기록을 지우고 기사를 대기로 남긴다.
-- 푸시 data 키 원본은 `NotificationPushData` 다: `notificationId`, `notificationKind`(`ALERT`·`NOTICE`·`QUIET_HOURS_DIGEST`), `articleId`(기사 1건 알림만), `targetTab`(이전 앱용, 항상). 앱 `toNotificationTargetRoute` 와 함께 바꾼다.
+- 푸시 data 키 원본은 `NotificationPushData` 다: `notificationId`, `notificationKind`(`ALERT`·`NOTICE`·`QUIET_HOURS_DIGEST`), `articleId`(기사 1건 알림만), `targetTab`(이전 앱용, 항상), `targetScreen`(KISA 경보단계 글 1건 알림만 `alertLevel`, 방해 금지 보류분은 보낼 때 다시 판정, #87). 앱 `toNotificationTargetRoute` 와 함께 바꾼다.
 - 방해 금지 시간은 기기 시간대 기준 `[시작, 끝)`, 끝이 이르면 자정을 넘긴다. 켰을 때 시작 == 끝은 `QUIET_HOURS_SAME_TIME`, 모르는 시간대는 `INVALID_TIME_ZONE`. 기존·새 기기 모두 기본 꺼짐.
 - 방해 금지 시간이면 그 기기가 받을 글을 `push_device_held_push` 에 보류하고 (KEV 도 예외 없음), 끝난 뒤 첫 알림 틱에 1건이면 그대로, 여러 건이면 모음 1건을 보낸다. 실패하면 보류분을 남긴다.
 - 공지사항은 관리자 화면(`/admin/notices`)에서 쓰고, 올릴 때 "푸시도 보내기"를 고르면 알림을 켠 기기 전체에 보낸다 (방해 금지면 보류). 고칠 때는 다시 보내지 않는다. 발송 기록 화면은 `/admin/alerts`.
