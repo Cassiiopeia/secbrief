@@ -22,6 +22,7 @@ import {
   sbSize,
   sbSpacing,
   useSbArticleImageState,
+  useSbFontScale,
   useSbTheme,
 } from '@/design';
 
@@ -51,6 +52,8 @@ export function ArticleDetailScreen() {
   const { detailQuery, article } = useArticleDetail(articleId ?? '');
   const markArticleRead = useMarkArticleRead();
   const { scrollViewRef, onBriefLayout, onTargetLayout } = useFocusScroll(toArticleDetailFocus(focus));
+  // 큰 글자면 원문 버튼 문구를 더 일찍 줄임 (#119)
+  const originalButtonFontScale = useSbFontScale('button');
 
   // 화면을 연 것으로 읽음 처리 (기기에만 저장)
   useEffect(() => {
@@ -68,7 +71,7 @@ export function ArticleDetailScreen() {
         <SbBottomActionBar
           primaryAction={
             <SbFilledButton
-              label={toOriginalButtonLabel(article)}
+              label={toOriginalButtonLabel(article, originalButtonFontScale)}
               accessibilityLabel={toOriginalButtonAccessibilityLabel(article)}
               trailingIconName="open-in-new"
               onPress={() => openOriginalArticle(article.originalUrl)}
