@@ -67,7 +67,7 @@ class ArticleTitleAnalysisImportanceTest {
 
         kevArticle.applyAiAnalysis(ArticleTopic.VULNERABILITY, null, ArticleImportance.ROUTINE, "Example");
         assertThat(kevArticle.getImportance()).isEqualTo(ArticleImportance.NOTABLE);
-        assertThat(kevArticle.getSubjectName()).isEqualTo("Example");
+        assertThat(kevArticle.getAiAnalysisState().getSubjectName()).isEqualTo("Example");
 
         kevArticle.applyAiAnalysis(ArticleTopic.VULNERABILITY, null, ArticleImportance.HEADLINE, null);
         assertThat(kevArticle.getImportance()).isEqualTo(ArticleImportance.HEADLINE);
@@ -75,7 +75,7 @@ class ArticleTitleAnalysisImportanceTest {
         // AI 실패: 규칙 하한으로 되돌리고 이름을 비움
         kevArticle.recordAiFailure();
         assertThat(kevArticle.getImportance()).isEqualTo(ArticleImportance.NOTABLE);
-        assertThat(kevArticle.getSubjectName()).isNull();
+        assertThat(kevArticle.getAiAnalysisState().getSubjectName()).isNull();
     }
 
     @Test

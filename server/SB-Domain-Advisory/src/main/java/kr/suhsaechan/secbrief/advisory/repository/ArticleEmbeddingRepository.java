@@ -16,7 +16,7 @@ public interface ArticleEmbeddingRepository extends JpaRepository<ArticleEmbeddi
     // AI 처리가 끝났거나 AI 대기 기한(aiWaitDeadline 이전 수집)을 넘긴 것만 (번역 제목·키워드까지 넣으려고 기다림)
     @Query("select a from Article a "
             + "where a.publishedAt >= :publishedSince "
-            + "and (a.aiStatus <> kr.suhsaechan.secbrief.advisory.constant.AiStatus.PENDING or a.collectedAt <= :aiWaitDeadline) "
+            + "and (a.aiAnalysisState.status <> kr.suhsaechan.secbrief.advisory.constant.AiStatus.PENDING or a.collectedAt <= :aiWaitDeadline) "
             + "and not exists (select 1 from ArticleEmbedding e where e.articleId = a.id and e.embeddingModel = :embeddingModel) "
             + "order by a.id desc")
     List<Article> findEmbeddingTargets(@Param("embeddingModel") String embeddingModel,

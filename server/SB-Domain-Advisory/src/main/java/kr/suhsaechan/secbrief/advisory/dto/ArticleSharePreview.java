@@ -24,12 +24,12 @@ public record ArticleSharePreview(
 ) {
 
     public static ArticleSharePreview from(Article article) {
-        boolean hasTranslatedTitle = article.getTranslatedTitle() != null && !article.getTranslatedTitle().isBlank();
+        boolean hasTranslatedTitle = article.getAiAnalysisState().getTranslatedTitle() != null && !article.getAiAnalysisState().getTranslatedTitle().isBlank();
         ArticleSummaryState summaryState = article.getSummaryState();
         boolean hasBrief = summaryState.hasBrief();
         return new ArticleSharePreview(
                 article.getId(),
-                hasTranslatedTitle ? article.getTranslatedTitle() : article.getTitle(),
+                hasTranslatedTitle ? article.getAiAnalysisState().getTranslatedTitle() : article.getTitle(),
                 hasTranslatedTitle ? article.getTitle() : null,
                 hasBrief ? summaryState.getOneLine() : null,
                 hasBrief ? summaryState.getWhatHappened() : null,

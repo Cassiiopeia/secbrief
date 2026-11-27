@@ -55,11 +55,11 @@ public final class ResponseGuidePolicy {
      * 빈 값 조건 3개: 이름 없음, 너무 짧음, 행사·정책·개인정보 주제
      */
     public static String toProductMatchName(Article article) {
-        String subjectName = article.getSubjectName();
+        String subjectName = article.getAiAnalysisState().getSubjectName();
         if (subjectName == null || subjectName.isBlank() || subjectName.strip().length() < MINIMUM_PRODUCT_NAME_LENGTH) {
             return "";
         }
-        return PRODUCT_MATCH_EXCLUDED_TOPICS.contains(article.getTopic()) ? "" : subjectName.strip();
+        return PRODUCT_MATCH_EXCLUDED_TOPICS.contains(article.getAiAnalysisState().getTopic()) ? "" : subjectName.strip();
     }
 
     /**

@@ -57,7 +57,7 @@ public final class UrgentAlertPolicy {
         if (toAlertCategory(article) != AlertCategory.CRITICAL_CVE) {
             return true;
         }
-        if (article.getAiStatus() == AiStatus.DONE) {
+        if (article.getAiAnalysisState().getStatus() == AiStatus.DONE) {
             return article.getImportance() != ArticleImportance.ROUTINE;
         }
         return ArticleNotablePolicy.isNotableByRulesOnly(article.isKev(), article.getClassificationState().getProductCode(), catalog);
@@ -120,7 +120,7 @@ public final class UrgentAlertPolicy {
      * 표시 제목: 검증된 한국어 제목이 있으면 그것, 없으면 원문 제목 (길면 말줄임)
      */
     public static String toDisplayTitle(Article article) {
-        String displayTitle = article.getTranslatedTitle() != null ? article.getTranslatedTitle() : article.getTitle();
+        String displayTitle = article.getAiAnalysisState().getTranslatedTitle() != null ? article.getAiAnalysisState().getTranslatedTitle() : article.getTitle();
         return displayTitle.length() <= MAXIMUM_BODY_TITLE_LENGTH
                 ? displayTitle
                 : TextTruncation.truncateKeepingSurrogatePairs(displayTitle, MAXIMUM_BODY_TITLE_LENGTH - ELLIPSIS.length()) + ELLIPSIS;

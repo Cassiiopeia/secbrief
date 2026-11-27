@@ -21,7 +21,7 @@ public record ArticleClassificationInput(String sourceCode, List<String> lowerCa
 
     /** 기사 > 분류 입력 (본문은 쓰지 않음) */
     public static ArticleClassificationInput from(Article article) {
-        return of(article.getSource().getCode(), article.getTitle(), article.getSubjectName(),
+        return of(article.getSource().getCode(), article.getTitle(), article.getAiAnalysisState().getSubjectName(),
                 article.getSourceFacts(), article.getClassificationState().getAiFieldCode());
     }
 

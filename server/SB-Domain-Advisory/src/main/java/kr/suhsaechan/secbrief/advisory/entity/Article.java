@@ -1,8 +1,6 @@
 package kr.suhsaechan.secbrief.advisory.entity;
 
-import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -18,12 +16,8 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import kr.suhsaechan.secbrief.advisory.constant.AiStatus;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
@@ -53,8 +47,6 @@ import org.hibernate.annotations.DynamicUpdate;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Article extends BaseEntity {
 
-    // AI 최대 시도 횟수 (넘으면 FAILED, 다시 부르지 않음)
-    public static final int MAXIMUM_AI_ATTEMPT_COUNT = 3;
     // 새로 수집한 소식을 알리는 게시일 범위 (3일보다 오래된 소식은 알리지 않음, 뒤늦은 KEV 등재는 따로 알림)
     public static final Duration URGENT_ALERT_FRESH_DURATION = Duration.ofDays(3);
     // AI 판단(중요도·분야)을 기다리는 시간: 넘으면 규칙만으로 분류·알림 판정 (#97, AI 틱 5분 x 여러 번 + 밀린 분량 여유)
@@ -77,10 +69,6 @@ public class Article extends BaseEntity {
     @Column(nullable = false, length = 500)
     private String title;
 
-    // AI 한국어 제목: 해외 항목이고 검증 통과한 경우만
-    @Column(length = 500)
-    private String translatedTitle;
-
     @Column(nullable = false, unique = true, length = 1000)
     private String originalUrl;
 
@@ -98,32 +86,14 @@ public class Article extends BaseEntity {
     @Column(nullable = false, length = 16)
     private ArticleRegion region;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 32)
-    private ArticleTopic topic;
-
     // 중요도: AI 판단과 규칙 하한(ArticleImportancePolicy) 중 높은 쪽
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private ArticleImportance importance;
 
-    // 제목에 나온 회사·제품 이름: AI 가 뽑고 제목에 그대로 있는 글자만 받음 (없으면 null)
-    @Column(length = 80)
-    private String subjectName;
-
-    // AI 가 제목에서 뽑은 키워드 (검증 통과분, 최대 5개, 표기 그대로)
-    // 즉시 로딩: 응답 변환이 트랜잭션 밖에서도 읽음 (목록은 default_batch_fetch_size 로 묶어 조회)
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "article_keyword", joinColumns = @JoinColumn(name = "article_id"))
-    @Column(name = "keyword", nullable = false, length = 40)
-    private Set<String> keywords = new LinkedHashSet<>();
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
-    private AiStatus aiStatus;
-
-    @Column(nullable = false)
-    private int aiAttemptCount;
+    // AI 제목 분석: 주제·번역 제목·회사·제품 이름·키워드, 처리 상태·시도 횟수
+    @Embedded
+    private ArticleAiAnalysisState aiAnalysisState;
 
     // CVE 항목만 값 있음 (KEV·NVD·GHSA 병합 기준)
     @Column(unique = true, length = 32)
@@ -179,6 +149,7 @@ public class Article extends BaseEntity {
         article.isUrgent = draft.isUrgent();
         article.collectedAt = collectedAt;
         article.classificationState = ArticleClassificationState.unclassified();
+        article.aiAnalysisState = ArticleAiAnalysisState.pending();
         article.applyLinkFields(draft);
         article.resetAiState();
         article.imageState = ArticleImageState.ofSourceUrl(draft.imageSourceUrl());
@@ -250,11 +221,8 @@ public class Article extends BaseEntity {
     /** AI 결과 반영: 주제 + 검증 통과한 번역·회사·제품 이름(없으면 null) + 중요도(규칙 하한보다 낮으면 하한) > DONE */
     public void applyAiAnalysis(ArticleTopic topic, String acceptedTranslatedTitle,
                                 ArticleImportance aiImportance, String acceptedSubjectName) {
-        this.topic = topic;
-        this.translatedTitle = acceptedTranslatedTitle;
+        aiAnalysisState.apply(topic, acceptedTranslatedTitle, acceptedSubjectName);
         this.importance = ArticleImportance.higherOf(aiImportance, toImportanceFloor());
-        this.subjectName = acceptedSubjectName;
-        this.aiStatus = AiStatus.DONE;
     }
 
     /** AI 가 고른 분야 기록 (모르는 code 는 분류 단계가 버림) */
@@ -274,26 +242,13 @@ public class Article extends BaseEntity {
 
     /** 키워드 교체: 검증 통과한 목록으로 통째로 바꿈 (AI 결과 반영 때) */
     public void replaceKeywords(Collection<String> acceptedKeywords) {
-        this.keywords.clear();
-        this.keywords.addAll(acceptedKeywords);
-    }
-
-    /** 키워드 목록 (대소문자 무시 글자순: 저장 순서를 보관하지 않아 응답·임베딩 입력이 매번 같게) */
-    public List<String> getKeywords() {
-        return keywords.stream()
-                .sorted(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()))
-                .toList();
+        aiAnalysisState.replaceKeywords(acceptedKeywords);
     }
 
     /** AI 실패 기록: 주제 GENERAL·번역·키워드 없음·중요도 규칙 하한, 시도 3회째면 FAILED 아니면 PENDING 유지 */
     public void recordAiFailure() {
-        this.topic = ArticleTopic.GENERAL;
-        this.translatedTitle = null;
+        aiAnalysisState.recordFailure();
         this.importance = toImportanceFloor();
-        this.subjectName = null;
-        this.keywords.clear();
-        this.aiAttemptCount++;
-        this.aiStatus = aiAttemptCount >= MAXIMUM_AI_ATTEMPT_COUNT ? AiStatus.FAILED : AiStatus.PENDING;
     }
 
     // 출처마다 다른 표시 값 (제목, 게시자, 게시일, 점수)
@@ -312,20 +267,14 @@ public class Article extends BaseEntity {
     }
 
     private void resetAiState() {
-        this.topic = ArticleTopic.GENERAL;
-        this.translatedTitle = null;
+        aiAnalysisState.restart();
         this.importance = toImportanceFloor();
-        this.subjectName = null;
-        this.keywords.clear();
-        this.aiStatus = AiStatus.PENDING;
-        this.aiAttemptCount = 0;
         classificationState.resetForNewTitle();
     }
 
     /** 분야를 AI 로 다시 고르게 AI 대기로 되돌림 (백필: 분야 열이 생기기 전에 AI 를 마친 행) */
     public void requestAiFieldAnalysis() {
-        this.aiStatus = AiStatus.PENDING;
-        this.aiAttemptCount = 0;
+        aiAnalysisState.requestReanalysis();
         classificationState.requestReclassification();
     }
 }

@@ -165,6 +165,6 @@ public class SourceTextRefetchSummaryService {
     // 글 종류: 출처 코드·기사 종류·주제로 판정 (요약 틱과 같은 기준)
     private static ArticleSummaryRequest toSummaryRequest(Article article, String sourceText) {
         return new ArticleSummaryRequest(article.getTitle(), article.getRegion(), article.getKind(),
-                SummaryWritingKind.of(article.getSource().getCode(), article.getKind(), article.getTopic()), sourceText);
+                SummaryWritingKind.of(article.getSource().getCode(), article.getKind(), article.getAiAnalysisState().getTopic()), sourceText);
     }
 }

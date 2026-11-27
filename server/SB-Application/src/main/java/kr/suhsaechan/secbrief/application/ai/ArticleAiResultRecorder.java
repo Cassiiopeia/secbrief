@@ -50,7 +50,7 @@ public class ArticleAiResultRecorder {
         Article article = articleRepository.findById(articleId).orElseThrow();
         article.recordAiFailure();
         // 더 시도하지 않으면 규칙만으로 분류 (알림 판정이 기다리지 않게)
-        if (article.getAiStatus() == AiStatus.FAILED) {
+        if (article.getAiAnalysisState().getStatus() == AiStatus.FAILED) {
             articleClassificationService.classify(article);
         }
     }

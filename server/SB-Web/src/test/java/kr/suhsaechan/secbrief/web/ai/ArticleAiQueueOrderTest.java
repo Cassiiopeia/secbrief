@@ -47,7 +47,7 @@ class ArticleAiQueueOrderTest extends PostgresContainerTestSupport {
         Article middleArticle = articleTestWriter.saveNews(NOW.minus(Duration.ofHours(2)), ArticleTopic.GENERAL);
 
         List<Article> pendingArticles =
-                articleRepository.findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(20));
+                articleRepository.findByAiAnalysisState_StatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(20));
 
         assertThat(pendingArticles).extracting(Article::getId)
                 .containsExactly(newestArticle.getId(), middleArticle.getId(), oldestArticle.getId());
@@ -58,7 +58,7 @@ class ArticleAiQueueOrderTest extends PostgresContainerTestSupport {
         Article firstSavedArticle = articleTestWriter.saveNews(NOW, ArticleTopic.GENERAL);
         Article secondSavedArticle = articleTestWriter.saveNews(NOW, ArticleTopic.GENERAL);
 
-        assertThat(articleRepository.findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(20)))
+        assertThat(articleRepository.findByAiAnalysisState_StatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(20)))
                 .extracting(Article::getId).containsExactly(secondSavedArticle.getId(), firstSavedArticle.getId());
     }
 
@@ -70,8 +70,8 @@ class ArticleAiQueueOrderTest extends PostgresContainerTestSupport {
         articleTestWriter.saveNews(NOW.minus(Duration.ofHours(1)), ArticleTopic.GENERAL);
         articleTestWriter.saveNews(NOW.minus(Duration.ofHours(2)), ArticleTopic.GENERAL);
 
-        assertThat(articleRepository.findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(20))).hasSize(3);
-        assertThat(articleRepository.findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(1)))
+        assertThat(articleRepository.findByAiAnalysisState_StatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(20))).hasSize(3);
+        assertThat(articleRepository.findByAiAnalysisState_StatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(1)))
                 .extracting(Article::getId).containsExactly(newestArticle.getId());
     }
 }
