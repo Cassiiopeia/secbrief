@@ -13,7 +13,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 /**
- * 공개 원문 페이지(HTML) > 요약 입력 재료 글 (정리 전): 본문 칸 글, 본문 문단, 게시자 요약, Debian 공지 메일·보안 추적 표
+ * 공개 원문 페이지(HTML) > 요약 입력 재료 글 (정리 전): 본문 칸 글(표는 행 단위), 본문 문단, 게시자 요약, Debian 공지 메일·보안 추적 표
  * 칸을 못 찾으면 빈 값 (호출부가 NOT_FOUND 로 셈), 인코딩은 응답의 meta 로 판단
  */
 final class SourcePageTextExtractor {
@@ -38,9 +38,13 @@ final class SourcePageTextExtractor {
     private SourcePageTextExtractor() {
     }
 
-    /** 본문 칸 전체 글 (표 포함): 먼저 찾은 칸 */
-    static Optional<String> extractContainerText(byte[] pageHtml, String pageUrl, List<String> containerSelectors) {
-        return findFirst(readDocument(pageHtml, pageUrl), containerSelectors).map(Element::text).filter(text -> !text.isBlank());
+    /** 본문 칸 전체 글, 표는 행마다 [머리글: 칸 | ...] (SourcePageTableText): 먼저 찾은 칸 (KISA 게시글, #57) */
+    static Optional<String> extractContainerTextWithTableRows(byte[] pageHtml, String pageUrl, List<String> containerSelectors) {
+        return findFirst(readDocument(pageHtml, pageUrl), containerSelectors).map(container -> {
+            Element containerCopy = container.clone();
+            SourcePageTableText.replaceTablesWithRowText(containerCopy);
+            return containerCopy.text();
+        }).filter(text -> !text.isBlank());
     }
 
     /** 본문 칸의 문단·목록·소제목 글 (안쪽 블록이 겹치면 바깥 블록만) */

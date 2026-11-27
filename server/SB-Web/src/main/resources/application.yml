@@ -92,6 +92,9 @@ secbrief:
     kisa-backfill-tick-milliseconds: 21600000
     # 기동 후 첫 채우기까지 대기 (3분: 첫 RSS 수집 이후)
     kisa-backfill-initial-delay-milliseconds: 180000
+    # KISA 게시판 새 글의 게시글 본문(표는 행 단위)을 요약 입력으로 받기 (RSS 에 요약문이 없음, #57). 요약이 끝나면 지움
+    # false: KISA 글은 요약 입력 없이 저장 (상세는 제목·원문 링크로 열림). 지난 글 채우기는 이 값과 무관하게 본문을 읽지 않음
+    kisa-page-text-enabled: true
   alert-level:
     # 경보단계 틱 켜기 (해외 지표 읽기, 지난 경보단계 글 긴급 해제)
     enabled: true

@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import kr.suhsaechan.secbrief.advisory.collector.ArticleCollector;
 import kr.suhsaechan.secbrief.advisory.collector.CollectOutcome;
@@ -55,6 +56,7 @@ public class ArticleCollectService {
     private final CollectRunRepository collectRunRepository;
     private final ArticleSaveService articleSaveService;
     private final CollectRunRecorder collectRunRecorder;
+    private final KisaPageSourceTextFiller kisaPageSourceTextFiller;
     private final Clock clock;
     private final Duration collectWaitLimit;
     // 출처마다 가상 스레드 1개 (대부분 외부 응답·NVD 요청 간격 대기라 스레드 풀 크기 제한 불필요)
@@ -66,21 +68,24 @@ public class ArticleCollectService {
     @Autowired
     public ArticleCollectService(List<ArticleCollector> collectors, SourceRepository sourceRepository,
                                  CollectRunRepository collectRunRepository, ArticleSaveService articleSaveService,
-                                 CollectRunRecorder collectRunRecorder, Clock clock) {
-        this(collectors, sourceRepository, collectRunRepository, articleSaveService, collectRunRecorder, clock,
-                Duration.ofMinutes(COLLECT_WAIT_LIMIT_MINUTES));
+                                 CollectRunRecorder collectRunRecorder, KisaPageSourceTextFiller kisaPageSourceTextFiller,
+                                 Clock clock) {
+        this(collectors, sourceRepository, collectRunRepository, articleSaveService, collectRunRecorder,
+                kisaPageSourceTextFiller, clock, Duration.ofMinutes(COLLECT_WAIT_LIMIT_MINUTES));
     }
 
     // 대기 상한을 줄여 확인하는 테스트용
     ArticleCollectService(List<ArticleCollector> collectors, SourceRepository sourceRepository,
                           CollectRunRepository collectRunRepository, ArticleSaveService articleSaveService,
-                          CollectRunRecorder collectRunRecorder, Clock clock, Duration collectWaitLimit) {
+                          CollectRunRecorder collectRunRecorder, KisaPageSourceTextFiller kisaPageSourceTextFiller,
+                          Clock clock, Duration collectWaitLimit) {
         this.collectorByFeedFormat = collectors.stream()
                 .collect(Collectors.toMap(ArticleCollector::supportedFeedFormat, Function.identity()));
         this.sourceRepository = sourceRepository;
         this.collectRunRepository = collectRunRepository;
         this.articleSaveService = articleSaveService;
         this.collectRunRecorder = collectRunRecorder;
+        this.kisaPageSourceTextFiller = kisaPageSourceTextFiller;
         this.clock = clock;
         this.collectWaitLimit = collectWaitLimit;
     }
@@ -102,7 +107,7 @@ public class ArticleCollectService {
     }
 
     /**
-     * 출처 1곳 수집: 시작 기록 > 수집기 선택 > 수집 > 변경 없으면 바로 성공 기록 > 묶음 저장 > 성공 기록 / 예외 시 실패 기록
+     * 출처 1곳 수집: 시작 기록 > 수집기 선택 > 수집 > 변경 없으면 바로 성공 기록 > 묶음 저장(KISA 는 게시글 본문을 요약 입력으로) > 성공 기록 / 예외 시 실패 기록
      * 캐시 검증값은 성공 기록에만 실림 (저장 실패 시 이전 값 유지 > 다음 수집이 다시 받음)
      */
     public CollectRunResult collectSource(Source source) {
@@ -116,7 +121,8 @@ public class ArticleCollectService {
                 log.info("[article collect] not modified {}", source.getCode());
                 return new CollectRunResult(CollectStatus.SUCCESS, 0, null);
             }
-            SaveCounts saveCounts = saveAll(source, collectOutcome.articles(), startedAt);
+            SaveCounts saveCounts = saveAll(source, collectOutcome.articles(), startedAt,
+                    draft -> kisaPageSourceTextFiller.fillSourceText(source, draft));
 
             collectRunRecorder.finishSuccess(runId, source.getId(), clock.instant(), saveCounts.createdCount(),
                     collectOutcome.feedValidators());
@@ -130,9 +136,10 @@ public class ArticleCollectService {
 
     /**
      * 수집기 밖에서 모은 원본 항목 저장 (KISA 지난 글 채우기): 주기 수집과 같은 정규화·중복 확인·저장, 수집 기록은 남기지 않음
+     * 게시글 페이지는 읽지 않음 (지난 글 수백 건, 밀린 브리핑은 로컬 도구로)
      */
     public SaveCounts saveCollectedArticles(Source source, List<CollectedArticle> collectedArticles, Instant collectedAt) {
-        return saveAll(source, collectedArticles, collectedAt);
+        return saveAll(source, collectedArticles, collectedAt, UnaryOperator.identity());
     }
 
     // 켜진 출처 중 주기가 된 것 (주기 판정은 마지막 시도 시작 시각 기준)
@@ -190,7 +197,9 @@ public class ArticleCollectService {
     }
 
     // 전체 정규화 (실패는 버림) > 저장 범위보다 오래된 게시분 제외 (RSS) > 이미 있는 링크 묶음 조회 > 건별 저장 (CVE 없는 기존 링크는 저장을 부르지 않고 중복으로 셈)
-    private SaveCounts saveAll(Source source, List<CollectedArticle> collectedArticles, Instant collectedAt) {
+    // draftCompleter: 저장 직전 초안 보완 (중복으로 건너뛴 건은 부르지 않음, 트랜잭션 밖)
+    private SaveCounts saveAll(Source source, List<CollectedArticle> collectedArticles, Instant collectedAt,
+                               UnaryOperator<ArticleDraft> draftCompleter) {
         Instant earliestStoredPublishedAt = CollectSchedulePolicy.toEarliestStoredPublishedAt(source, collectedAt);
         List<ArticleDraft> drafts = collectedArticles.stream()
                 .map(collectedArticle -> ArticleNormalizer.normalize(collectedArticle, source, collectedAt))
@@ -205,7 +214,7 @@ public class ArticleCollectService {
             if (isKnownDuplicate(draft, existingOriginalUrls)) {
                 continue;
             }
-            SaveOutcome outcome = saveOrCountAsDuplicate(source, draft, collectedAt);
+            SaveOutcome outcome = saveOrCountAsDuplicate(source, draftCompleter.apply(draft), collectedAt);
             if (outcome == SaveOutcome.CREATED) {
                 createdCount++;
             } else if (outcome == SaveOutcome.MERGED) {

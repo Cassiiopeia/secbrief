@@ -48,7 +48,9 @@ class SourceTextRefetcherTest {
         SourceTextRefetchResult refetchResult = refetch(SourceCode.KISA, "Example 제품 보안 업데이트 권고", KISA_URL, null);
 
         assertThat(refetchResult.isRecovered()).isTrue();
-        assertThat(refetchResult.sourceText()).contains("Example Docs 제품에서 발생하는 취약점", "CVE-2026-0001 Example Docs 10.0.0 미만 10.0.0")
+        // 표는 행마다 머리글과 짝지은 글 (제품 <-> 버전 짝 유지, #57)
+        assertThat(refetchResult.sourceText()).contains("Example Docs 제품에서 발생하는 취약점",
+                        "영향을 받는 제품 및 해결 방안 [취약점: CVE-2026-0001 | 제품명: Example Docs | 영향받는 버전: 10.0.0 미만 | 해결 버전: 10.0.0]")
                 .doesNotContain("알림마당", "공유", "Copyright");
     }
 

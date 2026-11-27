@@ -18,7 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 출처별 수집 시도 기록: 시작 > 성공(신규 건수) 또는 실패(에러 코드, 정리된 메시지)
+ * 출처별 수집 시도 기록: 시작 > 성공(신규 건수) 또는 실패(에러 코드, 정리된 메시지) 또는 중단(실패 + INTERRUPTED_ERROR_CODE)
  * 완료 전에는 status·finishedAt 이 null
  */
 @Entity
@@ -26,6 +26,11 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CollectRun {
+
+    // 끝나기 전에 서버가 멈춘 기록의 에러 코드 (상태는 FAILED: 새 상태값은 배포 전환·되돌리기 중 이전 서버가 읽지 못함, #58)
+    public static final String INTERRUPTED_ERROR_CODE = "COLLECT_INTERRUPTED";
+    // 중단 기록의 문구 (관리자 화면은 AdminDisplayLabels 의 한국어 이름으로 보임)
+    public static final String INTERRUPTED_ERROR_MESSAGE = "server stopped before collect finished";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -63,10 +68,15 @@ public class CollectRun {
         return collectRun;
     }
 
+    /**
+     * 성공 기록: 중단으로 표시된 뒤 이전 서버가 끝낸 경우도 있어 에러 값을 비움 (배포 전환 중)
+     */
     public void finishSuccess(Instant finishedAt, int newCount) {
         this.status = CollectStatus.SUCCESS;
         this.finishedAt = finishedAt;
         this.newCount = newCount;
+        this.errorCode = null;
+        this.errorMessage = null;
     }
 
     /**
@@ -77,5 +87,12 @@ public class CollectRun {
         this.finishedAt = finishedAt;
         this.errorCode = errorCode;
         this.errorMessage = sanitizedErrorMessage;
+    }
+
+    /**
+     * 중단 기록: 끝나지 않은 채 남은 시도 (서버 재시작·배포 전환으로 수집 스레드가 사라짐)
+     */
+    public void markInterrupted(Instant markedAt) {
+        finishFailed(markedAt, INTERRUPTED_ERROR_CODE, INTERRUPTED_ERROR_MESSAGE);
     }
 }

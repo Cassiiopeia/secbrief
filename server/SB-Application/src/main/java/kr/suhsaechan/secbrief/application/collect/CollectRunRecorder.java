@@ -1,6 +1,7 @@
 package kr.suhsaechan.secbrief.application.collect;
 
 import java.time.Instant;
+import java.util.List;
 import kr.suhsaechan.secbrief.advisory.collector.FeedValidators;
 import kr.suhsaechan.secbrief.advisory.constant.CollectStatus;
 import kr.suhsaechan.secbrief.advisory.entity.CollectRun;
@@ -46,5 +47,16 @@ public class CollectRunRecorder {
     public void finishFailed(Long runId, Long sourceId, Instant finishedAt, String errorCode, String sanitizedErrorMessage) {
         collectRunRepository.findById(runId).orElseThrow().finishFailed(finishedAt, errorCode, sanitizedErrorMessage);
         sourceRepository.findById(sourceId).orElseThrow().recordCollectResult(CollectStatus.FAILED, finishedAt);
+    }
+
+    /**
+     * 끝나지 않은 시도 > 중단 표시 (기준 시각 전에 시작한 것만), 반환: 표시한 기록의 출처 코드 목록
+     * 출처의 마지막 상태·수집 시각은 그대로 (끝난 시도만 반영)
+     */
+    @Transactional
+    public List<String> markUnfinishedAsInterrupted(Instant startedBefore, Instant markedAt) {
+        List<CollectRun> unfinishedRuns = collectRunRepository.findByFinishedAtIsNullAndStartedAtBefore(startedBefore);
+        unfinishedRuns.forEach(collectRun -> collectRun.markInterrupted(markedAt));
+        return unfinishedRuns.stream().map(collectRun -> collectRun.getSource().getCode()).toList();
     }
 }

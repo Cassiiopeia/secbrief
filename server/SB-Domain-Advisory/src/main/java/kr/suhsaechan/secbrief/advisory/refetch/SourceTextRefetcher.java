@@ -100,7 +100,7 @@ public class SourceTextRefetcher {
                     SourceJsonTextExtractor.extractUbuntuNoticeText(fetchPage(originalUrl + UBUNTU_NOTICE_JSON_SUFFIX));
             case REDHAT_CSAF_JSON -> SourceJsonTextExtractor.extractRedHatCsafText(fetchPage(toRedHatCsafUrl(originalUrl)));
             case DEBIAN_ANNOUNCEMENT_PAGE -> fetchDebianAdvisoryText(target);
-            case KISA_BOARD_VIEW_PAGE -> SourcePageTextExtractor.extractContainerText(
+            case KISA_BOARD_VIEW_PAGE -> SourcePageTextExtractor.extractContainerTextWithTableRows(
                     fetchPage(originalUrl), originalUrl, SourcePageTextExtractor.KISA_BODY_SELECTORS);
             case ARTICLE_PAGE_BODY -> SourcePageTextExtractor.extractArticleParagraphs(
                     fetchPage(originalUrl), originalUrl, SourcePageTextExtractor.ARTICLE_BODY_SELECTORS);

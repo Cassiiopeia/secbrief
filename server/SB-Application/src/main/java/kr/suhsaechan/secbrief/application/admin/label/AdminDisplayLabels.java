@@ -6,11 +6,13 @@ import kr.suhsaechan.secbrief.advisory.constant.CollectStatus;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
 
 /**
- * 관리자 화면 표시 이름 단일 지점: 기사 종류, 수집 상태, 알림 종류 (코드값 > 한국어 이름)
+ * 관리자 화면 표시 이름 단일 지점: 기사 종류, 수집 상태·중단 사유, 알림 종류 (코드값 > 한국어 이름)
  */
 public final class AdminDisplayLabels {
 
     private static final String NOT_COLLECTED_LABEL = "수집 전";
+    // 중단 기록(CollectRun.INTERRUPTED_ERROR_CODE)의 최근 실패 사유 칸 문구
+    public static final String COLLECT_INTERRUPTED_REASON = "중단됨: 수집이 끝나기 전에 서버가 다시 시작됐어요";
 
     private AdminDisplayLabels() {
     }

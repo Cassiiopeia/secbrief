@@ -36,6 +36,14 @@ public record ArticleDraft(
     }
 
     /**
+     * 요약 입력만 바꾼 초안 (KISA 게시글 본문을 수집 때 받은 경우, #57)
+     */
+    public ArticleDraft withSourceText(String newSourceText) {
+        return new ArticleDraft(kind, region, title, originalUrl, publisherName, publishedAt, isPublishedAtEstimated, cveId,
+                cvssScore, cvssVersion, isKev, isUrgent, imageSourceUrl, newSourceText, sourceFacts);
+    }
+
+    /**
      * 요약 입력·사실 값 없는 초안 (이미지 주소만)
      */
     public ArticleDraft(ArticleKind kind, ArticleRegion region, String title, String originalUrl, String publisherName,
