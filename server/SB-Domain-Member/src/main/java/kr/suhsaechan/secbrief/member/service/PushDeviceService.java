@@ -96,9 +96,13 @@ public class PushDeviceService {
                 : existingDevice.map(PushDevice::getAlertInterests).orElse(AlertInterests.none());
 
         if (enabledAlertCategories.isEmpty() && alertInterests.isEmpty()) {
+            // 기기 행은 지워도 방해 금지 시간은 돌려줌: 요청 값 > 지운 행의 값 > 기본값 (앱이 사용자가 정한 시각을 기본값으로 덮지 않게, #119)
+            QuietHours keptQuietHours = requestedQuietHours
+                    .or(() -> existingDevice.map(PushDevice::getQuietHours))
+                    .orElseGet(QuietHours::disabledByDefault);
             existingDevice.ifPresent(pushDeviceRepository::delete);
             log.info("[push device] unregistered : platform={}", request.platform());
-            return PushDeviceResponse.unregistered();
+            return PushDeviceResponse.unregistered(keptQuietHours);
         }
         PushDevice pushDevice = existingDevice.orElseGet(
                 () -> PushDevice.create(request.pushToken(), request.platform(), enabledAlertCategories));
