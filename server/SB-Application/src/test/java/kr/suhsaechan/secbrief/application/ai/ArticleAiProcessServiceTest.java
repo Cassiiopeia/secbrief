@@ -71,9 +71,9 @@ class ArticleAiProcessServiceTest {
         fakeAnalyzer.respondTo("Second headline", ANALYSIS);
         givenPendingArticles(createArticle(1L, "First headline"), createArticle(2L, "Second headline"));
 
-        AiProcessResult result = service.processPendingArticles();
+        AiProcessResult aiProcessResult = service.processPendingArticles();
 
-        assertThat(result).isEqualTo(new AiProcessResult(2, 0, false));
+        assertThat(aiProcessResult).isEqualTo(new AiProcessResult(2, 0, false));
         verify(recorder).recordSuccess(1L, ANALYSIS);
         verify(recorder).recordSuccess(2L, ANALYSIS);
     }
@@ -83,9 +83,9 @@ class ArticleAiProcessServiceTest {
         fakeAnalyzer.respondTo("Answered headline", ANALYSIS);
         givenPendingArticles(createArticle(1L, "Unanswered headline"), createArticle(2L, "Answered headline"));
 
-        AiProcessResult result = service.processPendingArticles();
+        AiProcessResult aiProcessResult = service.processPendingArticles();
 
-        assertThat(result).isEqualTo(new AiProcessResult(1, 1, false));
+        assertThat(aiProcessResult).isEqualTo(new AiProcessResult(1, 1, false));
         verify(recorder).recordFailure(1L);
         verify(recorder).recordSuccess(2L, ANALYSIS);
     }
@@ -108,9 +108,9 @@ class ArticleAiProcessServiceTest {
         givenPendingArticles(createArticle(1L, "First headline"), createArticle(2L, "Second headline"),
                 createArticle(3L, "Third headline"));
 
-        AiProcessResult result = service.processPendingArticles();
+        AiProcessResult aiProcessResult = service.processPendingArticles();
 
-        assertThat(result).isEqualTo(new AiProcessResult(0, 0, false));
+        assertThat(aiProcessResult).isEqualTo(new AiProcessResult(0, 0, false));
         assertThat(fakeAnalyzer.getReceivedBatchSizes()).hasSize(1);
         verify(recorder, never()).recordFailure(org.mockito.ArgumentMatchers.anyLong());
         verify(recorder, never()).recordSuccess(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any());
@@ -123,9 +123,9 @@ class ArticleAiProcessServiceTest {
         givenPendingArticles(createArticle(1L, "First headline"), createArticle(2L, "Second headline"));
         doThrow(new IllegalStateException("db")).when(recorder).recordSuccess(1L, ANALYSIS);
 
-        AiProcessResult result = service.processPendingArticles();
+        AiProcessResult aiProcessResult = service.processPendingArticles();
 
-        assertThat(result).isEqualTo(new AiProcessResult(1, 1, false));
+        assertThat(aiProcessResult).isEqualTo(new AiProcessResult(1, 1, false));
         verify(recorder).recordFailure(1L);
     }
 

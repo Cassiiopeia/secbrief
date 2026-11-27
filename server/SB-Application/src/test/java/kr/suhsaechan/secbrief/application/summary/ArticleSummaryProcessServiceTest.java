@@ -76,9 +76,9 @@ class ArticleSummaryProcessServiceTest {
         givenPendingArticles(createArticle(1L, "First headline"), createArticle(2L, "Second headline"));
         when(recorder.recordSuccess(anyLong(), any(), any())).thenReturn(true);
 
-        SummaryProcessResult result = service.processPendingSummaries();
+        SummaryProcessResult summaryProcessResult = service.processPendingSummaries();
 
-        assertThat(result).isEqualTo(new SummaryProcessResult(2, 0, false));
+        assertThat(summaryProcessResult).isEqualTo(new SummaryProcessResult(2, 0, false));
         assertThat(fakeSummarizer.getReceivedRequests()).containsExactly(
                 new ArticleSummaryRequest("First headline", ArticleRegion.OVERSEAS, ArticleKind.NEWS,
                         SummaryWritingKind.NEWS_ARTICLE, SOURCE_TEXT),
@@ -95,9 +95,9 @@ class ArticleSummaryProcessServiceTest {
         givenPendingArticles(createArticle(1L, "Refused headline"), createArticle(2L, "Answered headline"));
         when(recorder.recordSuccess(anyLong(), any(), any())).thenReturn(true);
 
-        SummaryProcessResult result = service.processPendingSummaries();
+        SummaryProcessResult summaryProcessResult = service.processPendingSummaries();
 
-        assertThat(result).isEqualTo(new SummaryProcessResult(1, 1, false));
+        assertThat(summaryProcessResult).isEqualTo(new SummaryProcessResult(1, 1, false));
         verify(recorder).recordFailure(1L, SOURCE_TEXT);
         verify(recorder).recordSuccess(2L, SOURCE_TEXT, BRIEF);
     }
@@ -109,9 +109,9 @@ class ArticleSummaryProcessServiceTest {
                         "Example VPN 2.4.1 버전으로 올려야 해요.", null, List.of(), List.of())));
         givenPendingArticles(createArticle(1L, "First headline"));
 
-        SummaryProcessResult result = service.processPendingSummaries();
+        SummaryProcessResult summaryProcessResult = service.processPendingSummaries();
 
-        assertThat(result).isEqualTo(new SummaryProcessResult(0, 1, false));
+        assertThat(summaryProcessResult).isEqualTo(new SummaryProcessResult(0, 1, false));
         verify(recorder).recordFailure(1L, SOURCE_TEXT);
         verify(recorder, never()).recordSuccess(anyLong(), any(), any());
     }
@@ -123,9 +123,9 @@ class ArticleSummaryProcessServiceTest {
         fakeSummarizer.respondTo("Second headline", ArticleSummaryOutcome.succeeded(BRIEF));
         givenPendingArticles(createArticle(1L, "First headline"), createArticle(2L, "Second headline"));
 
-        SummaryProcessResult result = service.processPendingSummaries();
+        SummaryProcessResult summaryProcessResult = service.processPendingSummaries();
 
-        assertThat(result).isEqualTo(new SummaryProcessResult(0, 0, false));
+        assertThat(summaryProcessResult).isEqualTo(new SummaryProcessResult(0, 0, false));
         assertThat(fakeSummarizer.getReceivedRequests()).hasSize(1);
         verifyNoInteractions(recorder);
     }

@@ -107,9 +107,9 @@ class ArticleImageProcessTest extends PostgresContainerTestSupport {
         given(articleImageDownloader.download("https://images.example.test/cover.png")).willReturn(createPngBytes(1600, 800));
         String expectedObjectKey = "articles/2026/11/" + articleId + ".jpg";
 
-        ImageProcessResult result = articleImageProcessService.processPendingImages();
+        ImageProcessResult imageProcessResult = articleImageProcessService.processPendingImages();
 
-        assertThat(result).isEqualTo(new ImageProcessResult(1, 0, false));
+        assertThat(imageProcessResult).isEqualTo(new ImageProcessResult(1, 0, false));
         ArgumentCaptor<byte[]> storedBytes = ArgumentCaptor.forClass(byte[].class);
         verify(articleImageStorage).store(eq(expectedObjectKey), storedBytes.capture());
         BufferedImage storedImage = ImageIO.read(new ByteArrayInputStream(storedBytes.getValue()));
