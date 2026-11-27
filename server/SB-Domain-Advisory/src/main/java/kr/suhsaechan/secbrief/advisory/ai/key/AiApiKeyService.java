@@ -49,21 +49,12 @@ public class AiApiKeyService {
 
     /** 설정 저장소의 키 전부 (우선순위 순). 없거나 읽을 수 없으면 빈 목록 */
     public List<AiApiKey> findStoredKeys() {
-        String storedJson = systemConfigService.getSecret(apiKeysConfigKey);
-        if (storedJson.isBlank()) {
-            return List.of();
-        }
-        try {
-            List<AiApiKey> storedKeys = JsonSupport.OBJECT_MAPPER.readValue(storedJson, KEY_LIST_TYPE);
-            return storedKeys == null ? List.of() : storedKeys.stream()
-                    .filter(key -> key != null && key.id() != null && key.nickname() != null
-                            && key.apiKey() != null && !key.apiKey().isBlank())
-                    .toList();
-        } catch (JsonProcessingException exception) {
-            // 원문(키 값 포함)은 남기지 않음
-            log.warn("[ai key] stored key list unreadable, treated as empty");
-            return List.of();
-        }
+        return readStoredKeyList().keys();
+    }
+
+    /** 저장된 키 목록을 읽지 못하는지 (복호화 실패·JSON 깨짐). true 면 바꾸기 전부 거부 (암호화 목록 덮어쓰기 방지) */
+    public boolean isStoredKeyListUnreadable() {
+        return readStoredKeyList().isUnreadable();
     }
 
     /** 호출에 쓸 키 (우선순위 순): 설정 저장소의 켜진 키, 하나도 없으면 운영 설정의 키 */
@@ -93,7 +84,7 @@ public class AiApiKeyService {
 
     /** 맨 뒤(가장 낮은 우선순위)에 추가 */
     public synchronized AiApiKeyChange add(String nickname, String apiKey, String actor) {
-        List<AiApiKey> keys = new ArrayList<>(findStoredKeys());
+        List<AiApiKey> keys = new ArrayList<>(findStoredKeysForChange());
         AiApiKeyPolicy.requireRoomForNewKey(keys);
         String acceptedNickname = AiApiKeyPolicy.toAcceptedNickname(nickname, keys, null);
         String acceptedApiKey = AiApiKeyPolicy.toAcceptedApiKey(apiKey, keys, null);
@@ -104,7 +95,7 @@ public class AiApiKeyService {
     }
 
     public synchronized AiApiKeyChange remove(String keyId, String actor) {
-        List<AiApiKey> keys = new ArrayList<>(findStoredKeys());
+        List<AiApiKey> keys = new ArrayList<>(findStoredKeysForChange());
         AiApiKey removedKey = keys.remove(indexOf(keys, keyId));
         save(keys, actor, "AI 키 삭제: " + removedKey.nickname());
         apiKeyHealthTracker.forget(keyId);
@@ -113,7 +104,7 @@ public class AiApiKeyService {
 
     /** 우선순위 한 칸 올리기·내리기 (끝에서는 그대로) */
     public synchronized AiApiKeyChange move(String keyId, boolean isMovingUp, String actor) {
-        List<AiApiKey> keys = new ArrayList<>(findStoredKeys());
+        List<AiApiKey> keys = new ArrayList<>(findStoredKeysForChange());
         int currentIndex = indexOf(keys, keyId);
         int targetIndex = isMovingUp ? currentIndex - 1 : currentIndex + 1;
         AiApiKey movedKey = keys.get(currentIndex);
@@ -127,7 +118,7 @@ public class AiApiKeyService {
     }
 
     public synchronized AiApiKeyChange setEnabled(String keyId, boolean isEnabled, String actor) {
-        List<AiApiKey> keys = new ArrayList<>(findStoredKeys());
+        List<AiApiKey> keys = new ArrayList<>(findStoredKeysForChange());
         int keyIndex = indexOf(keys, keyId);
         AiApiKey changedKey = keys.get(keyIndex).withEnabled(isEnabled);
         keys.set(keyIndex, changedKey);
@@ -137,7 +128,7 @@ public class AiApiKeyService {
 
     /** 같은 자리·별명에 키 값만 교체 (재발급) */
     public synchronized AiApiKeyChange replaceApiKey(String keyId, String apiKey, String actor) {
-        List<AiApiKey> keys = new ArrayList<>(findStoredKeys());
+        List<AiApiKey> keys = new ArrayList<>(findStoredKeysForChange());
         int keyIndex = indexOf(keys, keyId);
         AiApiKey changedKey = keys.get(keyIndex)
                 .withApiKey(AiApiKeyPolicy.toAcceptedApiKey(apiKey, keys, keyId));
@@ -148,13 +139,45 @@ public class AiApiKeyService {
     }
 
     public synchronized AiApiKeyChange rename(String keyId, String nickname, String actor) {
-        List<AiApiKey> keys = new ArrayList<>(findStoredKeys());
+        List<AiApiKey> keys = new ArrayList<>(findStoredKeysForChange());
         int keyIndex = indexOf(keys, keyId);
         String acceptedNickname = AiApiKeyPolicy.toAcceptedNickname(nickname, keys, keyId);
         String previousNickname = keys.get(keyIndex).nickname();
         keys.set(keyIndex, keys.get(keyIndex).withNickname(acceptedNickname));
         save(keys, actor, "AI 키 별명: " + previousNickname + " > " + acceptedNickname);
         return new AiApiKeyChange(keyId, acceptedNickname);
+    }
+
+    // 저장소 읽기: 값 없음 > 빈 목록, 복호화 실패·JSON 깨짐 > 빈 목록 + 읽지 못함
+    private StoredKeyList readStoredKeyList() {
+        String storedJson = systemConfigService.getSecret(apiKeysConfigKey);
+        if (storedJson.isBlank()) {
+            // 빈 값일 때만 복호화 실패 확인 (정상 호출 경로는 복호화 1회)
+            return systemConfigService.hasUnreadableSecret(apiKeysConfigKey)
+                    ? StoredKeyList.UNREADABLE
+                    : StoredKeyList.EMPTY;
+        }
+        try {
+            List<AiApiKey> storedKeys = JsonSupport.OBJECT_MAPPER.readValue(storedJson, KEY_LIST_TYPE);
+            return new StoredKeyList(storedKeys == null ? List.of() : storedKeys.stream()
+                    .filter(key -> key != null && key.id() != null && key.nickname() != null
+                            && key.apiKey() != null && !key.apiKey().isBlank())
+                    .toList(), false);
+        } catch (JsonProcessingException exception) {
+            // 원문(키 값 포함)은 남기지 않음
+            log.warn("[ai key] stored key list unreadable, treated as empty");
+            return StoredKeyList.UNREADABLE;
+        }
+    }
+
+    // 바꾸기 전 읽기: 읽지 못하면 AI_KEY_LIST_UNREADABLE (빈 목록으로 보고 저장하면 기존 키가 사라짐)
+    private List<AiApiKey> findStoredKeysForChange() {
+        StoredKeyList storedKeyList = readStoredKeyList();
+        if (storedKeyList.isUnreadable()) {
+            log.warn("[ai key] change rejected 503 : stored key list unreadable : key={}", apiKeysConfigKey);
+            throw new CustomException(ErrorCode.AI_KEY_LIST_UNREADABLE, "config key=" + apiKeysConfigKey);
+        }
+        return storedKeyList.keys();
     }
 
     // 빈 목록은 비밀값 지우기 (update 는 빈 값을 "그대로 두기"로 받음). reason 에는 별명만 (키 값 금지)
@@ -216,5 +239,11 @@ public class AiApiKeyService {
 
     private static String createKeyId() {
         return UUID.randomUUID().toString().substring(0, KEY_ID_LENGTH);
+    }
+
+    // 저장소에서 읽은 키 목록과 읽기 실패 여부
+    private record StoredKeyList(List<AiApiKey> keys, boolean isUnreadable) {
+        private static final StoredKeyList EMPTY = new StoredKeyList(List.of(), false);
+        private static final StoredKeyList UNREADABLE = new StoredKeyList(List.of(), true);
     }
 }

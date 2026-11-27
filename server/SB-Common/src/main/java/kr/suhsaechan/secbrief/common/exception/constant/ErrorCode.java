@@ -67,6 +67,7 @@ public enum ErrorCode {
     AI_KEY_DUPLICATED_NICKNAME(HttpStatus.BAD_REQUEST, "같은 별명의 키가 이미 있어요."),
     AI_KEY_INVALID_VALUE(HttpStatus.BAD_REQUEST, "키 값을 공백 없이 통째로 붙여 넣어 주세요."),
     AI_KEY_DUPLICATED(HttpStatus.BAD_REQUEST, "이미 등록한 키예요."),
+    AI_KEY_LIST_UNREADABLE(HttpStatus.SERVICE_UNAVAILABLE, "저장한 키 목록을 읽지 못해 바꿀 수 없어요. 저장할 때 쓴 마스터 키로 서버를 다시 띄워 주세요."),
     AI_PROVIDER_UNKNOWN(HttpStatus.BAD_REQUEST, "모르는 AI 제공자예요."),
 
     // 분류 태그 (관리자 화면, #93)
