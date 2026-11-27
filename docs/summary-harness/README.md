@@ -64,7 +64,7 @@
 | `CVE_ENTRY` | NVD, CISA KEV | `kind-cve-entry.md` | 무슨 일 = 결함 종류·위치·공격 조건, 왜 중요 = 공격자가 얻는 것·악용 여부, 영향 대상 = 제품 + 영향 버전. "fixed in" 이 있을 때만 그 버전이 대응. KEV 의 `Required action:` 은 조치마다 한 항목 (지침 이름은 남김) |
 | `PACKAGE_ADVISORY` | GitHub 보안 권고 (critical, high) | `kind-package-advisory.md` | 영향 대상 = 패키지 이름 그대로 + 버전 범위. 재현 코드·경로·커밋은 뺌. 메인테이너용 수정 제안은 대응이 아님. 긴 권고도 짧게 |
 | `VENDOR_ADVISORY` | Ubuntu, Debian, Red Hat, Node.js | `kind-vendor-advisory.md` | 한 줄 결론 = 패키지 + 제조사 등급, 영향 대상 = 릴리스마다 한 항목. 등급을 매긴 팀을 업데이트를 낸 주체로 쓰지 않음. 정형 공지는 왜 중요가 null |
-| `KISA_NOTICE` | KISA 보호나라 4곳 | `kind-kisa-notice.md` | 한국어 입력이라 옮겨 싣기가 가장 큰 위험. 문어체(권고함)를 해요체로 |
+| `KISA_NOTICE` | KISA 보호나라 4곳 | `kind-kisa-notice.md` | 한국어 입력이라 옮겨 싣기가 가장 큰 위험. 문어체(권고함)를 해요체로. 표는 행마다 `[머리글: 칸 \| ...]` 로 들어오고, 제품과 버전은 같은 행끼리만 짝 (대응의 해결 버전도 그 행의 제품 이름과 함께, #57) |
 | `NEWS_ARTICLE` | 데일리시큐, The Hacker News, BleepingComputer | `kind-news-article.md` | 누가 무엇을 주장했는지 구분, 끊긴 마지막 문장은 버림, 대응은 대부분 빈 배열. 제품·계약·보고서를 발표만 한 회사는 영향 대상이 아님 |
 | `EVENT_NOTICE` | 주제가 행사인 모든 글 | `kind-event-notice.md` | 한 줄 결론 = 누가 어떤 행사를, 무슨 일 = 일시·장소·내용 (행사를 두 번 알리지 않음), 영향 대상은 빈 배열 |
 

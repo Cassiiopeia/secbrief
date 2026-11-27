@@ -37,7 +37,10 @@ import kr.suhsaechan.secbrief.advisory.constant.FeedFormat;
 import kr.suhsaechan.secbrief.advisory.constant.SourceCode;
 import kr.suhsaechan.secbrief.advisory.entity.CollectRun;
 import kr.suhsaechan.secbrief.advisory.entity.Source;
+import kr.suhsaechan.secbrief.advisory.policy.ArticleDraft;
 import kr.suhsaechan.secbrief.advisory.policy.SeoulCalendar;
+import kr.suhsaechan.secbrief.advisory.refetch.SourceTextRefetchResult;
+import kr.suhsaechan.secbrief.advisory.refetch.SourceTextRefetcher;
 import kr.suhsaechan.secbrief.advisory.repository.CollectRunRepository;
 import kr.suhsaechan.secbrief.advisory.repository.SourceRepository;
 import kr.suhsaechan.secbrief.advisory.service.ArticleSaveService;
@@ -51,12 +54,15 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * 수집 유스케이스: 저장 건수 기록, 실패 기록, 중복·정규화 실패 처리, 수집기 선택, 주기 판정, 출처별 격리
- * 변경 없음(304)·캐시 검증값 기록, 링크 묶음 중복 확인, 출처 동시 수집·대기 상한
+ * 변경 없음(304)·캐시 검증값 기록, 링크 묶음 중복 확인, 출처 동시 수집·대기 상한, KISA 게시글 본문 요약 입력 (새·미완 링크만, #57)
  */
 class ArticleCollectServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-11-23T03:00:00Z");
     private static final Long RUN_ID = 100L;
+    // 게시글 본문 칸에서 받은 요약 입력 (가짜 글)
+    private static final String KISA_PAGE_TEXT = "□ 개요 o Example社는 자사 제품의 취약점을 해결한 보안 업데이트 발표 "
+            + "[제품명: Example Server | 영향받는 버전: 5.2.3 미만 | 해결 버전: 5.2.3]";
 
     private final ArticleCollector rssCollector = mock(ArticleCollector.class);
     private final ArticleCollector ghsaCollector = mock(ArticleCollector.class);
@@ -64,6 +70,9 @@ class ArticleCollectServiceTest {
     private final CollectRunRepository collectRunRepository = mock(CollectRunRepository.class);
     private final ArticleSaveService articleSaveService = mock(ArticleSaveService.class);
     private final CollectRunRecorder collectRunRecorder = mock(CollectRunRecorder.class);
+    private final SourceTextRefetcher sourceTextRefetcher = mock(SourceTextRefetcher.class);
+    // 기존 시험은 꺼진 채로 (KISA 출처를 쓰지만 본문 받기와 무관)
+    private final KisaPageSourceTextFiller disabledKisaPageSourceTextFiller = new KisaPageSourceTextFiller(sourceTextRefetcher, false);
 
     private final Source kisaSource = createSourceWithId(1L, SourceCode.KISA, ArticleKind.ADVISORY, ArticleRegion.DOMESTIC, FeedFormat.RSS);
     private final Source dailysecuSource = createSourceWithId(2L, SourceCode.DAILYSECU, ArticleKind.NEWS, ArticleRegion.DOMESTIC, FeedFormat.RSS);
@@ -72,12 +81,11 @@ class ArticleCollectServiceTest {
     private ArticleCollectService service;
 
     @BeforeEach
-    void createService() {
+    void createDisabledKisaPageService() {
         when(rssCollector.supportedFeedFormat()).thenReturn(FeedFormat.RSS);
         when(ghsaCollector.supportedFeedFormat()).thenReturn(FeedFormat.GHSA_API);
         when(collectRunRecorder.start(anyLong(), any())).thenReturn(RUN_ID);
-        service = new ArticleCollectService(List.of(rssCollector, ghsaCollector), sourceRepository, collectRunRepository,
-                articleSaveService, collectRunRecorder, Clock.fixed(NOW, SeoulCalendar.SEOUL));
+        service = createService(disabledKisaPageSourceTextFiller);
     }
 
     @Test
@@ -307,7 +315,7 @@ class ArticleCollectServiceTest {
     void returnsAfterWaitLimitAndDoesNotRestartSourceStillCollecting() {
         ArticleCollectService shortWaitService = new ArticleCollectService(List.of(rssCollector, ghsaCollector),
                 sourceRepository, collectRunRepository, articleSaveService, collectRunRecorder,
-                Clock.fixed(NOW, SeoulCalendar.SEOUL), Duration.ofMillis(50));
+                disabledKisaPageSourceTextFiller, Clock.fixed(NOW, SeoulCalendar.SEOUL), Duration.ofMillis(50));
         when(sourceRepository.findAllByIsEnabledTrueOrderByIdAsc()).thenReturn(List.of(kisaSource));
         when(collectRunRepository.findTopBySourceIdOrderByStartedAtDesc(anyLong())).thenReturn(Optional.empty());
         CountDownLatch releaseCollector = new CountDownLatch(1);
@@ -324,6 +332,52 @@ class ArticleCollectServiceTest {
         // 수집이 끝나면 기록됨
         releaseCollector.countDown();
         verify(collectRunRecorder, timeout(5000)).finishSuccess(RUN_ID, kisaSource.getId(), NOW, 0, FeedValidators.NONE);
+    }
+
+    @Test
+    void fillsKisaDraftWithBoardPageTextOnlyForUnsettledLinks() {
+        ArticleCollectService kisaPageService = createService(new KisaPageSourceTextFiller(sourceTextRefetcher, true));
+        when(rssCollector.collect(any(), any())).thenReturn(CollectOutcome.ofArticles(List.of(
+                createCollected("이미 있는 공지", 1), createCollected("새 공지", 2))));
+        when(articleSaveService.findSettledOriginalUrls(anyCollection())).thenReturn(Set.of(toArticleUrl(1)));
+        when(sourceTextRefetcher.refetch(any())).thenReturn(SourceTextRefetchResult.recovered(KISA_PAGE_TEXT));
+        when(articleSaveService.saveOrMerge(any(), any(), any())).thenReturn(SaveOutcome.CREATED);
+
+        kisaPageService.collectSource(kisaSource);
+
+        // 이미 채워진 링크는 페이지를 읽지 않음, 새 글만 1건
+        verify(sourceTextRefetcher, times(1)).refetch(argThat(target -> target.originalUrl().equals(toArticleUrl(2))
+                && target.sourceCode().equals(SourceCode.KISA)));
+        verify(articleSaveService).saveOrMerge(eq(kisaSource),
+                argThat((ArticleDraft draft) -> KISA_PAGE_TEXT.equals(draft.sourceText())), eq(NOW));
+    }
+
+    @Test
+    void keepsDraftWithoutSourceTextWhenKisaPageIsNotRecovered() {
+        ArticleCollectService kisaPageService = createService(new KisaPageSourceTextFiller(sourceTextRefetcher, true));
+        when(rssCollector.collect(any(), any())).thenReturn(CollectOutcome.ofArticles(List.of(createCollected("첨부만 있는 보고서", 1))));
+        when(sourceTextRefetcher.refetch(any())).thenReturn(SourceTextRefetchResult.notFound("content not found"));
+        when(articleSaveService.saveOrMerge(any(), any(), any())).thenReturn(SaveOutcome.CREATED);
+
+        assertThat(kisaPageService.collectSource(kisaSource)).isEqualTo(new CollectRunResult(CollectStatus.SUCCESS, 1, null));
+        verify(articleSaveService).saveOrMerge(eq(kisaSource), argThat((ArticleDraft draft) -> draft.sourceText() == null), eq(NOW));
+    }
+
+    @Test
+    void readsNoBoardPageForOtherSourcesOrKisaBackfill() {
+        ArticleCollectService kisaPageService = createService(new KisaPageSourceTextFiller(sourceTextRefetcher, true));
+        when(rssCollector.collect(any(), any())).thenReturn(CollectOutcome.ofArticles(List.of(createCollected("뉴스", 1))));
+        when(articleSaveService.saveOrMerge(any(), any(), any())).thenReturn(SaveOutcome.CREATED);
+
+        kisaPageService.collectSource(dailysecuSource);
+        kisaPageService.saveCollectedArticles(kisaSource, List.of(createCollected("지난 공지", 2)), NOW);
+
+        verify(sourceTextRefetcher, never()).refetch(any());
+    }
+
+    private ArticleCollectService createService(KisaPageSourceTextFiller kisaPageSourceTextFiller) {
+        return new ArticleCollectService(List.of(rssCollector, ghsaCollector), sourceRepository, collectRunRepository,
+                articleSaveService, collectRunRecorder, kisaPageSourceTextFiller, Clock.fixed(NOW, SeoulCalendar.SEOUL));
     }
 
     private static CollectOutcome awaitBarrier(CyclicBarrier barrier) throws Exception {

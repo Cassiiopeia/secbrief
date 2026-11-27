@@ -72,6 +72,7 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 | 알림함 보관 정리 | `notification.retention-enabled`, `notification.retention-tick-milliseconds`, `notification.retention-initial-delay-milliseconds` | 켜짐, 6시간, 10분 (알림·아침 요약 기록 30일 보관, 공지사항은 지우지 않음) |
 | 기사 분류 (백필·다시 분류·AI 대기 초과) | `classification.enabled`(`CLASSIFICATION_ENABLED`), `classification.tick-milliseconds`, `classification.batches-per-tick`, `classification.initial-delay-milliseconds` | 켜짐, 1분, 10번(x200건), 45초 |
 | KISA 지난 글 채우기 | `collect.kisa-backfill-tick-milliseconds`, `collect.kisa-backfill-initial-delay-milliseconds` | 6시간, 3분 (`collect.enabled=false` 면 함께 꺼짐) |
+| KISA 새 글 본문을 요약 입력으로 (#57) | `collect.kisa-page-text-enabled` | 켜짐 (`false` 면 KISA 글은 요약 입력 없이 저장) |
 | 경보단계 (해외 지표 읽기, 지난 경보단계 글 긴급 해제) | `alert-level.enabled`, `alert-level.tick-milliseconds`, `alert-level.initial-delay-milliseconds` | 켜짐, 1시간, 20초 |
 
 ## 알림함 · 공지사항 · 방해 금지 시간 (#70)
@@ -149,7 +150,11 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 
 - KISA 게시판 4곳은 RSS 가 첫 쪽 10건만 줘서, 출처마다 **한 번** 게시판 목록 쪽(`/kr/bbs/list.do`)을 넘겨 채운다: 보안공지·취약점 정보·보고서는 1년, 경보단계는 게시판 전체(69건). 이후 새 글은 주기 RSS 수집이 맡는다.
   게시판 번호·메뉴 번호·범위는 `KisaBoard` 한 곳, 끝나면 `source.backfill_completed_at` 을 채워 다시 하지 않는다 (실패한 출처는 다음 틱에 다시).
-  쪽 사이 2초 쉼, 최대 200쪽, 글 페이지는 읽지 않는다. 게시판은 ETag·Last-Modified 를 주지 않아 일반 GET 이다. 글 주소는 RSS link 와 같은 모양으로 만들어 원문 링크 중복 확인이 그대로 맞는다.
+  쪽 사이 2초 쉼, 최대 200쪽, 글 페이지는 읽지 않는다 (밀린 브리핑은 로컬 도구로). 게시판은 ETag·Last-Modified 를 주지 않아 일반 GET 이다. 글 주소는 RSS link 와 같은 모양으로 만들어 원문 링크 중복 확인이 그대로 맞는다.
+- 주기 RSS 수집은 KISA 게시판 4곳의 새 글(그리고 요약 입력·이미지가 아직 없는 기존 글)마다 게시글 페이지를 1번 읽어 본문 칸을 요약 입력으로 쓴다 (`KisaPageSourceTextFiller` > `SourceTextRefetcher`, 요청 사이 2초, #57).
+  RSS 에 요약문이 없어서다. 본문은 요약 대기 동안만 `source_text` 에 두고 요약이 끝나면 지운다 (화면에 싣지 않음). 표는 행마다 `[머리글: 칸 | ...]` 로 넣어 제품 <-> 버전 짝을 지킨다.
+  못 받은 글(첨부만 있는 보고서 등)은 입력 없이 저장하고 다음 수집에서 다시 읽는다. 로그 `[kisa page text] filled : source=…, length=…`.
+  보호나라 게시글에는 공공누리 표시가 없고 바닥글은 `Copyright(C) 2023 KISA. All rights reserved.` 뿐이다 (2026-11-28 확인): 본문을 옮겨 싣지 않고 직접 쓴 브리핑과 원문 링크만 보인다.
 - 경보단계 글의 긴급은 게시 후 7일까지만 (`ArticleUrgencyPolicy.KISA_ALERT_LEVEL_URGENT_DURATION`): 수집할 때 지난 글은 처음부터 긴급이 아니고, 경보단계 틱이 7일 지난 글의 긴급 표시를 푼다.
 - 단계는 공지 제목에서만 읽는다 (`CyberCrisisLevelTitleParser`, 5단계 밖 이름·못 읽은 제목은 단계 null + 제목 그대로). 게시판 전체 제목 69건이 시험 자료다.
 - 해외 지표 2개는 공개 피드를 1시간마다 읽어 메모리에 둔다 (`InternationalAlertIndicatorStore`): CIS MS-ISAC `https://feeds.cisecurity.org/text?keys=level,color`, SANS ISC `https://isc.sans.edu/api/infocon?json`. 실패하면 이전 값을 두고, 한 번도 못 읽었으면 `level` null 로 내려 화면은 그대로 열린다.

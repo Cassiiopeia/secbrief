@@ -53,7 +53,7 @@ cd server/SB-Tool
 | Ubuntu | 권고 주소 + `.json` | `summary` + `description` |
 | Red Hat | `security.access.redhat.com/data/csaf/v2/advisories/{연도}/rhsa-{연도}_{번호}.json` | CSAF 주제(Topic) + 상세(Details), 이용 조건 문구 제외 |
 | Debian | 공지 메일 보관 페이지 (`lists.debian.org`) > 실패하면 `security-tracker.debian.org/tracker/{DSA 번호}` | 메일 본문(서명 앞까지) 또는 추적 페이지의 설명·CVE·패키지별 고친 버전 표 |
-| KISA 4곳 | 게시글 페이지 (`view.do`) | 본문 칸 (`.content_html`, 표 포함) |
+| KISA 4곳 | 게시글 페이지 (`view.do`) | 본문 칸 (`.content_html`). 표는 행마다 `[머리글: 칸 \| ...]` (`SourcePageTableText`, 세로 병합 칸은 행마다 반복, #57) |
 | BleepingComputer, Node.js | 기사·공지 페이지 | 본문 칸(`.articleBody`, `main`)의 문단·목록·소제목 |
 | 데일리시큐 | 기사 페이지 | 게시자 요약(`og:description`)만. 저작권 고지에 "AI학습 및 활용 금지"가 있어 본문은 읽지 않음 |
 | The Hacker News, KEV, GitHub 권고 | 다시 받지 않음 | THN 기사 페이지는 봇 확인(403)으로 막힘. KEV·GitHub 권고는 피드·1건 조회로 충분 |
