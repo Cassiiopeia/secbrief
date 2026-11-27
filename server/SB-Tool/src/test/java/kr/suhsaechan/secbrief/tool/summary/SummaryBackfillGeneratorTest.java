@@ -74,6 +74,15 @@ class SummaryBackfillGeneratorTest {
     }
 
     @Test
+    void keepsRecoveryFailureReasonOnNotRecoverableResult() {
+        SummaryBackfillGenerator generator = new SummaryBackfillGenerator(new CountingSummarizer(CLEAN_BRIEF), 1);
+        BackfillTarget blockedTarget = BackfillTarget.fromJson(
+                BackfillTarget.withRecoveryFailureReason(BackfillTestData.newsRow(3L, null), "source not supported"));
+
+        assertThat(generator.generateOne(blockedTarget).failureReason()).isEqualTo("source not supported");
+    }
+
+    @Test
     void writesResultsWithoutSourceTextAndSkipsFinishedArticlesOnRerun(@TempDir Path temporaryDirectory) {
         Path resultsFile = temporaryDirectory.resolve("results.jsonl");
         List<BackfillTarget> targets = List.of(BackfillTestData.newsTarget(1L, BackfillTestData.SOURCE_TEXT),

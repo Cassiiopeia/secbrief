@@ -48,10 +48,10 @@ public class SummaryBackfillGenerator {
     // 기사 1건: 입력 없음·내용 없음은 제공자를 부르지 않음, 시도마다 작성 + 고쳐 쓰기 (호출 최대 2회)
     BackfillResult generateOne(BackfillTarget target) {
         if (!target.hasSourceText()) {
-            return BackfillResult.withoutBrief(target, BackfillResult.Status.NOT_RECOVERABLE);
+            return BackfillResult.withoutBrief(target, BackfillResult.Status.NOT_RECOVERABLE, target.recoveryFailureReason());
         }
         if (!SourceTextPolicy.isWorthSummarizing(target.sourceText(), target.title())) {
-            return BackfillResult.withoutBrief(target, BackfillResult.Status.INPUT_TOO_THIN);
+            return BackfillResult.withoutBrief(target, BackfillResult.Status.INPUT_TOO_THIN, null);
         }
         int modelCallCount = 0;
         String failureReason = null;

@@ -4,6 +4,7 @@
 #
 # 사용: ./run-summary-backfill.sh <SSH 자격 이름> <결과 폴더> [동시 호출 수, 기본 4]
 #   예: ./run-summary-backfill.sh synology-chan4760 ~/secbrief-summary-backfill/2026-11-26
+#   PREFER_IPV4=false 면 출처 주소를 DNS 순서 그대로 시도 (기본 true: IPv4 먼저, 운영 secbrief.feed-http.prefer-ipv4 와 같음)
 #
 # 결과 폴더(저장소 밖)에 남는 것 3개: results.jsonl(기사 id + 만든 브리핑), report.md(출처별 건수), apply.sql(운영 적용 파일)
 # apply.sql 은 브리핑 열이 있는 DB(V0.8.0 이후)에만 적용됨: 열이 없으면 UPDATE 가 실패하고 전체 롤백
@@ -21,6 +22,7 @@ OUTPUT_DIRECTORY=$2
 CONCURRENCY=${3:-4}
 SERVER_DIRECTORY=$(cd "$(dirname "$0")/.." && pwd)
 CLAUDE_BINARY=${CLAUDE_BINARY:-claude}
+PREFER_IPV4=${PREFER_IPV4:-true}
 
 # 내보내기 열 이름은 BackfillTarget.fromJson 이 읽는 이름과 같아야 함
 # 대상 조건: 한 줄 결론이 없는 행. to_jsonb 로 읽어 브리핑 열이 아직 없는 DB(V0.8.0 이전)에서도 같은 SQL 이 동작 (그때는 모든 행)
@@ -48,8 +50,8 @@ echo "[summary backfill] exported : targets=$(wc -l < "$WORK_DIRECTORY/targets.j
 export JAVA_HOME=${JAVA_HOME:-$(/usr/libexec/java_home -v 21)}
 cd "$SERVER_DIRECTORY"
 
-# 2. 요약 입력 되찾기 (공개 출처를 운영 수집기로 다시 읽음)
-./gradlew -q :SB-Tool:summaryTool --args="recover --targets '$WORK_DIRECTORY/targets.jsonl' --output '$WORK_DIRECTORY/inputs.jsonl'"
+# 2. 요약 입력 되찾기 (운영 수집기로 피드를 다시 읽음 > 못 맞춘 건은 출처별 공개 원문 위치에서 1건씩, 요청 사이 2초)
+./gradlew -q :SB-Tool:summaryTool --args="recover --targets '$WORK_DIRECTORY/targets.jsonl' --output '$WORK_DIRECTORY/inputs.jsonl' --prefer-ipv4 $PREFER_IPV4"
 
 # 3. 브리핑 만들기 (운영과 같은 하네스·검증, 기사마다 시도 3회·호출 6회 이내)
 ./gradlew -q :SB-Tool:summaryTool --args="generate --inputs '$WORK_DIRECTORY/inputs.jsonl' --results '$OUTPUT_DIRECTORY/results.jsonl' --report '$OUTPUT_DIRECTORY/report.md' --empty-directory '$WORK_DIRECTORY/empty' --claude '$CLAUDE_BINARY' --concurrency $CONCURRENCY"

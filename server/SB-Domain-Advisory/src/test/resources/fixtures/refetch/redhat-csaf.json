@@ -1,0 +1,4 @@
+{"document":{"title":"Red Hat Security Advisory: example security update","notes":[
+{"category":"summary","title":"Topic","text":"An update for example is now available for Red Hat Enterprise Linux 9.\n\nRed Hat Product Security has rated this update as having a security impact of Important."},
+{"category":"general","title":"Details","text":"Example is a remote desktop client.\n\nSecurity Fix(es):\n\n* example: Denial of Service via file descriptor exhaustion (CVE-2026-0005)"},
+{"category":"legal_disclaimer","title":"Terms of Use","text":"This content is licensed under the Creative Commons Attribution 4.0 International License."}]}}

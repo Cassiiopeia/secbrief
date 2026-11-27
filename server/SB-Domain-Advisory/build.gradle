@@ -14,8 +14,10 @@ dependencies {
 
     // RSS·Atom 피드 파싱 (인코딩 자동 감지)
     implementation 'com.rometools:rome:2.1.0'
-    // KISA 보호나라 게시판 목록 쪽 읽기 (지난 공지 1회 채우기, 인코딩 자동 감지)
+    // KISA 보호나라 게시판 목록 쪽 읽기 (지난 공지 1회 채우기), 요약 입력 다시 받기의 원문 페이지 읽기 (인코딩 자동 감지)
     implementation 'org.jsoup:jsoup:1.24.1'
+    // 출처 호출 HTTP 클라이언트: 주소가 여러 개면 연결 실패 시 다음 주소로 넘어감 (버전은 Boot BOM)
+    implementation 'org.apache.httpcomponents.client5:httpclient5'
 
     // AI 제목 분류·번역 (공식 Anthropic Java SDK, 구조화 출력)
     implementation 'com.anthropic:anthropic-java:3.12.0'

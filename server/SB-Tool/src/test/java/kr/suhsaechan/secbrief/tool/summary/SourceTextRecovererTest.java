@@ -19,23 +19,34 @@ import java.util.Map;
 import kr.suhsaechan.secbrief.advisory.collector.FeedFetchResult;
 import kr.suhsaechan.secbrief.advisory.collector.FeedHttpClient;
 import kr.suhsaechan.secbrief.advisory.collector.FeedValidators;
+import kr.suhsaechan.secbrief.advisory.refetch.SourceTextRefetchResult;
+import kr.suhsaechan.secbrief.advisory.refetch.SourceTextRefetchTarget;
+import kr.suhsaechan.secbrief.advisory.refetch.SourceTextRefetcher;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * 요약 입력 되찾기: 운영 수집기·정규화로 다시 읽어 CVE ID·원문 주소로 맞춤, 출처가 더는 주지 않는 항목은 그대로 둠
- * 출처 호출은 정해 둔 응답을 주는 가짜 (외부 호출 없음), 응답 값은 지어낸 것
+ * 요약 입력 되찾기: 운영 수집기·정규화로 다시 읽어 CVE ID·원문 주소로 맞춤 > 못 맞춘 건은 1건씩 다시 받기 (SourceTextRefetcher)
+ * 출처 호출·다시 받기는 정해 둔 응답을 주는 가짜 (외부 호출 없음), 응답 값은 지어낸 것 (출처별 다시 받기는 SourceTextRefetcherTest)
  */
 class SourceTextRecovererTest {
 
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-11-26T00:00:00Z"), ZoneOffset.UTC);
     private static final String RSS_FEED_URL = "https://feed.example.test/news";
     private static final String KEV_FEED_URL = "https://feed.example.test/kev.json";
+    private static final String UBUNTU_FEED_URL = "https://ubuntu.example.test/rss.xml";
     private static final String GHSA_FEED_URL = "https://api.example.test/advisories?type=reviewed&severity=critical";
 
     private final FeedHttpClient feedHttpClient = mock(FeedHttpClient.class);
-    private final SourceTextRecoverer recoverer = new SourceTextRecoverer(feedHttpClient, CLOCK);
+    private final SourceTextRefetcher sourceTextRefetcher = mock(SourceTextRefetcher.class);
+    private final SourceTextRecoverer recoverer = new SourceTextRecoverer(feedHttpClient, CLOCK, sourceTextRefetcher);
+
+    @BeforeEach
+    void givenNothingRefetched() {
+        when(sourceTextRefetcher.refetch(any())).thenReturn(SourceTextRefetchResult.notSupported());
+    }
 
     @Test
     void recoversRssItemsStillInFeedByOriginalUrlAndLeavesGoneItemsOut() {
@@ -49,13 +60,16 @@ class SourceTextRecovererTest {
                 </channel></rss>
                 """.getBytes(UTF_8), FeedValidators.NONE));
 
-        Map<Long, String> recoveredSourceTextById = recoverer.recover(List.of(
+        Map<Long, SourceTextRefetchResult> resultById = recoverer.recover(List.of(
                 BackfillTestData.newsTarget(1L, null), BackfillTestData.newsTarget(2L, null), BackfillTestData.newsTarget(3L, null)));
 
-        // 1: 피드에 있음 (운영과 같은 정리: HTML 제거, 주소의 #조각 제거 후 맞춤), 2: 피드에서 빠짐, 3: 요약할 만한 글이 아님
-        assertThat(recoveredSourceTextById).containsOnlyKeys(1L);
-        assertThat(recoveredSourceTextById.get(1L))
-                .isEqualTo("Attackers are exploiting a flaw in Example VPN to steal session tokens.");
+        // 1: 피드에 있음 (운영과 같은 정리: HTML 제거, 주소의 #조각 제거 후 맞춤), 2: 피드에서 빠짐, 3: 요약할 만한 글이 아님 (2·3 은 1건씩 받기로)
+        assertThat(resultById.get(1L)).isEqualTo(
+                SourceTextRefetchResult.recovered("Attackers are exploiting a flaw in Example VPN to steal session tokens."));
+        assertThat(resultById.get(2L).status()).isEqualTo(SourceTextRefetchResult.Status.NOT_SUPPORTED);
+        assertThat(resultById.get(3L).status()).isEqualTo(SourceTextRefetchResult.Status.NOT_SUPPORTED);
+        verify(sourceTextRefetcher, never()).refetch(new SourceTextRefetchTarget("THE_HACKER_NEWS", "Example headline 1",
+                "https://news.example.test/articles/1", null));
     }
 
     @Test
@@ -68,9 +82,9 @@ class SourceTextRecovererTest {
         BackfillTarget kevTarget = BackfillTarget.fromJson(BackfillTestData.row(5L, "CISA_KEV", "VULNERABILITY", "VULNERABILITY",
                 "CISA_KEV_JSON", KEV_FEED_URL, "https://nvd.example.test/vuln/detail/CVE-0000-00001", "CVE-0000-00001", null));
 
-        Map<Long, String> recoveredSourceTextById = recoverer.recover(List.of(kevTarget));
+        Map<Long, SourceTextRefetchResult> resultById = recoverer.recover(List.of(kevTarget));
 
-        assertThat(recoveredSourceTextById.get(5L)).isEqualTo("Example Gateway contains an improper authentication vulnerability "
+        assertThat(resultById.get(5L).sourceText()).isEqualTo("Example Gateway contains an improper authentication vulnerability "
                 + "in the management API. Required action: Apply mitigations per vendor instructions.");
     }
 
@@ -85,9 +99,9 @@ class SourceTextRecovererTest {
         BackfillTarget ghsaTarget = BackfillTarget.fromJson(BackfillTestData.row(6L, "GHSA", "VULNERABILITY", "VULNERABILITY",
                 "GHSA_API", GHSA_FEED_URL, "https://github.com/advisories/GHSA-0000-0000-0001", null, null));
 
-        Map<Long, String> recoveredSourceTextById = recoverer.recover(List.of(ghsaTarget));
+        Map<Long, SourceTextRefetchResult> resultById = recoverer.recover(List.of(ghsaTarget));
 
-        assertThat(recoveredSourceTextById.get(6L)).isEqualTo("example-auth-kit: session fixation in OAuth callback "
+        assertThat(resultById.get(6L).sourceText()).isEqualTo("example-auth-kit: session fixation in OAuth callback "
                 + "The OAuth callback handler reuses the pre-login session identifier. Fixed in 3.1.4.");
     }
 
@@ -104,10 +118,26 @@ class SourceTextRecovererTest {
         BackfillTarget kevTarget = BackfillTarget.fromJson(BackfillTestData.row(5L, "CISA_KEV", "VULNERABILITY", "VULNERABILITY",
                 "CISA_KEV_JSON", KEV_FEED_URL, "https://nvd.example.test/vuln/detail/CVE-0000-00001", "CVE-0000-00001", null));
 
-        Map<Long, String> recoveredSourceTextById = recoverer.recover(List.of(kevTarget, BackfillTestData.newsTarget(1L, null)));
+        Map<Long, SourceTextRefetchResult> resultById = recoverer.recover(List.of(kevTarget, BackfillTestData.newsTarget(1L, null)));
 
-        assertThat(recoveredSourceTextById).containsOnlyKeys(1L);
-        // 기사 페이지는 읽지 않음: 피드 주소 밖의 호출 없음
-        verify(feedHttpClient, never()).fetch(startsWith("https://news.example.test"));
+        assertThat(resultById.get(1L).isRecovered()).isTrue();
+        assertThat(resultById.get(5L).isRecovered()).isFalse();
+    }
+
+    @Test
+    void refetchesOneByOneWhenItemIsGoneFromFeedOrFeedFails() {
+        when(feedHttpClient.fetchIfChanged(eq(UBUNTU_FEED_URL), any()))
+                .thenThrow(new CustomException(ErrorCode.EXTERNAL_API_ERROR, "unreachable : SocketTimeoutException"));
+        BackfillTarget ubuntuTarget = BackfillTarget.fromJson(BackfillTestData.row(7L, "UBUNTU_USN", "ADVISORY", "GENERAL", "RSS",
+                UBUNTU_FEED_URL, "https://ubuntu.example.test/notices/USN-0000-1", null, null));
+        SourceTextRefetchTarget ubuntuRefetchTarget = new SourceTextRefetchTarget("UBUNTU_USN", "Example headline 7",
+                "https://ubuntu.example.test/notices/USN-0000-1", null);
+        when(sourceTextRefetcher.refetch(ubuntuRefetchTarget))
+                .thenReturn(SourceTextRefetchResult.recovered("It was discovered that Example mishandled input."));
+
+        Map<Long, SourceTextRefetchResult> resultById = recoverer.recover(List.of(ubuntuTarget));
+
+        // 피드 읽기가 시간 초과여도 1건씩 받기는 함
+        assertThat(resultById.get(7L).sourceText()).isEqualTo("It was discovered that Example mishandled input.");
     }
 }

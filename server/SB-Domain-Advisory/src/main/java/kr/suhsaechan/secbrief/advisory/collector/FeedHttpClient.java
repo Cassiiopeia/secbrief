@@ -5,16 +5,25 @@ import java.time.Duration;
 import java.util.Map;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import org.apache.hc.client5.http.DnsResolver;
+import org.apache.hc.client5.http.config.ConnectionConfig;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.core5.util.Timeout;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 /**
  * 출처 호출 공통: GET > 응답 본문 바이트 (인코딩 해석은 파서가 함), 조건부 GET > 변경 없음 또는 본문 + 새 검증값
- * 2xx 가 아니거나 연결 실패면 EXTERNAL_API_ERROR
+ * 2xx 가 아니거나 연결 실패면 EXTERNAL_API_ERROR, 주소가 여러 개면 연결 실패 시 다음 주소로 (IPv4 먼저: secbrief.feed-http.prefer-ipv4)
  */
 @Component
 public class FeedHttpClient {
@@ -24,16 +33,39 @@ public class FeedHttpClient {
     // 출처 운영자가 누구인지 알 수 있게 지원 페이지 주소를 함께 보냄
     public static final String USER_AGENT = "secbrief-collector/1.0 (+https://cassiiopeia.github.io/secbrief/support.html)";
 
+    // 출처 주소의 IPv4 를 먼저 시도 (운영 설정 secbrief.feed-http.prefer-ipv4, 로컬 도구 --prefer-ipv4 의 기본값)
+    public static final boolean SHOULD_PREFER_IPV4_BY_DEFAULT = true;
+
     private final RestClient restClient;
 
-    public FeedHttpClient() {
-        // 읽기 제한은 본문을 받는 중에도 적용 (멈춘 응답이 스케줄러 스레드를 붙잡지 않게)
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(CONNECT_TIMEOUT);
-        requestFactory.setReadTimeout(READ_TIMEOUT);
+    @Autowired
+    public FeedHttpClient(@Value("${secbrief.feed-http.prefer-ipv4}") boolean shouldPreferIpv4) {
+        this(new FeedHostAddressResolver(shouldPreferIpv4));
+    }
+
+    // 조회 결과를 정해 두는 테스트용
+    FeedHttpClient(FeedHostAddressResolver hostAddressResolver) {
         this.restClient = RestClient.builder()
-                .requestFactory(requestFactory)
+                .requestFactory(new HttpComponentsClientHttpRequestFactory(toHttpClient(hostAddressResolver)))
                 .defaultHeader("User-Agent", USER_AGENT)
+                .build();
+    }
+
+    // 연결 제한은 주소마다, 읽기 제한은 본문을 받는 중에도 적용 (멈춘 응답이 스케줄러 스레드를 붙잡지 않게)
+    // 자동 재요청 끔 (503·429 를 그 자리에서 다시 부르지 않음: 다음 수집 주기에 다시), 쿠키 저장 안 함
+    private static CloseableHttpClient toHttpClient(DnsResolver hostAddressResolver) {
+        ConnectionConfig connectionConfig = ConnectionConfig.custom()
+                .setConnectTimeout(Timeout.of(CONNECT_TIMEOUT))
+                .setSocketTimeout(Timeout.of(READ_TIMEOUT))
+                .build();
+        return HttpClients.custom()
+                .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
+                        .setDnsResolver(hostAddressResolver)
+                        .setDefaultConnectionConfig(connectionConfig)
+                        .build())
+                .setDefaultRequestConfig(RequestConfig.custom().setResponseTimeout(Timeout.of(READ_TIMEOUT)).build())
+                .disableAutomaticRetries()
+                .disableCookieManagement()
                 .build();
     }
 

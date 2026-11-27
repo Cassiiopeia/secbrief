@@ -109,8 +109,8 @@ public final class NvdResponseParser {
                 toSourceFacts(score, cve.path("weaknesses"), cve.path("configurations")));
     }
 
-    // 첫 영어 설명 (없으면 빈 문자열)
-    private static String toEnglishDescription(JsonNode descriptions) {
+    /** cve.descriptions 의 첫 영어 설명 (없으면 빈 문자열): 수집과 요약 입력 다시 받기가 함께 씀 */
+    public static String toEnglishDescription(JsonNode descriptions) {
         for (JsonNode descriptionNode : descriptions) {
             if (DESCRIPTION_LANGUAGE.equals(descriptionNode.path("lang").asText())) {
                 return descriptionNode.path("value").asText("").strip();
