@@ -4,8 +4,7 @@ import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
-import kr.suhsaechan.secbrief.common.exception.CustomException;
-import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.common.request.PageSizePolicy;
 
 /**
  * 기사 목록 조건: 필터 7개(종류, 지역, 주제, 최소 중요도, 출처 코드, 키워드, 긴급만 — null 이면 전체) + 분류 조건 + 커서 + 크기
@@ -41,15 +40,9 @@ public record ArticleSearchCondition(ArticleKind kind, ArticleRegion region, Art
     public static final int MAXIMUM_PAGE_SIZE = 50;
 
     /**
-     * 페이지 크기: null 이면 20, 1~50 밖이면 INVALID_REQUEST
+     * 페이지 크기: null·1 미만이면 20, 50 넘으면 50 (PageSizePolicy)
      */
     public int toPageSize() {
-        if (size == null) {
-            return DEFAULT_PAGE_SIZE;
-        }
-        if (size < 1 || size > MAXIMUM_PAGE_SIZE) {
-            throw new CustomException(ErrorCode.INVALID_REQUEST, "size out of range");
-        }
-        return size;
+        return PageSizePolicy.toClampedPageSize(size, DEFAULT_PAGE_SIZE, MAXIMUM_PAGE_SIZE);
     }
 }

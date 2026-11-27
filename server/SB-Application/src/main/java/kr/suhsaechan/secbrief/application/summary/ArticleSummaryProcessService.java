@@ -47,7 +47,7 @@ public class ArticleSummaryProcessService {
     public ArticleSummaryProcessService(ArticleSummarizer articleSummarizer, ArticleRepository articleRepository,
                                         ArticleSummaryResultRecorder articleSummaryResultRecorder, Clock clock,
                                         SystemConfigService systemConfigService, AiDailyBudgetGuard aiDailyBudgetGuard,
-                                        @Value("${secbrief.summary.tick-budget-seconds:90}") long tickBudgetSeconds) {
+                                        @Value("${secbrief.summary.tick-budget-seconds}") long tickBudgetSeconds) {
         this.articleSummarizer = articleSummarizer;
         this.articleRepository = articleRepository;
         this.articleSummaryResultRecorder = articleSummaryResultRecorder;

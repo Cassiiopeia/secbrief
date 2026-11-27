@@ -88,6 +88,27 @@ public class StructuredOutputArticleTitleAnalyzer implements ArticleTitleAnalyze
         }
     }
 
+    // 한자가 섞인 번역 고쳐 쓰기 (같은 제공자, TranslatedTitleRepairPrompt)
+    @Override
+    public List<String> repairTranslatedTitles(List<TranslatedTitleRepairRequest> requests) {
+        if (requests.isEmpty()) {
+            return List.of();
+        }
+        if (!isAvailable()) {
+            throw new CustomException(ErrorCode.AI_API_ERROR, "provider not configured");
+        }
+        StructuredCompletion completion = structuredCompletionClient.requestCompletion(new StructuredCompletionRequest(
+                AiCallType.TITLE_TRANSLATION_REPAIR,
+                TranslatedTitleRepairPrompt.SYSTEM_INSTRUCTION,
+                TranslatedTitleRepairPrompt.toUserMessage(requests),
+                TranslatedTitleRepairPrompt.toOutputJsonSchema(),
+                TranslatedTitleRepairPrompt.calculateMaximumOutputTokens(requests)));
+        if (completion.isRefused()) {
+            return Collections.nCopies(requests.size(), null);
+        }
+        return TranslatedTitleRepairPrompt.toRepairedTranslatedTitles(completion.responseJson(), requests.size());
+    }
+
     // 카탈로그 FIELD > 분야 선택지 (예시는 강한 낱말 앞 6개)
     private static List<AiFieldOption> toFieldOptions(TagCatalogProvider tagCatalogProvider) {
         return tagCatalogProvider.getCatalog().findAllByKind(CatalogTagKind.FIELD).stream()

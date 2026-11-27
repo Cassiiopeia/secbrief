@@ -22,6 +22,8 @@ public record ArticleDetailResponse(
         String actionGuide,
         // boolean 은 is 접두사 그대로 JSON 이름으로 (앱 모델과 같은 이름)
         @JsonProperty("isAiSummarized") boolean isAiSummarized,
+        // 요약 대기만 true (입력 없음·실패·완료는 false, #87). 이전 앱 빌드는 모르는 값이라 무시
+        @JsonProperty("isSummaryPending") boolean isSummaryPending,
         List<SourceFactResponse> facts,
         List<ArticleResponse> relatedItems,
         // 공식 대응 > 확인된 정보 > 관련 기사 (찾은 것이 없으면 빈 목록)
@@ -39,6 +41,7 @@ public record ArticleDetailResponse(
                 isAiSummarized ? summaryState.getKeyPoints() : List.of(),
                 isAiSummarized ? summaryState.getActionGuide() : null,
                 isAiSummarized,
+                summaryState.isPending(),
                 article.getSourceFacts().stream().map(SourceFactResponse::from).toList(),
                 relatedArticles.stream().map(ArticleResponse::from).toList(),
                 responseGuideSections);

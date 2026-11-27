@@ -158,7 +158,7 @@ class ArticleKeywordQueryTest extends PostgresContainerTestSupport {
     }
 
     @Test
-    void trendingRespectsDaysAndSizeAndRejectsOutOfRange() {
+    void trendingRespectsDaysAndSizeAndRejectsDaysOutOfRange() {
         saveNewsWithKeywords(Duration.ofHours(2), "랜섬웨어", "병원");
         saveNewsWithKeywords(Duration.ofHours(3), "랜섬웨어");
         saveNewsWithKeywords(Duration.ofDays(2), "피싱");
@@ -171,8 +171,9 @@ class ArticleKeywordQueryTest extends PostgresContainerTestSupport {
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
         assertThatThrownBy(() -> keywordTrendQueryService.findTrendingKeywords(31, null))
                 .extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
-        assertThatThrownBy(() -> keywordTrendQueryService.findTrendingKeywords(null, 51))
-                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_REQUEST);
+        // 순위 크기는 거부하지 않고 조정 (0 > 기본 20, 51 > 50)
+        assertThat(keywordTrendQueryService.findTrendingKeywords(1, 0).keywords()).hasSize(2);
+        assertThat(keywordTrendQueryService.findTrendingKeywords(1, 51).keywords()).hasSize(2);
     }
 
     @Test

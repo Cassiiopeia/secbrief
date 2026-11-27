@@ -28,4 +28,11 @@ public record ArticleTitleAnalysis(ArticleTopic topic, String translatedTitle,
                                 ArticleImportance importance, String subjectName) {
         this(topic, translatedTitle, importance, subjectName, List.of(), null);
     }
+
+    /**
+     * 번역 제목만 바꾼 결과 (번역 고쳐 쓰기 반영)
+     */
+    public ArticleTitleAnalysis withTranslatedTitle(String repairedTranslatedTitle) {
+        return new ArticleTitleAnalysis(topic, repairedTranslatedTitle, importance, subjectName, keywords, fieldCode);
+    }
 }

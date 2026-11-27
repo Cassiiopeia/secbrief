@@ -60,6 +60,8 @@ public final class ArticleTitleAnalysisPrompt {
               Keep CVE IDs, version numbers, product names and company names exactly as written in the original.
               Do not add any number, count, version or detail that is not in the original headline.
               Use only that element's own headline. Never mix in content from other elements.
+              Write it in Hangul. Never use Chinese characters (Hanja): write "범위 밖 쓰기", not "범위 外 쓰기".
+              Keep a Chinese character only when it appears in the original headline itself.
             - If region is DOMESTIC, set translatedTitle to null.
 
             importance (judge only from the headline, be strict: most headlines are routine):

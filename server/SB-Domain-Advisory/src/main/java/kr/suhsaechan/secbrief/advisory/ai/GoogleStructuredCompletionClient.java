@@ -57,7 +57,7 @@ public class GoogleStructuredCompletionClient implements StructuredCompletionCli
                                             AiProviderModelService aiProviderModelService,
                                             SystemConfigService systemConfigService,
                                             ProviderHttpClient providerHttpClient,
-                                            @Value("${secbrief.ai.google.base-url:https://generativelanguage.googleapis.com}")
+                                            @Value("${secbrief.ai.google.base-url}")
                                             String baseUrl) {
         this.aiApiKeyCallRunner = aiApiKeyCallRunner;
         this.aiProviderModelService = aiProviderModelService;

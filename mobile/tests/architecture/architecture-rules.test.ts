@@ -46,6 +46,29 @@ describe('계층 의존 방향', () => {
     });
   }
 
+  test('매퍼(data/mappers)끼리 서로 import 하지 않는다 (순환 import 는 개발 빌드 경고, #87)', () => {
+    const mapperFolder = 'data/mappers';
+    // 매퍼 이름 > 같은 폴더에서 import 하는 매퍼 이름들
+    const importedMappersByMapper = new Map(
+      listSourceFiles(mapperFolder).map((file) => [
+        path.basename(file).replace(/\.tsx?$/, ''),
+        [...readSource(file).matchAll(/from '\.\/([a-z-]+)'/g)].map((match) => match[1]),
+      ]),
+    );
+    const cycles: string[] = [];
+    // 깊이 우선으로 따라가며 지나온 길에 다시 나오면 순환
+    const visit = (mapperName: string, visitingPath: string[]) => {
+      if (visitingPath.includes(mapperName)) {
+        cycles.push([...visitingPath.slice(visitingPath.indexOf(mapperName)), mapperName].join(' > '));
+        return;
+      }
+      for (const importedMapper of importedMappersByMapper.get(mapperName) ?? []) visit(importedMapper, [...visitingPath, mapperName]);
+    };
+    for (const mapperName of importedMappersByMapper.keys()) visit(mapperName, []);
+    expect(importedMappersByMapper.size).toBeGreaterThan(1);
+    expect(cycles).toEqual([]);
+  });
+
   test('화면(app, features)은 디자인 시스템을 @/design 진입점으로만 쓴다', () => {
     const violations = [...listSourceFiles('app'), ...listSourceFiles('features')].filter((file) =>
       /from '@\/design\/.+'/.test(readSource(file)),

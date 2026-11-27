@@ -15,6 +15,7 @@ import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
 import kr.suhsaechan.secbrief.advisory.repository.KeywordCount;
 import kr.suhsaechan.secbrief.common.exception.CustomException;
 import kr.suhsaechan.secbrief.common.exception.constant.ErrorCode;
+import kr.suhsaechan.secbrief.common.request.PageSizePolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -118,15 +119,9 @@ public class KeywordTrendQueryService {
         return days;
     }
 
-    // 순위 크기: null 이면 20, 1~50 밖이면 INVALID_REQUEST
+    // 순위 크기: null·1 미만이면 20, 50 넘으면 50 (PageSizePolicy)
     private static int toRankSize(Integer size) {
-        if (size == null) {
-            return DEFAULT_RANK_SIZE;
-        }
-        if (size < 1 || size > MAXIMUM_RANK_SIZE) {
-            throw new CustomException(ErrorCode.INVALID_REQUEST, "size out of range");
-        }
-        return size;
+        return PageSizePolicy.toClampedPageSize(size, DEFAULT_RANK_SIZE, MAXIMUM_RANK_SIZE);
     }
 
     // 합친 키워드 1개: 비교용 소문자, 보여 줄 표기, 기사 건수

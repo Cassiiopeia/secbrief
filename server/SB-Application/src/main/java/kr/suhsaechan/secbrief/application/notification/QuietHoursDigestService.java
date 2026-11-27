@@ -7,6 +7,11 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import kr.suhsaechan.secbrief.advisory.entity.Article;
+import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
 import kr.suhsaechan.secbrief.member.entity.HeldPush;
 import kr.suhsaechan.secbrief.member.entity.PushDevice;
 import kr.suhsaechan.secbrief.member.push.PushMessage;
@@ -32,6 +37,7 @@ public class QuietHoursDigestService {
     static final int MAXIMUM_HELD_PUSHES_PER_TICK = 5000;
 
     private final HeldPushRepository heldPushRepository;
+    private final ArticleRepository articleRepository;
     private final PushSender pushSender;
     private final PushDeliveryRecorder pushDeliveryRecorder;
     private final Clock clock;
@@ -49,11 +55,12 @@ public class QuietHoursDigestService {
             return 0;
         }
 
+        Set<Long> alertLevelArticleIds = findAlertLevelArticleIds(heldPushesByDevice);
         List<PushMessage> pushMessages = new ArrayList<>();
         Map<String, Long> deviceIdByPushToken = new HashMap<>();
         Map<String, List<HeldPush>> heldPushesByPushToken = new HashMap<>();
         heldPushesByDevice.forEach((pushDevice, heldPushes) -> {
-            pushMessages.add(QuietHoursDigestPolicy.toPushMessage(pushDevice.getPushToken(), heldPushes));
+            pushMessages.add(QuietHoursDigestPolicy.toPushMessage(pushDevice.getPushToken(), heldPushes, alertLevelArticleIds));
             deviceIdByPushToken.put(pushDevice.getPushToken(), pushDevice.getId());
             heldPushesByPushToken.put(pushDevice.getPushToken(), heldPushes);
         });
@@ -68,6 +75,22 @@ public class QuietHoursDigestService {
         log.info("[quiet hours] sent held pushes : devices={}, accepted={}, failed={}", pushMessages.size(),
                 acceptedCount, PushDeliveryRecorder.countByStatus(outcomes, PushSendStatus.FAILED));
         return acceptedCount;
+    }
+
+    // 1건 그대로 보낼 보류분의 기사 중 KISA 경보단계 글 번호 (보류분에 출처가 없어 한 번에 조회)
+    private Set<Long> findAlertLevelArticleIds(Map<PushDevice, List<HeldPush>> heldPushesByDevice) {
+        Set<Long> singleArticleIds = heldPushesByDevice.values().stream()
+                .filter(heldPushes -> heldPushes.size() == 1)
+                .map(heldPushes -> heldPushes.get(0).getArticleId())
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (singleArticleIds.isEmpty()) {
+            return Set.of();
+        }
+        return articleRepository.findAllById(singleArticleIds).stream()
+                .filter(UrgentAlertPolicy::isAlertLevelArticle)
+                .map(Article::getId)
+                .collect(Collectors.toSet());
     }
 
     // 기기별 보류분 (지금 방해 금지 시간 안인 기기는 뺌, 보류 순서 유지)

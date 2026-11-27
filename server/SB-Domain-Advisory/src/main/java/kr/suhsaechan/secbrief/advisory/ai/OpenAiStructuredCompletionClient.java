@@ -48,7 +48,7 @@ public class OpenAiStructuredCompletionClient implements StructuredCompletionCli
                                             AiProviderModelService aiProviderModelService,
                                             SystemConfigService systemConfigService,
                                             ProviderHttpClient providerHttpClient,
-                                            @Value("${secbrief.ai.openai.base-url:https://api.openai.com}") String baseUrl) {
+                                            @Value("${secbrief.ai.openai.base-url}") String baseUrl) {
         this.aiApiKeyCallRunner = aiApiKeyCallRunner;
         this.aiProviderModelService = aiProviderModelService;
         this.systemConfigService = systemConfigService;

@@ -1,4 +1,4 @@
-# 브리핑 로컬 적재 도구 (#49, #67)
+# 브리핑 로컬 적재 도구 (#49, #67, #77)
 
 **브리핑 구조의 글이 없는 기사**의 브리핑을 이 컴퓨터에서 `claude -p` 로 만들어 운영 DB 에 싣기 위한 도구다.
 대상은 두 가지다: 요약이 없는 기사(`NONE`, `PENDING`, `FAILED`)와 **이전 구조의 요약만 있는 기사**(`DONE` 이지만 `summary_one_line` 이 null).
@@ -15,12 +15,13 @@
 cd server/SB-Tool
 ./run-summary-backfill.sh <SSH 자격 이름> <결과 폴더(저장소 밖)> [동시 호출 수, 기본 4]
 # 예: ./run-summary-backfill.sh synology-chan4760 ~/secbrief-summary-backfill/2026-11-26
+# PREFER_IPV4=false ./run-summary-backfill.sh ...   # 출처 주소를 DNS 순서 그대로 시도 (기본 true: IPv4 먼저)
 ```
 
 | 단계 | 하는 일 |
 |---|---|
 | 내보내기 | 브리핑이 없는 기사와 그 출처 값을 `SELECT` (id, 제목, 지역, 종류, 주제, 출처 코드·피드 주소, 원문 주소, CVE ID, 게시일, 상태, 요약 입력). 조건은 `to_jsonb(a) ->> 'summary_one_line' is null`: 브리핑 열이 아직 없는 DB 에서도 같은 SQL 이 동작 |
-| `recover` | 요약 입력이 없는 행: 공개 출처를 **운영 수집기로** 다시 읽어 CVE ID·원문 주소로 맞춤 (NVD 는 게시일 범위, KEV 는 카탈로그 전체, GitHub 권고는 1쪽 + 1건 조회, RSS 는 지금 피드) |
+| `recover` | 요약 입력이 없는 행: 공개 출처를 **운영 수집기로** 다시 읽어 CVE ID·원문 주소로 맞춤 (NVD 는 게시일 범위, KEV 는 카탈로그 전체, GitHub 권고는 1쪽 + 1건 조회, RSS 는 지금 피드) > 못 맞춘 건은 **출처별 공개 원문 위치에서 1건씩** 다시 받음 (1-1, 요청 사이 2초, NVD 6초) |
 | `generate` | 기사마다 요약 시도 최대 3회 (시도마다 작성 + 고쳐 쓰기, 호출 최대 6회) > `results.jsonl`, `report.md` |
 | `apply-file` | 통과한 브리핑만 `apply.sql` 로 (브리핑 열 5개 + 이전 구조 열 3개) |
 
@@ -41,8 +42,24 @@ cd server/SB-Tool
 |---|---|
 | `ACCEPTED` | 검증을 통과한 브리핑 (적용 파일에 들어감) |
 | `REJECTED` | 시도 3회 모두 검증 탈락 (그대로 둠) |
-| `INPUT_TOO_THIN` | 요약할 내용이 없는 입력 (주소뿐: Debian 권고) |
-| `NOT_RECOVERABLE` | 공개 출처가 더는 주지 않아 입력을 되찾지 못함 (피드에서 밀려난 기사, 요약문이 없는 KISA 피드) |
+| `INPUT_TOO_THIN` | 요약할 내용이 없는 입력 (40자 미만, 주소뿐, NVD 설명이 제목에 통째로 들어 있음) |
+| `NOT_RECOVERABLE` | 입력을 되찾지 못함. `failureReason` 에 사유 (`source not supported`, 응답 상태 `status=403` 등) |
+
+### 1-1. 1건씩 다시 받는 곳 (`SourceTextRefetcher`, 서버 다시 요약과 같은 코드)
+
+| 출처 | 받는 곳 | 꺼내는 글 |
+|---|---|---|
+| NVD | `services.nvd.nist.gov/rest/json/cves/2.0?cveId=` | 영어 설명 (CVSS 점수와 무관) |
+| Ubuntu | 권고 주소 + `.json` | `summary` + `description` |
+| Red Hat | `security.access.redhat.com/data/csaf/v2/advisories/{연도}/rhsa-{연도}_{번호}.json` | CSAF 주제(Topic) + 상세(Details), 이용 조건 문구 제외 |
+| Debian | 공지 메일 보관 페이지 (`lists.debian.org`) > 실패하면 `security-tracker.debian.org/tracker/{DSA 번호}` | 메일 본문(서명 앞까지) 또는 추적 페이지의 설명·CVE·패키지별 고친 버전 표 |
+| KISA 4곳 | 게시글 페이지 (`view.do`) | 본문 칸 (`.content_html`, 표 포함) |
+| BleepingComputer, Node.js | 기사·공지 페이지 | 본문 칸(`.articleBody`, `main`)의 문단·목록·소제목 |
+| 데일리시큐 | 기사 페이지 | 게시자 요약(`og:description`)만. 저작권 고지에 "AI학습 및 활용 금지"가 있어 본문은 읽지 않음 |
+| The Hacker News, KEV, GitHub 권고 | 다시 받지 않음 | THN 기사 페이지는 봇 확인(403)으로 막힘. KEV·GitHub 권고는 피드·1건 조회로 충분 |
+
+- 받은 글은 운영과 같은 정리(`SourceTextPolicy`, 6000자 상한)를 거쳐 **요약 입력으로만** 쓴다. 임시 폴더에만 두고 끝나면 지운다 (서비스 원칙 3).
+- 출처 호출은 운영과 같은 `FeedHttpClient` 다: 주소가 여러 개면 연결 실패 시 다음 주소로 넘어가고, IPv4 를 먼저 시도한다 (`--prefer-ipv4`, 운영 `secbrief.feed-http.prefer-ipv4`).
 
 ## 2. `claude -p` 호출 방식
 
@@ -105,14 +122,59 @@ docker exec -i postgres sh -c 'psql -U "$POSTGRES_USER" -d secbrief' < apply.sql
 
 적용 전에 볼 것: 줄 수, 앞의 몇 줄, `report.md`.
 
-## 4. 하지 않는 것
+## 4. 서버 다시 요약 (기본 꺼짐)
 
-- 기사 본문 페이지를 읽지 않는다. 피드와 공개 API 가 준 글만 쓴다 (서비스 원칙 3).
-- KISA 공지 페이지의 글을 읽지 않는다. KISA 피드는 요약문이 없어 요약 입력이 생기지 않는다 (결정이 필요한 항목).
-- 공개 출처가 더는 주지 않는 기사는 그대로 둔다.
+운영 서버도 같은 경로로 "브리핑 없는 기사"를 고칠 수 있다. **기본은 꺼짐**이다: 밀린 건은 이 도구(`claude -p`, 하이쿠)로 로컬에서 만들고, 운영 API 는 새 기사에만 쓴다.
+
+| 설정 (`secbrief.summary-refetch.`) | 기본값 | 뜻 |
+|---|---|---|
+| `enabled` | `false` | `true` 면 스케줄러 빈을 만듦 (`SourceTextRefetchSummaryScheduler`) |
+| `batch-size` | 5 | 한 틱 대상 기사 수 |
+| `daily-article-limit` | 20 | 하루(서울 날짜) 대상 기사 상한 (다시 받기 시도 기준, `summary.daily-limit` 와 별도) |
+| `tick-milliseconds`, `initial-delay-milliseconds` | 1시간, 10분 | 틱 주기, 첫 틱 대기 |
+
+- 대상: `summary_one_line` 과 `source_text` 가 없고 상태가 `DONE`(이전 구조)·`NONE`(입력 없음)인 기사, 1-1 의 다시 받는 출처만. `FAILED` 는 다시 부르지 않는다.
+- 흐름: 제공자 확인 > 하루 예산(`AI_DAILY_BUDGET_USD`) > 하루 상한 > 최신 id 부터 `batch-size` 건 > 1건씩 다시 받기 > 요약 시도 1회 (작성 + 고쳐 쓰기, 호출 최대 2회) > 브리핑 반영.
+- 반영은 그 사이 브리핑이 생겼거나 새 입력으로 대기(`PENDING`) 중이면 하지 않는다. 실패한 건은 그대로 둔다 (상태를 바꾸지 않음, 이전 구조 요약은 계속 보임).
+- 한 번 끝까지 훑으면 다음 서울 날짜에 다시 처음부터 (서버를 다시 띄워도 처음부터). 로그 `[summary refetch] processed : done=…, rejected=…, notRecovered=…`.
+
+## 5. 하지 않는 것
+
+- 다시 받은 글을 저장하거나 화면에 싣지 않는다. 요약 입력으로만 쓰고 지운다 (서비스 원칙 3).
+- 봇 확인으로 막힌 페이지(The Hacker News)를 우회하지 않는다. User-Agent 를 바꾸지 않는다.
+- 데일리시큐 기사 본문을 읽지 않는다 (게시자 요약만).
+- 공개 출처가 더는 주지 않는 기사는 그대로 둔다 (원문 링크로 열림, 서비스 원칙 5).
 - `claude -p` 를 운영 제공자 목록에 넣지 않는다.
 
-## 5. 실행 기록
+## 6. 실행 기록
+
+### 원문 재수집 고친 뒤 다시 만들기 (#77, 2026-11-27)
+
+대상 711건 (브리핑 없는 기사 전체: #96 KISA 지난 글 채우기로 KISA 가 47 > 443건), 동시 호출 4개, 되찾기 25분 + 만들기 30분. 운영 DB 에는 적용하지 않은 상태다 (적용 파일만 만듦, 666건).
+
+| 출처 | 대상 | 입력 있음 | 통과 | 탈락 | 내용 없는 입력 | 되찾지 못함 | 되찾은 곳 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| KISA 보안공지 | 344 | 344 | 344 | 0 | 0 | 0 | 게시글 본문 칸 |
+| KISA 경보단계 | 69 | 69 | 69 | 0 | 0 | 0 | 게시글 본문 칸 |
+| KISA 보고서 | 20 | 17 | 17 | 0 | 0 | 3 | 게시글 본문 칸 (3건은 본문 칸 없음: 첨부만) |
+| KISA 취약점 정보 | 10 | 10 | 10 | 0 | 0 | 0 | 게시글 본문 칸 |
+| 데일리시큐 | 97 | 95 | 95 | 0 | 0 | 2 | 게시자 요약 (2건은 기사 삭제 404) |
+| Red Hat | 61 | 61 | 61 | 0 | 0 | 0 | CSAF |
+| BleepingComputer | 31 | 31 | 31 | 0 | 0 | 0 | 기사 본문 문단 |
+| Debian | 30 | 30 | 30 | 0 | 0 | 0 | 보안 추적 페이지 (메일 보관 서버 503) |
+| The Hacker News | 29 | 0 | 0 | 0 | 0 | 29 | 다시 받지 않음 (봇 확인 403) |
+| NVD | 12 | 12 | 1 | 0 | 11 | 0 | CVE 1건 조회 (11건은 설명이 제목에 통째로 들어 있음) |
+| Ubuntu | 7 | 7 | 7 | 0 | 0 | 0 | 권고 JSON |
+| Node.js | 1 | 1 | 1 | 0 | 0 | 0 | 공지 본문 |
+| 합계 | 711 | 677 | **666** | 0 | 11 | 34 | |
+
+- 제공자 호출 752회 (기사당 1.13회), 고쳐 쓴 글로 통과 79건.
+- 원인 (이전 실행의 되찾지 못함 315건):
+  - Ubuntu: IPv6 가 아니었다. `ubuntu.com` A 레코드 3개 중 `185.125.190.20` 이 연결을 받지 않는 때가 있고, 이전 HTTP 클라이언트(`HttpURLConnection`)는 첫 주소만 시도해 5초 연결 제한에 걸렸다 (curl 은 다음 주소로 넘어감). `-Djava.net.preferIPv4Stack=true` 로 7건을 되찾은 것은 DNS 순서가 바뀐 우연이다. 운영 수집에서도 3일 동안 Ubuntu·Debian·NVD 가 1번씩 같은 오류(`SocketTimeoutException`)를 냈다. `FeedHttpClient` 를 주소마다 시도하는 클라이언트(Apache HttpClient 5)로 바꿨다.
+  - Debian: 피드 요약문 자리에 추적 페이지 주소만 있어 요약 입력이 생기지 않았다 (요약할 내용 없음). 공지 메일 보관 페이지는 이날 503 이라 보안 추적 페이지로 받았다.
+  - Red Hat·Ubuntu·뉴스: 피드가 최근 글만 준다 (Red Hat 3일, Ubuntu 10건, 뉴스 15~50건).
+  - KISA·Node.js: 피드에 요약문이 없다.
+  - NVD: 설명이 제목에 통째로 들어 있는 CVE (규칙대로 요약 입력이 아님). 이번부터 `INPUT_TOO_THIN` 으로 센다.
 
 ### 브리핑 구조로 다시 만들기 (#67, 2026-11-26)
 

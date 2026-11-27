@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import kr.suhsaechan.secbrief.common.text.TextTruncation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -33,6 +34,8 @@ public class ExpoPushSender implements PushSender {
     static final int MAXIMUM_MESSAGES_PER_REQUEST = 100;
     static final int MAXIMUM_RECEIPTS_PER_REQUEST = 1000;
 
+    // 로그용 코드 최대 길이
+    private static final int MAXIMUM_LOGGED_CODE_LENGTH = 40;
     private static final String SEND_PATH = "/--/api/v2/push/send";
     private static final String RECEIPTS_PATH = "/--/api/v2/push/getReceipts";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
@@ -253,6 +256,6 @@ public class ExpoPushSender implements PushSender {
     // 로그용 코드 정리 (영문·숫자·밑줄만, 40자 제한)
     private static String toLogSafeCode(String errorCode) {
         String sanitizedCode = errorCode.replaceAll("[^A-Za-z0-9_]", "?");
-        return sanitizedCode.length() > 40 ? sanitizedCode.substring(0, 40) : sanitizedCode;
+        return TextTruncation.truncateKeepingSurrogatePairs(sanitizedCode, MAXIMUM_LOGGED_CODE_LENGTH);
     }
 }

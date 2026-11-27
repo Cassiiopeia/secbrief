@@ -38,10 +38,10 @@ public class OllamaTextEmbeddingProvider implements TextEmbeddingProvider {
     private final String model;
     private final String apiKey;
 
-    public OllamaTextEmbeddingProvider(@Value("${secbrief.embedding.enabled:true}") boolean isEnabled,
-                                       @Value("${secbrief.ai.ollama.base-url:}") String baseUrl,
-                                       @Value("${secbrief.embedding.ollama.model:}") String model,
-                                       @Value("${secbrief.ai.ollama.api-key:}") String apiKey) {
+    public OllamaTextEmbeddingProvider(@Value("${secbrief.embedding.enabled}") boolean isEnabled,
+                                       @Value("${secbrief.ai.ollama.base-url}") String baseUrl,
+                                       @Value("${secbrief.embedding.ollama.model}") String model,
+                                       @Value("${secbrief.ai.ollama.api-key}") String apiKey) {
         // 읽기 제한은 본문을 받는 중에도 적용 (멈춘 응답이 스케줄러 스레드를 붙잡지 않게)
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(CONNECT_TIMEOUT);

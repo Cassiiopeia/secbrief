@@ -68,9 +68,9 @@ class ArticleSummaryRepairProcessTest {
         givenPendingArticles(createArticle(1L, "First headline"));
         when(recorder.recordSuccess(anyLong(), any(), any())).thenReturn(true);
 
-        SummaryProcessResult result = service.processPendingSummaries();
+        SummaryProcessResult summaryProcessResult = service.processPendingSummaries();
 
-        assertThat(result).isEqualTo(new SummaryProcessResult(1, 0, false));
+        assertThat(summaryProcessResult).isEqualTo(new SummaryProcessResult(1, 0, false));
         // 고쳐 쓰기 요청에는 걸린 곳(입력에 없는 숫자)이 그대로 감
         assertThat(fakeSummarizer.getReceivedRepairProblems()).containsExactly(List.of(
                 new SummaryProblem("whatHappened", ArticleSummaryPolicy.REASON_NUMBER_NOT_IN_SOURCE, "2.4.1")));
@@ -84,10 +84,10 @@ class ArticleSummaryRepairProcessTest {
         fakeSummarizer.respondToRepairOf("First headline", ArticleSummaryOutcome.succeeded(INVENTED_NUMBER_BRIEF));
         givenPendingArticles(createArticle(1L, "First headline"));
 
-        SummaryProcessResult result = service.processPendingSummaries();
+        SummaryProcessResult summaryProcessResult = service.processPendingSummaries();
 
         // 작성 1 + 고쳐 쓰기 1 = 2회, 시도 횟수는 1만 오름 (recordFailure 1회)
-        assertThat(result).isEqualTo(new SummaryProcessResult(0, 1, false));
+        assertThat(summaryProcessResult).isEqualTo(new SummaryProcessResult(0, 1, false));
         assertThat(fakeSummarizer.getReceivedRequests()).hasSize(1);
         assertThat(fakeSummarizer.getReceivedRepairProblems()).hasSize(1);
         verify(recorder, times(1)).recordFailure(1L, SOURCE_TEXT);
@@ -102,9 +102,9 @@ class ArticleSummaryRepairProcessTest {
         when(recorder.recordSuccess(anyLong(), any(), any())).thenReturn(true);
         givenPendingArticles(createArticle(1L, "A"), createArticle(2L, "A"), createArticle(3L, "A"));
 
-        SummaryProcessResult result = limitedService.processPendingSummaries();
+        SummaryProcessResult summaryProcessResult = limitedService.processPendingSummaries();
 
-        assertThat(result).isEqualTo(new SummaryProcessResult(1, 1, false));
+        assertThat(summaryProcessResult).isEqualTo(new SummaryProcessResult(1, 1, false));
         assertThat(fakeSummarizer.getReceivedRequests()).hasSize(2);
         assertThat(fakeSummarizer.getReceivedRepairProblems()).hasSize(1);
         verify(recorder).recordFailure(2L, SOURCE_TEXT);

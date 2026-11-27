@@ -11,7 +11,7 @@ import kr.suhsaechan.secbrief.advisory.embedding.TextEmbeddingProvider;
 import kr.suhsaechan.secbrief.advisory.entity.Article;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleEmbeddingRepository;
 import kr.suhsaechan.secbrief.advisory.search.ArticleEmbeddingIndex;
-import kr.suhsaechan.secbrief.common.exception.CustomException;
+import kr.suhsaechan.secbrief.common.exception.ExceptionLogText;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Limit;
@@ -41,8 +41,8 @@ public class ArticleEmbeddingProcessService {
     public ArticleEmbeddingProcessService(TextEmbeddingProvider textEmbeddingProvider,
                                           ArticleEmbeddingRepository articleEmbeddingRepository,
                                           ArticleEmbeddingResultRecorder articleEmbeddingResultRecorder, Clock clock,
-                                          @Value("${secbrief.embedding.batch-size:100}") int batchSize,
-                                          @Value("${secbrief.embedding.request-batch-size:25}") int requestBatchSize) {
+                                          @Value("${secbrief.embedding.batch-size}") int batchSize,
+                                          @Value("${secbrief.embedding.request-batch-size}") int requestBatchSize) {
         this.textEmbeddingProvider = textEmbeddingProvider;
         this.articleEmbeddingRepository = articleEmbeddingRepository;
         this.articleEmbeddingResultRecorder = articleEmbeddingResultRecorder;
@@ -88,7 +88,7 @@ public class ArticleEmbeddingProcessService {
             embeddings = textEmbeddingProvider.embed(articles.stream().map(ArticleEmbeddingText::from).toList());
         } catch (RuntimeException exception) {
             log.warn("[article embedding] failed 502 : provider call failed, retry next tick : size={}, cause={}",
-                    articles.size(), toLogCause(exception));
+                    articles.size(), ExceptionLogText.toLogCause(exception));
             return false;
         }
         // 규약 위반(벡터 수 불일치): 어느 기사의 벡터인지 알 수 없어 기록하지 않음
@@ -109,12 +109,5 @@ public class ArticleEmbeddingProcessService {
                     articles.size(), exception.getClass().getSimpleName());
             return false;
         }
-    }
-
-    // 업무 예외는 원인 문구(영어 고정 문구), 그 밖은 예외 종류만
-    private static String toLogCause(RuntimeException exception) {
-        return exception instanceof CustomException customException && customException.getDetail() != null
-                ? customException.getDetail()
-                : exception.getClass().getSimpleName();
     }
 }

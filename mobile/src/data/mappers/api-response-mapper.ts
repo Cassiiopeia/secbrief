@@ -1,13 +1,11 @@
 import type { ArticleImportance, ArticleKind, ArticleRegion, BriefingItem, BriefingTopic } from '../models/briefing-item';
 import type { ArticlePage } from '../models/article-page';
-import type { ArticleDetail } from '../models/article-detail';
 import type { ArticleSearchMode, ArticleSearchResult } from '../models/article-search-result';
 import type { CollectSourceStatus } from '../models/collect-source-status';
 import type { TodayBriefing } from '../models/today-briefing';
 import type { TrendingKeyword } from '../models/trending-keyword';
 import type { TrendTopic, WeeklyTrend } from '../models/trend-topic';
-import { type ArticleBriefApiResponse, toArticleBrief, toNonBlankText } from './article-brief-mapper';
-import { toResponseGuideSections } from './response-guide-mapper';
+import { toNonBlankText } from './unknown-value-guards';
 
 /** 서버 기사 응답 (enum 은 대문자 이름) */
 export interface ArticleApiResponse {
@@ -84,20 +82,6 @@ export interface TrendingKeywordsApiResponse {
   keywords: TrendingKeywordApiResponse[];
 }
 
-export interface ArticleDetailApiResponse {
-  article: ArticleApiResponse;
-  summary?: string | null;
-  keyPoints?: string[] | null;
-  actionGuide?: string | null;
-  isAiSummarized?: boolean | null;
-  /** AI 브리핑. 이전 방식 요약만 있으면 null, 이 필드가 생기기 전 서버는 아예 안 줌 */
-  brief?: ArticleBriefApiResponse | null;
-  facts?: { label: string; value: string }[] | null;
-  relatedItems?: ArticleApiResponse[] | null;
-  /** 대응 모아보기 (#71). 이 필드가 생기기 전 서버는 아예 안 줌 (모양은 response-guide-mapper 가 확인) */
-  responseGuideSections?: unknown;
-}
-
 export interface ArticleSearchApiResponse {
   items: ArticleApiResponse[];
   searchMode: string;
@@ -143,7 +127,7 @@ const SEMANTIC_SEARCH_MODE = 'SEMANTIC';
 // 수집 성공 상태 이름 (서버 CollectStatus.SUCCESS)
 const COLLECT_SUCCESS_STATUS = 'SUCCESS';
 
-/** 기사 응답 > 소식 (모르는 주제 general, 모르는 종류 news, 모르는 지역 overseas, 모르는·없는 중요도 routine, null > undefined) */
+/** 기사 응답 > 소식 (모르는 주제 general, 모르는 종류 news, 모르는 지역 overseas, 모르는·없는 중요도 routine, null·빈 글·공백만 > undefined) */
 export function toBriefingItem(response: ArticleApiResponse): BriefingItem {
   return {
     id: String(response.id),
@@ -151,14 +135,14 @@ export function toBriefingItem(response: ArticleApiResponse): BriefingItem {
     region: REGION_BY_API_NAME[response.region] ?? 'overseas',
     topic: TOPIC_BY_API_NAME[response.topic] ?? 'general',
     importance: IMPORTANCE_BY_API_NAME[response.importance ?? ''] ?? 'routine',
-    subjectName: response.subjectName ? response.subjectName : undefined,
-    sourceCode: response.sourceCode ? response.sourceCode : undefined,
+    subjectName: toNonBlankText(response.subjectName),
+    sourceCode: toNonBlankText(response.sourceCode),
     keywords: response.keywords ?? [],
     title: response.title,
-    translatedTitle: response.translatedTitle ? response.translatedTitle : undefined,
+    translatedTitle: toNonBlankText(response.translatedTitle),
     oneLine: toNonBlankText(response.oneLine),
     originalUrl: response.originalUrl,
-    imagePath: response.imagePath ? response.imagePath : undefined,
+    imagePath: toNonBlankText(response.imagePath),
     publisherName: response.publisherName,
     publishedAt: new Date(response.publishedAt),
     isPublishedAtEstimated: response.isPublishedAtEstimated,
@@ -226,22 +210,6 @@ export function toTrendingKeywords(response: TrendingKeywordsApiResponse): Trend
     isNew: keywordResponse.rankChange === null,
     rankChange: keywordResponse.rankChange ?? undefined,
   }));
-}
-
-/** 기사 상세 응답 > 상세 (요약이 아직 없으면 summary 없음·keyPoints 빈 배열, 없는 목록은 빈 배열, 브리핑·대응 모아보기는 읽을 수 있을 때만) */
-export function toArticleDetail(response: ArticleDetailApiResponse): ArticleDetail {
-  const article = toBriefingItem(response.article);
-  return {
-    article,
-    brief: toArticleBrief(response.brief, article.oneLine),
-    summary: response.summary ? response.summary : undefined,
-    keyPoints: response.keyPoints ?? [],
-    actionGuide: response.actionGuide ? response.actionGuide : undefined,
-    isAiSummarized: response.isAiSummarized === true,
-    facts: (response.facts ?? []).map(({ label, value }) => ({ label, value })),
-    relatedItems: (response.relatedItems ?? []).map(toBriefingItem),
-    responseGuideSections: toResponseGuideSections(response.responseGuideSections),
-  };
 }
 
 export function toArticleSearchResult(response: ArticleSearchApiResponse): ArticleSearchResult {

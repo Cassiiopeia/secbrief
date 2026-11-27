@@ -20,6 +20,8 @@ const ACTION_GUIDE_ORDER = 2;
 const SUMMARY_CARD_COUNT = 3;
 // 요약 없이 핵심만 있을 때 요약 카드에 쓰는 글 (요약·핵심 모두 없으면 요약 카드를 숨기고 확인된 정보·원문 보기로, #96)
 const KEY_POINTS_ONLY_TEXT = '아래 핵심을 확인해 주세요.';
+// 서버가 요약 대기 중이라고 할 때만 (#87)
+const SUMMARY_PENDING_TEXT = 'AI 요약을 준비하고 있어요. 잠시 뒤에 다시 열어 주세요.';
 
 /**
  * 기사 상세의 브리프 구역 (조회가 끝난 뒤): AI 브리핑 카드 > 확인된 정보 > 대응 모아보기
@@ -71,11 +73,18 @@ export function ArticleDetailBrief({
 
 /**
  * 이전 방식 AI 카드 3개 (브리핑이 없는 기사): 요약 > 핵심 > 이렇게 대응해요
- * 요약·핵심이 모두 없으면 요약 카드 없음, 대응은 원문에 있을 때만. AI 가 쓴 카드에는 AI 표시
+ * 요약·핵심이 모두 없으면 요약 카드 없음 (대기 중이면 준비 중 안내), 대응은 원문에 있을 때만. AI 가 쓴 카드에는 AI 표시
  */
 function SummaryCards({ detail }: { detail: ArticleDetailView }) {
   return (
     <View>
+      {detail.isSummaryPending && (
+        <SbEntrance order={SUMMARY_ORDER}>
+          <SbBriefCard title="요약" iconName="subject">
+            <SbBriefParagraph text={SUMMARY_PENDING_TEXT} />
+          </SbBriefCard>
+        </SbEntrance>
+      )}
       {!detail.isSummaryMissing && (
         <SbEntrance order={SUMMARY_ORDER}>
           <SbBriefCard title="요약" iconName="subject" noticeLabel={detail.aiNoticeLabel}>

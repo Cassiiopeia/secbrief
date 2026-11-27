@@ -47,6 +47,18 @@ describe('카탈로그', () => {
     expect(catalog?.tags.map((tag) => tag.code)).toEqual(['field-a', 'eco-a', 'eco-b', 'group-a', 'product-a', 'product-search']);
     expect(index.productGroups[0].shortName).toBe('묶음 A');
   });
+  test('공백만 있는 글은 없는 값으로 보고 앞뒤 빈칸은 정리 (#85)', () => {
+    const blankCatalog = toTagCatalog({
+      version: 'v1',
+      tags: [
+        { kind: 'FIELD', code: '   ', name: '공백 code' },
+        { kind: 'PRODUCT', code: ' product-b ', name: ' 제품 B ', shortName: '  ', groupCode: ' ', fieldCode: '\t' },
+      ],
+    });
+    expect(blankCatalog?.tags).toEqual([
+      { kind: 'PRODUCT', code: 'product-b', name: '제품 B', shortName: '제품 B', groupCode: undefined, fieldCode: undefined, displayOrder: 0, isWidelyUsed: false },
+    ]);
+  });
   test('태그 배지: 주요 이유(널리 쓰는 제품) > 생태계 > 분야, 모르는 code 는 그리지 않음', () => {
     expect(toTagBadges(taggedItem, index, true)).toEqual([
       { label: '널리 씀', tone: 'notice' },

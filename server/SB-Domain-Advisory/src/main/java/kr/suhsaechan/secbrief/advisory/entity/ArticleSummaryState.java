@@ -130,6 +130,11 @@ public class ArticleSummaryState {
         return status == SummaryStatus.DONE && summary != null;
     }
 
+    /** 요약을 기다리는지 (입력 있음 + 실패 3회 전). 입력 없음·실패는 false: 화면이 "준비 중"을 끝없이 보이지 않게 */
+    public boolean isPending() {
+        return status == SummaryStatus.PENDING;
+    }
+
     /** 브리핑 구조의 글이 있는지 (이전 구조만 있는 행, 한 줄 결론이 빈 행은 false: 앱은 한 줄 결론이 없는 브리핑을 쓰지 않음) */
     public boolean hasBrief() {
         return isSummarized() && oneLine != null && !oneLine.isBlank();

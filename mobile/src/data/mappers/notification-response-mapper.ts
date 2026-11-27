@@ -11,7 +11,7 @@ import {
   type LatestAppNotificationIds,
 } from '../models/app-notification';
 import { isArticleApiResponse, toBriefingItem } from './api-response-mapper';
-import { isObject } from './unknown-value-guards';
+import { isObject, toNonBlankText } from './unknown-value-guards';
 import { toResponseGuideItem } from './response-guide-mapper';
 
 /** 서버 알림함 목록 한 줄 (모든 칸을 믿지 않고 읽음: 이전·이후 서버가 칸을 빼거나 더할 수 있음) */
@@ -58,7 +58,7 @@ export function toAppNotificationPage(response: AppNotificationPageApiResponse):
   const items = Array.isArray(response.items) ? response.items : [];
   return {
     items: items.map(toAppNotificationSummary).filter((item): item is AppNotificationSummary => item !== undefined),
-    nextCursor: toOptionalText(response.nextCursor),
+    nextCursor: toNonBlankText(response.nextCursor),
   };
 }
 
@@ -83,7 +83,7 @@ export function toAppNotificationSummary(response: unknown): AppNotificationSumm
     title: summaryResponse.title,
     body: typeof summaryResponse.body === 'string' ? summaryResponse.body : '',
     leadArticleId: toNonNegativeInteger(summaryResponse.leadArticleId),
-    leadArticleTitle: toOptionalText(summaryResponse.leadArticleTitle),
+    leadArticleTitle: toNonBlankText(summaryResponse.leadArticleTitle),
     articleCount: toNonNegativeInteger(summaryResponse.articleCount) ?? 0,
     isPinned: summaryResponse.isPinned === true,
     createdAt,
@@ -96,7 +96,7 @@ export function toAppNotificationSummary(response: unknown): AppNotificationSumm
 export function toAppNotificationDetail(response: AppNotificationDetailApiResponse): AppNotificationDetail | undefined {
   const summary = toAppNotificationSummary(response);
   if (summary === undefined) return undefined;
-  const linkUrl = toOptionalText(response.linkUrl);
+  const linkUrl = toNonBlankText(response.linkUrl);
   return {
     ...summary,
     linkUrl: linkUrl !== undefined && WEB_LINK_PATTERN.test(linkUrl) ? linkUrl : undefined,
@@ -138,16 +138,14 @@ function toArticleSections(value: unknown): AppNotificationArticleSection[] {
   });
 }
 
-// 기사별 대응 안내 요약 (기사 번호가 없으면 버림, 건수는 음수·숫자 아님이면 0, 대응은 빈 글자를 뺌)
+// 기사별 대응 안내 요약 (기사 번호가 없으면 버림, 건수는 음수·숫자 아님이면 0, 대응은 빈 글자를 빼고 앞뒤 빈칸 정리)
 function toArticleGuides(value: unknown): AppNotificationArticleGuide[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((guide): AppNotificationArticleGuide[] => {
     if (!isObject(guide)) return [];
     const articleId = toNonNegativeInteger(guide.articleId);
     if (articleId === undefined) return [];
-    const actions = Array.isArray(guide.actions)
-      ? guide.actions.filter((action): action is string => typeof action === 'string' && action.trim() !== '')
-      : [];
+    const actions = Array.isArray(guide.actions) ? guide.actions.flatMap((action: unknown) => toNonBlankText(action) ?? []) : [];
     return [
       {
         articleId: String(articleId),
@@ -179,10 +177,6 @@ function toAlertCategoriesInOrder(value: unknown): AlertCategory[] {
 // 0 이상 정수만 (번호·건수)
 function toNonNegativeInteger(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
-}
-
-function toOptionalText(value: unknown): string | undefined {
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
 function toDate(value: unknown): Date | undefined {

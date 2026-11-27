@@ -28,8 +28,9 @@ public record BackfillResult(long id, String sourceCode, Status status, ArticleB
     // 결과 줄에서 브리핑을 담는 이름 (값의 모양은 출력 스키마와 같음: ArticleSummaryPrompt.toBriefFields)
     private static final String BRIEF_FIELD = "brief";
 
-    public static BackfillResult withoutBrief(BackfillTarget target, Status status) {
-        return new BackfillResult(target.id(), target.sourceCode(), status, null, 0, 0, false, null);
+    /** 제공자를 부르지 않은 결과 (failureReason: 되찾지 못한 사유, 없으면 null) */
+    public static BackfillResult withoutBrief(BackfillTarget target, Status status, String failureReason) {
+        return new BackfillResult(target.id(), target.sourceCode(), status, null, 0, 0, false, failureReason);
     }
 
     public ObjectNode toJson() {

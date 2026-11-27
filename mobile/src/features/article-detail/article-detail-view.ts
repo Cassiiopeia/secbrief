@@ -29,6 +29,8 @@ export interface ArticleDetailView {
   aiNoticeLabel?: string;
   /** 요약도 핵심도 없음 (입력 없음·대기·실패 공통) */
   isSummaryMissing: boolean;
+  /** 요약이 없고 서버가 대기 중이라고 함: 요약 카드 자리에 준비 중 안내 (입력 없음·실패는 카드 숨김) */
+  isSummaryPending: boolean;
   /** 서버가 준 값 그대로 (앱에서 만들거나 고치지 않음) */
   facts: SbFact[];
   /** 대응 모아보기 구역 (공식 대응 > 확인된 취약점 정보 > 관련 기사, 없으면 빈 배열) */
@@ -45,6 +47,7 @@ export interface ArticleDetailView {
  */
 export function toArticleDetailView(detail: ArticleDetail, now: Date): ArticleDetailView {
   const keyPoints = detail.keyPoints.map((keyPoint) => keyPoint.trim()).filter((keyPoint) => keyPoint !== '');
+  const isSummaryMissing = detail.summary === undefined && keyPoints.length === 0;
   const responseGuideSections = toResponseGuideSectionViews(detail.responseGuideSections, now);
   const relatedArticles =
     responseGuideSections.length > 0
@@ -57,7 +60,8 @@ export function toArticleDetailView(detail: ArticleDetail, now: Date): ArticleDe
     keyPoints,
     actionGuide: detail.actionGuide,
     aiNoticeLabel: detail.isAiSummarized ? AI_SUMMARY_NOTICE_LABEL : undefined,
-    isSummaryMissing: detail.summary === undefined && keyPoints.length === 0,
+    isSummaryMissing,
+    isSummaryPending: isSummaryMissing && detail.brief === undefined && detail.isSummaryPending,
     facts: detail.facts.filter((fact) => fact.label.trim() !== '' && fact.value.trim() !== ''),
     responseGuideSections,
     relatedArticles,

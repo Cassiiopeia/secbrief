@@ -33,12 +33,16 @@ export const QUIET_HOURS_WITHOUT_ALERT_ERROR_CODE = 'APP_QUIET_HOURS_WITHOUT_ALE
 
 // 서버 ErrorCode: 찾는 글이 없거나 보관 기간이 지남 (다시 불러도 같아 재시도하지 않음)
 export const RESOURCE_NOT_FOUND_ERROR_CODE = 'RESOURCE_NOT_FOUND';
-// 그 밖의 실패를 다시 부르는 횟수 (React Query 기본값과 같음)
-const MAXIMUM_QUERY_RETRY_COUNT = 3;
+// 그 밖의 실패를 다시 부르는 횟수: 1번 (기본 3번 + 지수 대기면 서버 장애 때 오류 화면까지 10~45초, #87)
+const MAXIMUM_QUERY_RETRY_COUNT = 1;
+// 다시 부르기 전 대기 (단위: 밀리초, 연결 실패·5xx 는 1초 안팎에 오류 코드가 보이게)
+export const QUERY_RETRY_DELAY_MILLISECONDS = 1_000;
+// 다시 부르지 않는 실패 2개: 찾지 못함(다시 불러도 같음), 시간 초과(이미 요청 제한 시간만큼 기다림)
+const NOT_RETRIED_ERROR_CODES: readonly string[] = [RESOURCE_NOT_FOUND_ERROR_CODE, TIMEOUT_ERROR_CODE];
 
-/** 조회 재시도 여부: 찾지 못함은 곧바로 실패, 그 밖은 3회까지 */
+/** 조회 재시도 여부: 찾지 못함·시간 초과는 곧바로 실패, 그 밖은 1번까지 (앱 전체 기본값, app/_layout) */
 export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
-  return toAppFailure(error).errorCode !== RESOURCE_NOT_FOUND_ERROR_CODE && failureCount < MAXIMUM_QUERY_RETRY_COUNT;
+  return !NOT_RETRIED_ERROR_CODES.includes(toAppFailure(error).errorCode) && failureCount < MAXIMUM_QUERY_RETRY_COUNT;
 }
 
 /**

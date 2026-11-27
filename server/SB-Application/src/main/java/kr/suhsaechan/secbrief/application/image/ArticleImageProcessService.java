@@ -10,9 +10,8 @@ import kr.suhsaechan.secbrief.advisory.image.ArticleImageDownloader;
 import kr.suhsaechan.secbrief.advisory.image.ArticleImageObjectKey;
 import kr.suhsaechan.secbrief.advisory.image.ArticleImageResizer;
 import kr.suhsaechan.secbrief.advisory.image.ArticleImageStorage;
-import kr.suhsaechan.secbrief.advisory.policy.ArticleNormalizer;
 import kr.suhsaechan.secbrief.advisory.repository.ArticleRepository;
-import kr.suhsaechan.secbrief.common.exception.CustomException;
+import kr.suhsaechan.secbrief.common.exception.ExceptionLogText;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Limit;
@@ -40,8 +39,8 @@ public class ArticleImageProcessService {
     public ArticleImageProcessService(ArticleImageStorage articleImageStorage, ArticleImageDownloader articleImageDownloader,
                                       ArticleImageResizer articleImageResizer, ArticleRepository articleRepository,
                                       ArticleImageResultRecorder articleImageResultRecorder, Clock clock,
-                                      @Value("${secbrief.image.batch-size:20}") int batchSize,
-                                      @Value("${secbrief.image.tick-budget-seconds:60}") long tickBudgetSeconds) {
+                                      @Value("${secbrief.image.batch-size}") int batchSize,
+                                      @Value("${secbrief.image.tick-budget-seconds}") long tickBudgetSeconds) {
         this.articleImageStorage = articleImageStorage;
         this.articleImageDownloader = articleImageDownloader;
         this.articleImageResizer = articleImageResizer;
@@ -94,7 +93,7 @@ public class ArticleImageProcessService {
             resizedJpegBytes = articleImageResizer.toResizedJpeg(
                     articleImageDownloader.download(article.getImageState().getSourceUrl()));
         } catch (RuntimeException exception) {
-            log.warn("[article image] failed : articleId={}, cause={}", article.getId(), toLogCause(exception));
+            log.warn("[article image] failed : articleId={}, cause={}", article.getId(), ExceptionLogText.toLogCause(exception));
             recordFailure(article.getId());
             return ImageOutcome.FAILED;
         }
@@ -103,7 +102,7 @@ public class ArticleImageProcessService {
         try {
             articleImageStorage.store(imageObjectKey, resizedJpegBytes);
         } catch (RuntimeException exception) {
-            log.error("[article image] failed 502 : storage store failed, retry next tick : cause={}", toLogCause(exception));
+            log.error("[article image] failed 502 : storage store failed, retry next tick : cause={}", ExceptionLogText.toLogCause(exception));
             return ImageOutcome.STORAGE_FAILED;
         }
 
@@ -124,14 +123,6 @@ public class ArticleImageProcessService {
         } catch (RuntimeException recordException) {
             log.error("[article image] failure record failed : articleId={}", articleId);
         }
-    }
-
-    // 업무 예외는 원인 문구(영어 고정 문구), 그 밖은 예외 종류만 (외부 값이 섞일 수 있어 제어문자 정리)
-    private static String toLogCause(RuntimeException exception) {
-        if (exception instanceof CustomException customException && customException.getDetail() != null) {
-            return ArticleNormalizer.toSanitizedErrorMessage(customException.getDetail());
-        }
-        return exception.getClass().getSimpleName();
     }
 
     private enum ImageOutcome {

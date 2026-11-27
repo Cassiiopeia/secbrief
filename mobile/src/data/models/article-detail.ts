@@ -38,6 +38,8 @@ export interface ArticleDetail {
   /** 원문에 적힌 대응 (원문에 없으면 없음) */
   actionGuide?: string;
   isAiSummarized: boolean;
+  /** AI 요약을 기다리는 중 (서버 isSummaryPending, 이 값을 주지 않는 이전 서버는 false: 요약 카드를 숨김) */
+  isSummaryPending: boolean;
   facts: ArticleFact[];
   relatedItems: BriefingItem[];
   /** 같은 취약점을 다룬 공개 자료 (구역 순서대로, 없으면 빈 배열: 그때는 함께 볼 소식을 보여 줌) */

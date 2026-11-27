@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 키워드 API (인증 없음): 인기 키워드 순위 (days 기본 7·1~30, size 기본 20·1~50, 벗어나면 INVALID_REQUEST)
+ * 키워드 API (인증 없음): 인기 키워드 순위 (days 기본 7·1~30 벗어나면 INVALID_REQUEST, size 기본 20·최대 50으로 조정)
  */
 @RestController
 @RequiredArgsConstructor

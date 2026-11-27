@@ -1,4 +1,4 @@
-import { type ArticleDetailApiResponse, toArticleDetail } from '../mappers/api-response-mapper';
+import { type ArticleDetailApiResponse, toArticleDetail } from '../mappers/article-detail-mapper';
 import type { ArticleDetail } from '../models/article-detail';
 import { fetchApiData } from './secbrief-api-client';
 

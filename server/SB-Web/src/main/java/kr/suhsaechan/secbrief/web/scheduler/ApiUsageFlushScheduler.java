@@ -17,8 +17,8 @@ public class ApiUsageFlushScheduler {
 
     private final ApiUsageFlushService apiUsageFlushService;
 
-    @Scheduled(fixedDelayString = "${secbrief.usage.flush-tick-milliseconds:60000}",
-            initialDelayString = "${secbrief.usage.flush-tick-milliseconds:60000}")
+    @Scheduled(fixedDelayString = "${secbrief.usage.flush-tick-milliseconds}",
+            initialDelayString = "${secbrief.usage.flush-tick-milliseconds}")
     public void flushApiUsage() {
         apiUsageFlushService.flush();
     }

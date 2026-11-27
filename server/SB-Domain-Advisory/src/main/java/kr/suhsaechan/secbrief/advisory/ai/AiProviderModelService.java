@@ -16,7 +16,7 @@ public class AiProviderModelService {
     private final String anthropicModel;
 
     public AiProviderModelService(SystemConfigService systemConfigService,
-                                  @Value("${secbrief.ai.model:claude-haiku-5-5}") String anthropicModel) {
+                                  @Value("${secbrief.ai.model}") String anthropicModel) {
         this.systemConfigService = systemConfigService;
         this.anthropicModel = anthropicModel;
     }

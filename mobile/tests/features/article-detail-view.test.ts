@@ -16,7 +16,7 @@ const fullBrief: ArticleBrief = {
 };
 const newsBrief: ArticleBrief = { oneLine: '예시 기관이 보안 점검 안내서를 냈어요', whatHappened: '안내서가 공개됐어요.', affectedTargets: [], actions: [] };
 
-const baseDetail: ArticleDetail = { article: nvdItem, keyPoints: [], isAiSummarized: false, facts: [], relatedItems: [], responseGuideSections: [] };
+const baseDetail: ArticleDetail = { article: nvdItem, keyPoints: [], isAiSummarized: false, isSummaryPending: false, facts: [], relatedItems: [], responseGuideSections: [] };
 
 describe('브리핑 표시 내용 (보일 구역 고르기)', () => {
   test('값이 다 있으면 구역 5개가 모두 보인다', () => {
@@ -70,5 +70,11 @@ describe('상세 표시 내용 (브리핑 / 이전 방식 / 준비 중)', () => 
     expect(view.briefing).toBeUndefined();
     expect(view).toMatchObject({ summary: undefined, keyPoints: [], aiNoticeLabel: undefined, isSummaryMissing: true });
     expect(view.facts).toEqual([{ label: '조치 버전', value: '원문에 없음' }]);
+    expect(view.isSummaryPending).toBe(false);
+  });
+  test('서버가 대기 중이라고 할 때만 준비 중 안내 (요약·브리핑이 있으면 안내 없음, #87)', () => {
+    expect(toArticleDetailView({ ...baseDetail, isSummaryPending: true }, NOW).isSummaryPending).toBe(true);
+    expect(toArticleDetailView({ ...baseDetail, isSummaryPending: true, summary: '이전 요약', isAiSummarized: true }, NOW).isSummaryPending).toBe(false);
+    expect(toArticleDetailView({ ...baseDetail, isSummaryPending: true, brief: fullBrief }, NOW).isSummaryPending).toBe(false);
   });
 });

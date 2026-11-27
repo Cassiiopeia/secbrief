@@ -16,4 +16,10 @@ public interface ArticleTitleAnalyzer {
 
     /** 결과 목록은 요청과 같은 순서·같은 길이 (응답에 빠진 건은 실패 결과) */
     List<ArticleTitleAnalysisOutcome> analyzeBatch(List<ArticleTitleAnalysisRequest> requests);
+
+    /**
+     * 번역 제목 고쳐 쓰기 (거부 사유와 함께 1회): 결과는 요청과 같은 순서·길이, 고치지 못한 건은 null
+     * 예외는 analyzeBatch 와 같음 (제공자 호출 실패뿐)
+     */
+    List<String> repairTranslatedTitles(List<TranslatedTitleRepairRequest> requests);
 }

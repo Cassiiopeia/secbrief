@@ -13,15 +13,17 @@ import kr.suhsaechan.secbrief.advisory.summary.ArticleSummaryRequest;
 import kr.suhsaechan.secbrief.advisory.summary.SummaryWritingKind;
 
 /**
- * 적재 대상 기사 1건 (운영 DB 에서 내보낸 행): 기사 값 + 출처 값 + 요약 입력(없으면 null)
+ * 적재 대상 기사 1건 (운영 DB 에서 내보낸 행): 기사 값 + 출처 값 + 요약 입력(없으면 null) + 되찾지 못한 사유(recover 가 적음, 없으면 null)
  * 내보내기 열 이름(snake_case)은 SB-Tool/run-summary-backfill.sh 의 내보내기 SQL 과 같아야 함
  */
 public record BackfillTarget(long id, String title, ArticleRegion region, ArticleKind kind, ArticleTopic topic,
                              String sourceCode, String sourceDisplayName, FeedFormat feedFormat, String feedUrl,
                              String originalUrl, String cveId, Instant publishedAt, String summaryStatus,
-                             String sourceText) {
+                             String sourceText, String recoveryFailureReason) {
 
     private static final String SOURCE_TEXT_COLUMN = "source_text";
+    // 임시 입력 파일에만 있는 열 (DB 에 없음): 되찾지 못한 사유 (영어 고정 문구·응답 상태)
+    private static final String RECOVERY_FAILURE_REASON_COLUMN = "source_text_failure_reason";
 
     public static BackfillTarget fromJson(JsonNode row) {
         return new BackfillTarget(
@@ -38,13 +40,21 @@ public record BackfillTarget(long id, String title, ArticleRegion region, Articl
                 toTextOrNull(row.path("cve_id")),
                 OffsetDateTime.parse(row.path("published_at").asText()).toInstant(),
                 row.path("summary_status").asText(),
-                toTextOrNull(row.path(SOURCE_TEXT_COLUMN)));
+                toTextOrNull(row.path(SOURCE_TEXT_COLUMN)),
+                toTextOrNull(row.path(RECOVERY_FAILURE_REASON_COLUMN)));
     }
 
     /** 같은 행에 요약 입력만 바꾼 JSON (되찾은 입력을 임시 파일에 적을 때) */
     public static ObjectNode withSourceText(JsonNode row, String sourceText) {
         ObjectNode copiedRow = row.deepCopy();
         copiedRow.put(SOURCE_TEXT_COLUMN, sourceText);
+        return copiedRow;
+    }
+
+    /** 같은 행에 되찾지 못한 사유만 붙인 JSON (요약 입력은 그대로 null) */
+    public static ObjectNode withRecoveryFailureReason(JsonNode row, String recoveryFailureReason) {
+        ObjectNode copiedRow = row.deepCopy();
+        copiedRow.put(RECOVERY_FAILURE_REASON_COLUMN, recoveryFailureReason);
         return copiedRow;
     }
 

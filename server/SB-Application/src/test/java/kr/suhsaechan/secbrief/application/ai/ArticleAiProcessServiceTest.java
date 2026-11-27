@@ -71,9 +71,9 @@ class ArticleAiProcessServiceTest {
         fakeAnalyzer.respondTo("Second headline", ANALYSIS);
         givenPendingArticles(createArticle(1L, "First headline"), createArticle(2L, "Second headline"));
 
-        AiProcessResult result = service.processPendingArticles();
+        AiProcessResult aiProcessResult = service.processPendingArticles();
 
-        assertThat(result).isEqualTo(new AiProcessResult(2, 0, false));
+        assertThat(aiProcessResult).isEqualTo(new AiProcessResult(2, 0, false));
         verify(recorder).recordSuccess(1L, ANALYSIS);
         verify(recorder).recordSuccess(2L, ANALYSIS);
     }
@@ -83,9 +83,9 @@ class ArticleAiProcessServiceTest {
         fakeAnalyzer.respondTo("Answered headline", ANALYSIS);
         givenPendingArticles(createArticle(1L, "Unanswered headline"), createArticle(2L, "Answered headline"));
 
-        AiProcessResult result = service.processPendingArticles();
+        AiProcessResult aiProcessResult = service.processPendingArticles();
 
-        assertThat(result).isEqualTo(new AiProcessResult(1, 1, false));
+        assertThat(aiProcessResult).isEqualTo(new AiProcessResult(1, 1, false));
         verify(recorder).recordFailure(1L);
         verify(recorder).recordSuccess(2L, ANALYSIS);
     }
@@ -108,9 +108,9 @@ class ArticleAiProcessServiceTest {
         givenPendingArticles(createArticle(1L, "First headline"), createArticle(2L, "Second headline"),
                 createArticle(3L, "Third headline"));
 
-        AiProcessResult result = service.processPendingArticles();
+        AiProcessResult aiProcessResult = service.processPendingArticles();
 
-        assertThat(result).isEqualTo(new AiProcessResult(0, 0, false));
+        assertThat(aiProcessResult).isEqualTo(new AiProcessResult(0, 0, false));
         assertThat(fakeAnalyzer.getReceivedBatchSizes()).hasSize(1);
         verify(recorder, never()).recordFailure(org.mockito.ArgumentMatchers.anyLong());
         verify(recorder, never()).recordSuccess(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any());
@@ -123,9 +123,9 @@ class ArticleAiProcessServiceTest {
         givenPendingArticles(createArticle(1L, "First headline"), createArticle(2L, "Second headline"));
         doThrow(new IllegalStateException("db")).when(recorder).recordSuccess(1L, ANALYSIS);
 
-        AiProcessResult result = service.processPendingArticles();
+        AiProcessResult aiProcessResult = service.processPendingArticles();
 
-        assertThat(result).isEqualTo(new AiProcessResult(1, 1, false));
+        assertThat(aiProcessResult).isEqualTo(new AiProcessResult(1, 1, false));
         verify(recorder).recordFailure(1L);
     }
 
@@ -168,6 +168,56 @@ class ArticleAiProcessServiceTest {
         assertThat(service.processPendingArticles()).isEqualTo(new AiProcessResult(0, 0, true));
         verifyNoInteractions(articleRepository);
         assertThat(fakeAnalyzer.getReceivedBatchSizes()).isEmpty();
+    }
+
+    @Test
+    void repairsTranslationWithHanjaOnceAndRecordsRepairedTitle() {
+        // 실제 사례 (#87): "Out-of-bounds Write" > "범위 外 쓰기"
+        String title = "Out-of-bounds Write in Example Router Firmware";
+        fakeAnalyzer.respondTo(title, analysisTranslatedAs("Example Router 펌웨어의 범위 外 쓰기"));
+        fakeAnalyzer.respondTo("Second headline", ANALYSIS);
+        fakeAnalyzer.repairTranslationOf(title, "Example Router 펌웨어의 범위 밖 쓰기");
+        givenPendingArticles(createArticle(1L, title), createArticle(2L, "Second headline"));
+
+        assertThat(service.processPendingArticles()).isEqualTo(new AiProcessResult(2, 0, false));
+
+        // 한자가 섞인 건만 고쳐 쓰기 요청 (원문에 없는 한자를 사유로)
+        assertThat(fakeAnalyzer.getReceivedRepairRequests()).singleElement().satisfies(request -> {
+            assertThat(request.title()).isEqualTo(title);
+            assertThat(request.rejectedTranslatedTitle()).isEqualTo("Example Router 펌웨어의 범위 外 쓰기");
+            assertThat(request.hanjaNotInOriginal()).containsExactly("外");
+        });
+        verify(recorder).recordSuccess(1L, analysisTranslatedAs("Example Router 펌웨어의 범위 밖 쓰기"));
+        verify(recorder).recordSuccess(2L, ANALYSIS);
+    }
+
+    @Test
+    void keepsOriginalOutcomeWhenRepairCallFailsOrReturnsNothing() {
+        // 고쳐 쓰기 실패: 원래 결과로 기록 (저장 단계 검증이 한자 번역을 버림), 다시 부르지 않음
+        String failingTitle = "Use After Free in Example Browser";
+        fakeAnalyzer.respondTo(failingTitle, analysisTranslatedAs("Example Browser 해제 後 사용"));
+        givenPendingArticles(createArticle(1L, failingTitle));
+        fakeAnalyzer.failRepairCall();
+
+        assertThat(service.processPendingArticles()).isEqualTo(new AiProcessResult(1, 0, false));
+        verify(recorder).recordSuccess(1L, analysisTranslatedAs("Example Browser 해제 後 사용"));
+        assertThat(fakeAnalyzer.getReceivedRepairRequests()).hasSize(1);
+    }
+
+    @Test
+    void doesNotRepairTranslationWhoseHanjaComesFromOriginalTitle() {
+        String title = "三菱電機 MELSEC iQ-R flaw";
+        fakeAnalyzer.respondTo(title, analysisTranslatedAs("三菱電機 MELSEC iQ-R 취약점"));
+        givenPendingArticles(createArticle(1L, title));
+
+        service.processPendingArticles();
+
+        assertThat(fakeAnalyzer.getReceivedRepairRequests()).isEmpty();
+        verify(recorder).recordSuccess(1L, analysisTranslatedAs("三菱電機 MELSEC iQ-R 취약점"));
+    }
+
+    private static ArticleTitleAnalysis analysisTranslatedAs(String translatedTitle) {
+        return new ArticleTitleAnalysis(ArticleTopic.VULNERABILITY, translatedTitle, ArticleImportance.ROUTINE, null);
     }
 
     private void givenPendingArticles(Article... articles) {

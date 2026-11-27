@@ -135,8 +135,11 @@ public class UrgentAlertDispatchService {
                         immediateArticles, now).getId();
                 deviceNotificationIds.add(notificationId);
             }
+            // 기사 1건 알림만 경보단계 화면으로 열 수 있음 (여러 건은 알림 상세)
+            boolean isAlertLevelArticle = content.articleId() != null
+                    && UrgentAlertPolicy.isAlertLevelArticle(immediateArticles.get(0).article());
             pushDeliveries.add(new PushDelivery(pushDevice, new PushContent(notificationId, NotificationKind.ALERT,
-                    content.title(), content.body(), content.articleId(), content.articleCount())));
+                    content.title(), content.body(), content.articleId(), content.articleCount(), isAlertLevelArticle)));
         }
         return new DeviceDispatchPlan(pushDeliveries, deviceNotificationIds, digestQueueItems);
     }
