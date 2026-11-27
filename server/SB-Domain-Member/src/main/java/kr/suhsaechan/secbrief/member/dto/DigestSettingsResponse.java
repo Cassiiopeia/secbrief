@@ -15,6 +15,11 @@ public record DigestSettingsResponse(AlertDeliveryMode deliveryMode,
         return new DigestSettingsResponse(pushDevice.getAlertDeliveryMode(), pushDevice.getDigestTime());
     }
 
+    /** 요청 값 그대로 (기기를 지울 때 돌려줌, #119) */
+    public static DigestSettingsResponse from(DigestSettingsRequest request) {
+        return new DigestSettingsResponse(request.deliveryMode(), request.digestTime());
+    }
+
     /** 기기가 없을 때 기본값 (아침 요약 08:00) */
     public static DigestSettingsResponse defaultSettings() {
         return new DigestSettingsResponse(AlertDeliveryMode.DIGEST, PushDevice.DEFAULT_DIGEST_TIME);

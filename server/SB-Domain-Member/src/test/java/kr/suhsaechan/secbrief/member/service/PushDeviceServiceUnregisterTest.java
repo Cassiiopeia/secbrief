@@ -7,10 +7,16 @@ import static org.mockito.Mockito.verify;
 
 import java.time.LocalTime;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import kr.suhsaechan.secbrief.member.constant.AlertCategory;
+import kr.suhsaechan.secbrief.member.constant.AlertDeliveryMode;
 import kr.suhsaechan.secbrief.member.constant.PushPlatform;
+import kr.suhsaechan.secbrief.member.dto.DigestSettingsRequest;
+import kr.suhsaechan.secbrief.member.dto.DigestSettingsResponse;
+import kr.suhsaechan.secbrief.member.dto.InterestsRequest;
+import kr.suhsaechan.secbrief.member.dto.InterestsResponse;
 import kr.suhsaechan.secbrief.member.dto.PushDeviceRegisterRequest;
 import kr.suhsaechan.secbrief.member.dto.PushDeviceResponse;
 import kr.suhsaechan.secbrief.member.dto.QuietHoursRequest;
@@ -22,7 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.transaction.PlatformTransactionManager;
 
 /**
- * 알림을 모두 끈 등록 (기기 행 삭제): 방해 금지 시간은 요청 값 > 지운 행의 값 > 기본값 순으로 돌려줌 (#119)
+ * 알림을 모두 끈 등록 (기기 행 삭제): 방해 금지 시간·받는 방식은 요청 값 > 지운 행의 값 > 기본값 순으로 돌려줌 (#119)
  */
 class PushDeviceServiceUnregisterTest {
 
@@ -65,6 +71,42 @@ class PushDeviceServiceUnregisterTest {
         PushDeviceResponse response = pushDeviceService.register(new PushDeviceRegisterRequest(PUSH_TOKEN, PushPlatform.IOS, Set.of()));
 
         assertThat(response.quietHours()).isEqualTo(QuietHoursResponse.from(QuietHours.disabledByDefault()));
+    }
+
+    @Test
+    void keepsRequestedDigestSettingsAndReturnsNoInterestsWhenEveryAlertIsTurnedOff() {
+        PushDevice existingDevice = existingDeviceWithQuietHours(QuietHours.disabledByDefault());
+        existingDevice.updateDigestSettings(AlertDeliveryMode.DIGEST, LocalTime.of(7, 30));
+        given(pushDeviceRepository.findByPushToken(PUSH_TOKEN)).willReturn(Optional.of(existingDevice));
+
+        PushDeviceResponse response = pushDeviceService.register(new PushDeviceRegisterRequest(PUSH_TOKEN, PushPlatform.IOS,
+                Set.of(), new QuietHoursRequest(false, LocalTime.of(22, 0), LocalTime.of(8, 0), TIME_ZONE),
+                new InterestsRequest(Set.of(), Set.of(), Set.of()),
+                new DigestSettingsRequest(AlertDeliveryMode.IMMEDIATE, LocalTime.of(9, 0))));
+
+        verify(pushDeviceRepository).delete(existingDevice);
+        assertThat(response.digest()).isEqualTo(new DigestSettingsResponse(AlertDeliveryMode.IMMEDIATE, LocalTime.of(9, 0)));
+        assertThat(response.interests()).isEqualTo(new InterestsResponse(List.of(), List.of(), List.of()));
+    }
+
+    @Test
+    void keepsDeletedDeviceDigestSettingsForOldAppWithoutDigest() {
+        PushDevice existingDevice = existingDeviceWithQuietHours(QuietHours.disabledByDefault());
+        existingDevice.updateDigestSettings(AlertDeliveryMode.IMMEDIATE, LocalTime.of(7, 30));
+        given(pushDeviceRepository.findByPushToken(PUSH_TOKEN)).willReturn(Optional.of(existingDevice));
+
+        PushDeviceResponse response = pushDeviceService.register(new PushDeviceRegisterRequest(PUSH_TOKEN, PushPlatform.ANDROID, Set.of()));
+
+        assertThat(response.digest()).isEqualTo(new DigestSettingsResponse(AlertDeliveryMode.IMMEDIATE, LocalTime.of(7, 30)));
+    }
+
+    @Test
+    void returnsDefaultDigestSettingsWhenNothingIsKnown() {
+        given(pushDeviceRepository.findByPushToken(PUSH_TOKEN)).willReturn(Optional.empty());
+
+        PushDeviceResponse response = pushDeviceService.register(new PushDeviceRegisterRequest(PUSH_TOKEN, PushPlatform.IOS, Set.of()));
+
+        assertThat(response.digest()).isEqualTo(DigestSettingsResponse.defaultSettings());
     }
 
     private static PushDevice existingDeviceWithQuietHours(QuietHours quietHours) {

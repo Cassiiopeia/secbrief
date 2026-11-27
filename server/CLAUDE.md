@@ -82,7 +82,7 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
 | `GET /api/v1/notifications?kind=ALERT\|NOTICE&cursor=&size=` | `{items, nextCursor}` (ALERT 최신순, NOTICE 고정 먼저 > 최신순, size 기본 20 · 최대 50) |
 | `GET /api/v1/notifications/latest` | `{latestAlertId, latestNoticeId}` (앱 알림 점, 이용 집계에서 뺌) |
 | `GET /api/v1/notifications/{id}` | 상세: 본문 전체, `linkUrl`(공지), `articleSections[{alertCategory, articles}]`(긴급 알림, 종류 순서 KEV > KISA_URGENT > CRITICAL_CVE), `articleGuides`(기사별 대응 안내 요약, #71) |
-| `PUT /api/v1/push-devices` | 요청에 `quietHours {isEnabled, startTime "HH:mm", endTime, timeZone}` 선택 (없으면 저장값 유지), 응답에 `quietHours` 항상 (알림을 모두 꺼 기기를 지울 때도 요청 값 > 지운 행의 값 > 기본값, #119) |
+| `PUT /api/v1/push-devices` | 요청에 `quietHours {isEnabled, startTime "HH:mm", endTime, timeZone}` 선택 (없으면 저장값 유지), 응답에 `quietHours` 항상 (알림을 모두 꺼 기기를 지울 때도 `quietHours`·`digest` 는 요청 값 > 지운 행의 값 > 기본값, 관심 기술은 없음, #119) |
 
 - 긴급 알림 틱마다 알릴 기사 전체를 알림함 기록(`notification` kind ALERT + `notification_article`) 1건으로 남기고, 그 번호를 푸시 data 에 싣는다. 발송이 전부 실패하면 기록을 지우고 기사를 대기로 남긴다.
 - 푸시 data 키 원본은 `NotificationPushData` 다: `notificationId`, `notificationKind`(`ALERT`·`NOTICE`·`QUIET_HOURS_DIGEST`), `articleId`(기사 1건 알림만), `targetTab`(이전 앱용, 항상), `targetScreen`(KISA 경보단계 글 1건 알림만 `alertLevel`, 방해 금지 보류분은 보낼 때 다시 판정, #87). 앱 `toNotificationTargetRoute` 와 함께 바꾼다.

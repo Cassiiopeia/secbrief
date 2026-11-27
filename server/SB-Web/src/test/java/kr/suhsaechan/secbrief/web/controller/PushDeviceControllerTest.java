@@ -58,7 +58,7 @@ class PushDeviceControllerTest {
 
     @Test
     void acceptsEmptyCategoriesAsTurnOff() throws Exception {
-        given(alertSettingsService.register(any())).willReturn(PushDeviceResponse.unregistered(QuietHours.disabledByDefault()));
+        given(alertSettingsService.register(any())).willReturn(PushDeviceResponse.unregistered(QuietHours.disabledByDefault(), DigestSettingsResponse.defaultSettings()));
 
         putPushDevice("""
                 {"pushToken":"ExpoPushToken[abc]","platform":"IOS","enabledAlertCategories":[]}""")

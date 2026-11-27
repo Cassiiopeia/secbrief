@@ -11,9 +11,9 @@ import kr.suhsaechan.secbrief.member.entity.QuietHours;
 public record PushDeviceResponse(List<AlertCategory> enabledAlertCategories, QuietHoursResponse quietHours,
                                  InterestsResponse interests, DigestSettingsResponse digest) {
 
-    /** 기기를 지웠을 때: 방해 금지 시간은 넘겨받은 값 그대로 (#119), 관심 기술 없음, 아침 요약 08:00 */
-    public static PushDeviceResponse unregistered(QuietHours keptQuietHours) {
+    /** 기기를 지웠을 때: 방해 금지 시간·받는 방식은 넘겨받은 값 그대로 (#119), 관심 기술 없음 (지우는 조건) */
+    public static PushDeviceResponse unregistered(QuietHours keptQuietHours, DigestSettingsResponse keptDigest) {
         return new PushDeviceResponse(List.of(), QuietHoursResponse.from(keptQuietHours),
-                InterestsResponse.from(AlertInterests.none()), DigestSettingsResponse.defaultSettings());
+                InterestsResponse.from(AlertInterests.none()), keptDigest);
     }
 }
