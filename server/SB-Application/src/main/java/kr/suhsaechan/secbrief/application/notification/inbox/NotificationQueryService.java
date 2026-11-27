@@ -115,7 +115,7 @@ public class NotificationQueryService {
                         .toList()))
                 .toList();
         return new NotificationDigestResponse(articles.size(),
-                articles.stream().filter(Article::isNotable).map(ArticleResponse::from).toList(), fieldSections);
+                articles.stream().filter(article -> article.getClassificationState().isNotable()).map(ArticleResponse::from).toList(), fieldSections);
     }
 
     private List<Notification> findPageAfter(NotificationKind kind, NotificationCursor cursor, int limit) {

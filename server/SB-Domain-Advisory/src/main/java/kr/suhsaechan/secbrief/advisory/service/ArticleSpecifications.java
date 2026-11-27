@@ -27,6 +27,9 @@ import org.springframework.data.jpa.domain.Specification;
  */
 public final class ArticleSpecifications {
 
+    // Article 의 분류 묶음 (ArticleClassificationState) 경로
+    private static final String CLASSIFICATION_STATE = "classificationState";
+
     // 최신순 (같은 게시일은 id 큰 것 먼저: 커서 비교와 같은 순서)
     public static final Sort NEWEST_FIRST = Sort.by(Sort.Order.desc("publishedAt"), Sort.Order.desc("id"));
 
@@ -82,13 +85,13 @@ public final class ArticleSpecifications {
             specifications.add((root, query, builder) -> root.get("source").get("code").in(tagFilter.sourceCodes()));
         }
         if (tagFilter.fieldCode() != null && !tagFilter.fieldCode().isBlank()) {
-            specifications.add((root, query, builder) -> builder.equal(root.get("fieldCode"), tagFilter.fieldCode()));
+            specifications.add((root, query, builder) -> builder.equal(root.get(CLASSIFICATION_STATE).get("fieldCode"), tagFilter.fieldCode()));
         }
         if (tagFilter.ecosystemCode() != null && !tagFilter.ecosystemCode().isBlank()) {
-            specifications.add((root, query, builder) -> builder.equal(root.get("ecosystemCode"), tagFilter.ecosystemCode()));
+            specifications.add((root, query, builder) -> builder.equal(root.get(CLASSIFICATION_STATE).get("ecosystemCode"), tagFilter.ecosystemCode()));
         }
         if (tagFilter.isNotable() != null) {
-            specifications.add((root, query, builder) -> builder.equal(root.get("isNotable"), tagFilter.isNotable()));
+            specifications.add((root, query, builder) -> builder.equal(root.get(CLASSIFICATION_STATE).get("isNotable"), tagFilter.isNotable()));
         }
         if (tagFilter.hasInterests()) {
             specifications.add(matchesAnyInterest(tagFilter));
@@ -105,13 +108,13 @@ public final class ArticleSpecifications {
         return (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (!tagFilter.interestProductCodes().isEmpty()) {
-                predicates.add(root.get("productCode").in(tagFilter.interestProductCodes()));
+                predicates.add(root.get(CLASSIFICATION_STATE).get("productCode").in(tagFilter.interestProductCodes()));
             }
             if (!tagFilter.interestFieldCodes().isEmpty()) {
-                predicates.add(root.get("fieldCode").in(tagFilter.interestFieldCodes()));
+                predicates.add(root.get(CLASSIFICATION_STATE).get("fieldCode").in(tagFilter.interestFieldCodes()));
             }
             if (!tagFilter.interestEcosystemCodes().isEmpty()) {
-                predicates.add(root.get("ecosystemCode").in(tagFilter.interestEcosystemCodes()));
+                predicates.add(root.get(CLASSIFICATION_STATE).get("ecosystemCode").in(tagFilter.interestEcosystemCodes()));
             }
             return builder.or(predicates.toArray(Predicate[]::new));
         };

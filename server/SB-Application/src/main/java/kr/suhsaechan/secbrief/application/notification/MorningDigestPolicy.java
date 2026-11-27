@@ -49,6 +49,7 @@ public final class MorningDigestPolicy {
 
     /** 기사 > 분야 code (없거나 지운 분야면 other) */
     public static String toFieldCode(Article article, TagCatalog catalog) {
-        return catalog.hasCode(CatalogTagKind.FIELD, article.getFieldCode()) ? article.getFieldCode() : TagCatalog.OTHER_CODE;
+        String fieldCode = article.getClassificationState().getFieldCode();
+        return catalog.hasCode(CatalogTagKind.FIELD, fieldCode) ? fieldCode : TagCatalog.OTHER_CODE;
     }
 }

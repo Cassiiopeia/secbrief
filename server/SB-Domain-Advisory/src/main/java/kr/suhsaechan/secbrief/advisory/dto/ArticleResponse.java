@@ -79,11 +79,11 @@ public record ArticleResponse(
                 article.getSource().getCode(),
                 article.getKeywords(),
                 article.getSummaryState().hasBrief() ? article.getSummaryState().getOneLine() : null,
-                article.getFieldCode(),
-                article.getEcosystemCode(),
-                article.getPackageName(),
-                article.getProductCode(),
-                article.isNotable());
+                article.getClassificationState().getFieldCode(),
+                article.getClassificationState().getEcosystemCode(),
+                article.getClassificationState().getPackageName(),
+                article.getClassificationState().getProductCode(),
+                article.getClassificationState().isNotable());
     }
 
     public static String toImagePath(Long articleId) {

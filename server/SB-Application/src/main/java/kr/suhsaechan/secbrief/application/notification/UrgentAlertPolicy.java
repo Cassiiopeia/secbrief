@@ -54,7 +54,7 @@ public final class UrgentAlertPolicy {
         if (article.getAiStatus() == AiStatus.DONE) {
             return article.getImportance() != ArticleImportance.ROUTINE;
         }
-        return ArticleNotablePolicy.isNotableByRulesOnly(article.isKev(), article.getProductCode(), catalog);
+        return ArticleNotablePolicy.isNotableByRulesOnly(article.isKev(), article.getClassificationState().getProductCode(), catalog);
     }
 
     /**

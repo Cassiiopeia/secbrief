@@ -61,17 +61,17 @@ class ArticleClassificationBackfillTest extends PostgresContainerTestSupport {
         // 두 번째: 모두 분류됨 (AI 대기로 돌린 행도 일단 other) > 대상 0
         assertThat(second.targetCount()).isZero();
         assertThat(find(fortinet)).satisfies(article -> {
-            assertThat(article.getFieldCode()).isEqualTo("network");
-            assertThat(article.getProductCode()).isEqualTo("fortinet");
-            assertThat(article.isNotable()).isTrue();
-            assertThat(article.getClassifiedAt()).isNotNull();
+            assertThat(article.getClassificationState().getFieldCode()).isEqualTo("network");
+            assertThat(article.getClassificationState().getProductCode()).isEqualTo("fortinet");
+            assertThat(article.getClassificationState().isNotable()).isTrue();
+            assertThat(article.getClassificationState().getClassifiedAt()).isNotNull();
         });
-        assertThat(find(redHat).getFieldCode()).isEqualTo("os");
+        assertThat(find(redHat).getClassificationState().getFieldCode()).isEqualTo("os");
         assertThat(find(unmatched).getAiStatus()).isEqualTo(AiStatus.PENDING);
-        assertThat(find(unmatched).getFieldCode()).isEqualTo("other");
-        assertThat(find(unmatched).getClassifiedAt()).isNotNull();
-        assertThat(find(alertLevel).getFieldCode()).isNull();
-        assertThat(find(alertLevel).getFieldSource()).isEqualTo(ClassificationSource.NONE);
+        assertThat(find(unmatched).getClassificationState().getFieldCode()).isEqualTo("other");
+        assertThat(find(unmatched).getClassificationState().getClassifiedAt()).isNotNull();
+        assertThat(find(alertLevel).getClassificationState().getFieldCode()).isNull();
+        assertThat(find(alertLevel).getClassificationState().getFieldSource()).isEqualTo(ClassificationSource.NONE);
     }
 
     @Test
@@ -87,7 +87,7 @@ class ArticleClassificationBackfillTest extends PostgresContainerTestSupport {
 
         // 한 번 분류한 행은 AI 로 다시 돌리지 않고 그 밖으로
         assertThat(reclassifyBatch.aiRequestedCount()).isZero();
-        assertThat(find(unmatched).getFieldCode()).isEqualTo("other");
+        assertThat(find(unmatched).getClassificationState().getFieldCode()).isEqualTo("other");
         assertThat(find(unmatched).getUrgentNotifiedAt()).isEqualTo(processedAt);
     }
 

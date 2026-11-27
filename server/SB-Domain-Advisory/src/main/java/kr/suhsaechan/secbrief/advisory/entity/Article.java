@@ -28,7 +28,6 @@ import kr.suhsaechan.secbrief.advisory.constant.ArticleImportance;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleKind;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleRegion;
 import kr.suhsaechan.secbrief.advisory.constant.ArticleTopic;
-import kr.suhsaechan.secbrief.advisory.constant.ClassificationSource;
 import kr.suhsaechan.secbrief.advisory.constant.SummaryStatus;
 import kr.suhsaechan.secbrief.advisory.classification.ArticleClassification;
 import kr.suhsaechan.secbrief.advisory.fact.SourceFact;
@@ -43,7 +42,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.DynamicUpdate;
 
 /**
- * 수집한 기사 1건: 제목, 원문 링크, 게시자, 게시일, 주제·중요도·키워드, AI 처리 상태, 대표 이미지·요약 상태, 사실 값 (본문은 저장 안 함)
+ * 수집한 기사 1건: 제목, 원문 링크, 게시자, 게시일, 주제·중요도·키워드, AI 처리 상태, 분류·대표 이미지·요약 상태, 사실 값 (본문은 저장 안 함)
  * 생성 > CVE 병합(KEV 표시, NVD 링크로 교체) > AI 결과 반영 순으로 상태가 바뀜, 대표 이미지·요약은 따로 대기 > 저장
  */
 @Entity
@@ -152,34 +151,9 @@ public class Article extends BaseEntity {
     // 알림 처리 시각 (null: 알림 판정 대기, 긴급 아님도 관심 기술 판정을 거침, 받을 기기가 없어도 처리하면 채움)
     private Instant urgentNotifiedAt;
 
-    // 분류 (catalog_tag code, 없으면 null): 기술 분야, 오픈소스 생태계, 제품
-    @Column(length = 64)
-    private String fieldCode;
-
-    @Column(length = 64)
-    private String ecosystemCode;
-
-    @Column(length = 64)
-    private String productCode;
-
-    // GitHub 권고 첫 패키지 이름 (원문 그대로)
-    @Column(length = 200)
-    private String packageName;
-
-    // AI 가 제목 분석에서 고른 분야 (규칙으로 못 정할 때만 씀)
-    @Column(length = 64)
-    private String aiFieldCode;
-
-    @Enumerated(EnumType.STRING)
-    @Column(length = 16)
-    private ClassificationSource fieldSource;
-
-    // 주요 (ArticleNotablePolicy)
-    @Column(nullable = false)
-    private boolean isNotable;
-
-    // 분류한 시각 (null: 분류 대기)
-    private Instant classifiedAt;
+    // 분야·생태계·제품·패키지·주요·분류 시각
+    @Embedded
+    private ArticleClassificationState classificationState;
 
     // 대표 이미지 주소·저장 상태
     @Embedded
@@ -204,6 +178,7 @@ public class Article extends BaseEntity {
         article.isKev = draft.isKev();
         article.isUrgent = draft.isUrgent();
         article.collectedAt = collectedAt;
+        article.classificationState = ArticleClassificationState.unclassified();
         article.applyLinkFields(draft);
         article.resetAiState();
         article.imageState = ArticleImageState.ofSourceUrl(draft.imageSourceUrl());
@@ -225,7 +200,7 @@ public class Article extends BaseEntity {
         this.isUrgent = true;
         this.urgentNotifiedAt = null;
         this.importance = ArticleImportance.higherOf(this.importance, toImportanceFloor());
-        this.isNotable = true;
+        classificationState.markNotable();
     }
 
     /** 긴급 표시 (병합 시 기존 || 새 값) */
@@ -284,23 +259,17 @@ public class Article extends BaseEntity {
 
     /** AI 가 고른 분야 기록 (모르는 code 는 분류 단계가 버림) */
     public void changeAiFieldCode(String aiFieldCode) {
-        this.aiFieldCode = aiFieldCode;
+        classificationState.changeAiFieldCode(aiFieldCode);
     }
 
     /** 분류 결과 반영: 분야·생태계·제품·패키지·근거 + 주요 + 분류 시각 */
     public void applyClassification(ArticleClassification classification, boolean isNotable, Instant classifiedAt) {
-        this.fieldCode = classification.fieldCode();
-        this.ecosystemCode = classification.ecosystemCode();
-        this.productCode = classification.productCode();
-        this.packageName = classification.packageName();
-        this.fieldSource = classification.fieldSource();
-        this.isNotable = isNotable;
-        this.classifiedAt = classifiedAt;
+        classificationState.apply(classification, isNotable, classifiedAt);
     }
 
     /** 다시 분류 대기로 (관리자 다시 분류, 제목이 바뀜) */
     public void requestReclassification() {
-        this.classifiedAt = null;
+        classificationState.requestReclassification();
     }
 
     /** 키워드 교체: 검증 통과한 목록으로 통째로 바꿈 (AI 결과 반영 때) */
@@ -350,14 +319,13 @@ public class Article extends BaseEntity {
         this.keywords.clear();
         this.aiStatus = AiStatus.PENDING;
         this.aiAttemptCount = 0;
-        this.aiFieldCode = null;
-        this.classifiedAt = null;
+        classificationState.resetForNewTitle();
     }
 
     /** 분야를 AI 로 다시 고르게 AI 대기로 되돌림 (백필: 분야 열이 생기기 전에 AI 를 마친 행) */
     public void requestAiFieldAnalysis() {
         this.aiStatus = AiStatus.PENDING;
         this.aiAttemptCount = 0;
-        this.classifiedAt = null;
+        classificationState.requestReclassification();
     }
 }

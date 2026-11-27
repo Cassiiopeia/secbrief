@@ -22,7 +22,7 @@ public record ArticleClassificationInput(String sourceCode, List<String> lowerCa
     /** 기사 > 분류 입력 (본문은 쓰지 않음) */
     public static ArticleClassificationInput from(Article article) {
         return of(article.getSource().getCode(), article.getTitle(), article.getSubjectName(),
-                article.getSourceFacts(), article.getAiFieldCode());
+                article.getSourceFacts(), article.getClassificationState().getAiFieldCode());
     }
 
     /** 값 > 분류 입력 (사실 값에서 CPE·KEV 제품·패키지를 꺼냄) */
