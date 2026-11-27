@@ -50,7 +50,7 @@ public class ArticleAiProcessService {
         // 0 이하 값은 1건씩 (나누기 반복이 멈추지 않는 것 방지)
         int requestBatchSize = Math.max(1, systemConfigService.getInt(ConfigKey.AI_REQUEST_BATCH_SIZE));
         List<Article> pendingArticles =
-                articleRepository.findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(batchSize));
+                articleRepository.findByAiAnalysisState_StatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(batchSize));
         int doneCount = 0;
         int failedCount = 0;
         for (int fromIndex = 0; fromIndex < pendingArticles.size(); fromIndex += requestBatchSize) {

@@ -36,11 +36,12 @@ public class SummaryBackfillGenerator {
                 targets.size(), finishedArticleIds.size(), concurrency);
         try (JsonLinesFile.Appender resultAppender = JsonLinesFile.openAppender(resultsFile)) {
             ParallelTaskRunner.forEach(remainingTargets, concurrency, target -> {
-                BackfillResult result = generateOne(target);
-                resultAppender.append(result.toJson());
+                BackfillResult articleBackfillResult = generateOne(target);
+                resultAppender.append(articleBackfillResult.toJson());
                 log.info("[summary backfill] {} : articleId={}, source={}, attempts={}, calls={}, cause={}",
-                        result.status(), result.id(), result.sourceCode(), result.attemptCount(),
-                        result.modelCallCount(), result.failureReason());
+                        articleBackfillResult.status(), articleBackfillResult.id(), articleBackfillResult.sourceCode(),
+                        articleBackfillResult.attemptCount(), articleBackfillResult.modelCallCount(),
+                        articleBackfillResult.failureReason());
             });
         }
     }

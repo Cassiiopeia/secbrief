@@ -67,7 +67,7 @@ class ArticleClassificationBackfillTest extends PostgresContainerTestSupport {
             assertThat(article.getClassificationState().getClassifiedAt()).isNotNull();
         });
         assertThat(find(redHat).getClassificationState().getFieldCode()).isEqualTo("os");
-        assertThat(find(unmatched).getAiStatus()).isEqualTo(AiStatus.PENDING);
+        assertThat(find(unmatched).getAiAnalysisState().getStatus()).isEqualTo(AiStatus.PENDING);
         assertThat(find(unmatched).getClassificationState().getFieldCode()).isEqualTo("other");
         assertThat(find(unmatched).getClassificationState().getClassifiedAt()).isNotNull();
         assertThat(find(alertLevel).getClassificationState().getFieldCode()).isNull();

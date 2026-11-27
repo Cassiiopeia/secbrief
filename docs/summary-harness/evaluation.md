@@ -66,7 +66,7 @@ $TOOL --args="evaluation-report --variant new --sample $W/sample.jsonl --outputs
 - 생성 로그 끝에 토큰 사용량이 한 줄 남는다 (`token usage : calls, averageAnswerTokens, maximumAnswerTokens, averageThinkingTokens`).
   답 토큰이 운영의 출력 토큰 상한(`ArticleSummaryPrompt.MAXIMUM_OUTPUT_TOKENS`)과 견줄 값이다.
 - #49 의 기준선(하네스 이전 지시문)은 이전 구조의 글이라 지금의 출력 스키마와 맞지 않는다. `evaluate` 는 더는 기준선 지시문을 쓰지 않는다
-  (`BaselineInstructionCompletionClient`, `baseline-system-instruction.txt` 는 남아 있지만 쓰는 곳이 없다).
+  (`baseline-system-instruction.txt` 는 남아 있지만 쓰는 곳이 없다. 이를 부르던 `BaselineInstructionCompletionClient` 는 #85 에서 지움).
 
 ## 3. 측정 결과: 브리핑 구조 (#67, 2026-11-26)
 

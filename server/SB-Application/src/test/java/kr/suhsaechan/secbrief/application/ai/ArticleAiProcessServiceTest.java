@@ -145,7 +145,7 @@ class ArticleAiProcessServiceTest {
 
         service.processPendingArticles();
 
-        verify(articleRepository).findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(BATCH_SIZE));
+        verify(articleRepository).findByAiAnalysisState_StatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(BATCH_SIZE));
         assertThat(fakeAnalyzer.getReceivedBatchSizes()).isEmpty();
     }
 
@@ -157,8 +157,8 @@ class ArticleAiProcessServiceTest {
         when(systemConfigService.getInt(ConfigKey.AI_TITLE_BATCH_SIZE)).thenReturn(5);
         service.processPendingArticles();
 
-        verify(articleRepository).findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(BATCH_SIZE));
-        verify(articleRepository).findByAiStatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(5));
+        verify(articleRepository).findByAiAnalysisState_StatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(BATCH_SIZE));
+        verify(articleRepository).findByAiAnalysisState_StatusOrderByPublishedAtDescIdDesc(AiStatus.PENDING, Limit.of(5));
     }
 
     @Test
@@ -221,7 +221,7 @@ class ArticleAiProcessServiceTest {
     }
 
     private void givenPendingArticles(Article... articles) {
-        when(articleRepository.findByAiStatusOrderByPublishedAtDescIdDesc(eq(AiStatus.PENDING), any()))
+        when(articleRepository.findByAiAnalysisState_StatusOrderByPublishedAtDescIdDesc(eq(AiStatus.PENDING), any()))
                 .thenReturn(List.of(articles));
     }
 

@@ -108,7 +108,7 @@ class ArticleQueryServiceTest extends PostgresContainerTestSupport {
 
         List<ArticleResponse> items = articleQueryService.findArticles(new ArticleSearchCondition(null, null, null, null, null, null, null, null)).items();
 
-        assertThat(articleRepository.findById(failedArticle.getId()).orElseThrow().getAiStatus()).isEqualTo(AiStatus.FAILED);
+        assertThat(articleRepository.findById(failedArticle.getId()).orElseThrow().getAiAnalysisState().getStatus()).isEqualTo(AiStatus.FAILED);
         assertThat(items).hasSize(2).allSatisfy(item -> {
             assertThat(item.title()).startsWith("테스트 기사");
             assertThat(item.translatedTitle()).isNull();

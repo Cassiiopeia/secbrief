@@ -32,9 +32,9 @@ class ArticleAiStateTest {
     void appliesAnalysisAndMarksDone() {
         article.applyAiAnalysis(ArticleTopic.RANSOMWARE, "번역", ArticleImportance.ROUTINE, null);
 
-        assertThat(article.getTopic()).isEqualTo(ArticleTopic.RANSOMWARE);
-        assertThat(article.getTranslatedTitle()).isEqualTo("번역");
-        assertThat(article.getAiStatus()).isEqualTo(AiStatus.DONE);
+        assertThat(article.getAiAnalysisState().getTopic()).isEqualTo(ArticleTopic.RANSOMWARE);
+        assertThat(article.getAiAnalysisState().getTranslatedTitle()).isEqualTo("번역");
+        assertThat(article.getAiAnalysisState().getStatus()).isEqualTo(AiStatus.DONE);
     }
 
     @Test
@@ -42,9 +42,9 @@ class ArticleAiStateTest {
         article.recordAiFailure();
         article.recordAiFailure();
 
-        assertThat(article.getAiStatus()).isEqualTo(AiStatus.PENDING);
-        assertThat(article.getAiAttemptCount()).isEqualTo(2);
-        assertThat(article.getTopic()).isEqualTo(ArticleTopic.GENERAL);
+        assertThat(article.getAiAnalysisState().getStatus()).isEqualTo(AiStatus.PENDING);
+        assertThat(article.getAiAnalysisState().getAttemptCount()).isEqualTo(2);
+        assertThat(article.getAiAnalysisState().getTopic()).isEqualTo(ArticleTopic.GENERAL);
     }
 
     @Test
@@ -53,8 +53,8 @@ class ArticleAiStateTest {
         article.recordAiFailure();
         article.recordAiFailure();
 
-        assertThat(article.getAiStatus()).isEqualTo(AiStatus.FAILED);
-        assertThat(article.getAiAttemptCount()).isEqualTo(3);
-        assertThat(article.getTranslatedTitle()).isNull();
+        assertThat(article.getAiAnalysisState().getStatus()).isEqualTo(AiStatus.FAILED);
+        assertThat(article.getAiAnalysisState().getAttemptCount()).isEqualTo(3);
+        assertThat(article.getAiAnalysisState().getTranslatedTitle()).isNull();
     }
 }

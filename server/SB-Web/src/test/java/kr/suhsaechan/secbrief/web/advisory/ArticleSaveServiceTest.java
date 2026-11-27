@@ -74,7 +74,7 @@ class ArticleSaveServiceTest extends PostgresContainerTestSupport {
         assertThat(merged.isKev()).isTrue();
         assertThat(merged.isUrgent()).isTrue();
         assertThat(merged.getCvssScore()).isEqualByComparingTo("9.8");
-        assertThat(merged.getAiStatus()).isEqualTo(AiStatus.PENDING);
+        assertThat(merged.getAiAnalysisState().getStatus()).isEqualTo(AiStatus.PENDING);
     }
 
     @Test
@@ -128,10 +128,10 @@ class ArticleSaveServiceTest extends PostgresContainerTestSupport {
         saveOrMerge(dailysecuSource, createNewsDraft("https://www.dailysecu.com/news/articleView.html?idxno=2"));
 
         Article article = articleRepository.findAll().get(0);
-        assertThat(article.getTopic()).isEqualTo(ArticleTopic.GENERAL);
-        assertThat(article.getAiStatus()).isEqualTo(AiStatus.PENDING);
-        assertThat(article.getAiAttemptCount()).isZero();
-        assertThat(article.getTranslatedTitle()).isNull();
+        assertThat(article.getAiAnalysisState().getTopic()).isEqualTo(ArticleTopic.GENERAL);
+        assertThat(article.getAiAnalysisState().getStatus()).isEqualTo(AiStatus.PENDING);
+        assertThat(article.getAiAnalysisState().getAttemptCount()).isZero();
+        assertThat(article.getAiAnalysisState().getTranslatedTitle()).isNull();
     }
 
     @Test

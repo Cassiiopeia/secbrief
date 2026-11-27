@@ -38,8 +38,8 @@ public class ArticleDetailQueryService {
         List<Long> relatedArticleIds = articleRepository.findRelatedArticleIds(
                 article.getId(),
                 RelatedArticlePolicy.toCveIdPattern(article.getCveId(), article.getTitle()),
-                article.getSubjectName() == null ? "" : article.getSubjectName(),
-                article.getTopic().name(),
+                article.getAiAnalysisState().getSubjectName() == null ? "" : article.getAiAnalysisState().getSubjectName(),
+                article.getAiAnalysisState().getTopic().name(),
                 clock.instant().minus(RelatedArticlePolicy.RELATED_ARTICLE_LOOKBACK),
                 RelatedArticlePolicy.MAXIMUM_RELATED_ARTICLE_COUNT);
         if (relatedArticleIds.isEmpty()) {

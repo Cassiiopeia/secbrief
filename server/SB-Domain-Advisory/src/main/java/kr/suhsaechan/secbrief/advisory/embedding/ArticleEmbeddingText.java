@@ -17,11 +17,11 @@ public final class ArticleEmbeddingText {
 
     public static String from(Article article) {
         List<String> lines = new ArrayList<>();
-        if (article.getTranslatedTitle() != null) {
-            lines.add(article.getTranslatedTitle());
+        if (article.getAiAnalysisState().getTranslatedTitle() != null) {
+            lines.add(article.getAiAnalysisState().getTranslatedTitle());
         }
         lines.add(article.getTitle());
-        List<String> keywords = article.getKeywords();
+        List<String> keywords = article.getAiAnalysisState().getKeywords();
         if (!keywords.isEmpty()) {
             lines.add(String.join(KEYWORD_SEPARATOR, keywords));
         }
