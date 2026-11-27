@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 제목 분석 흐름 (제공자 공통): 프롬프트·스키마 만들기(분야 목록은 호출마다 카탈로그에서) > 제공자 호출(StructuredCompletionClient) > 응답 해석
+ * 한자가 섞인 번역 고쳐 쓰기도 같은 제공자로 (TranslatedTitleRepairPrompt)
  * 예외는 호출 실패(연결·상태 코드·제한 시간)뿐, 거부·읽을 수 없는 응답은 건별 실패 결과
  */
 @Slf4j
@@ -86,6 +87,26 @@ public class StructuredOutputArticleTitleAnalyzer implements ArticleTitleAnalyze
             // 응답은 왔지만 JSON 이 아니거나 결과 배열이 없음 (제공자 장애가 아니라 이 묶음의 문제)
             return toAllFailed(requests.size(), "unreadable response");
         }
+    }
+
+    @Override
+    public List<String> repairTranslatedTitles(List<TranslatedTitleRepairRequest> requests) {
+        if (requests.isEmpty()) {
+            return List.of();
+        }
+        if (!isAvailable()) {
+            throw new CustomException(ErrorCode.AI_API_ERROR, "provider not configured");
+        }
+        StructuredCompletion completion = structuredCompletionClient.requestCompletion(new StructuredCompletionRequest(
+                AiCallType.TITLE_TRANSLATION_REPAIR,
+                TranslatedTitleRepairPrompt.SYSTEM_INSTRUCTION,
+                TranslatedTitleRepairPrompt.toUserMessage(requests),
+                TranslatedTitleRepairPrompt.toOutputJsonSchema(),
+                TranslatedTitleRepairPrompt.calculateMaximumOutputTokens(requests)));
+        if (completion.isRefused()) {
+            return Collections.nCopies(requests.size(), null);
+        }
+        return TranslatedTitleRepairPrompt.toRepairedTranslatedTitles(completion.responseJson(), requests.size());
     }
 
     // 카탈로그 FIELD > 분야 선택지 (예시는 강한 낱말 앞 6개)

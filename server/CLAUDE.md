@@ -31,6 +31,7 @@ Java 21, Spring Boot 3.5.16, Gradle 멀티모듈, PostgreSQL, Flyway. 패키지 
   고칠 때는 [docs/summary-harness](../docs/summary-harness/README.md) 의 평가 순서로 이전 판과 비교한다. 요약 1건의 제공자 호출은 시도마다 최대 2회다.
   이전 구조 열(`summary`, `summary_key_points`, `summary_action_guide`)은 브리핑에서 옮긴 값을 함께 저장한다 (`ArticleBrief.toLegacySummary` 한 곳, 이전 앱 빌드용).
   상세 응답 `isSummaryPending` 은 `summary_status = PENDING` 일 때만 true 다 (입력 없음·실패·완료는 false, 앱은 true 일 때만 "준비 중" 카드, #87).
+- 제목 번역은 한글로만 쓴다 (`ArticleTitleAnalysisPrompt` 지시). 원문에 없는 한자가 섞이면(`ArticleTitleAnalysisPolicy.findHanjaNotInOriginal`) 그 건만 묶어 고쳐 쓰기를 1번 부르고(`TranslatedTitleRepairPrompt`, 호출 기록 `TITLE_TRANSLATION_REPAIR`), 그래도 남으면 번역을 버려 원문 제목으로 보인다 (#87).
 
 ## 외부 연동 설정 (환경변수 또는 운영 설정 파일)
 
