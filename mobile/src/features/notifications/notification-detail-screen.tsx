@@ -11,6 +11,7 @@ import { goBackOrHome } from '../navigation/go-back-or-home';
 import { AlertDetailContent } from './alert-detail-content';
 import { DigestDetailContent } from './digest-detail-content';
 import { NoticeDetailContent } from './notice-detail-content';
+import { toDetailRouteForReceivedKind } from './notification-target-route';
 import { NOTIFICATION_NOT_FOUND_ERROR_CODE, useAppNotificationDetail } from './use-app-notification-detail';
 import { useNotificationReadStateUpdaters } from './use-notification-read-state';
 
@@ -36,16 +37,21 @@ export function NoticeDetailScreen() {
 
 /**
  * 알림함 상세 틀 (탭 밖): 머리 > 상태(로딩 / 찾지 못함 / 오류) 또는 종류에 맞는 본문
- * 연 글로 기록 (기기에만 저장). 받은 글의 종류가 경로와 달라도 받은 종류로 그림
+ * 연 글로 기록 (기기에만 저장). 받은 글의 종류가 경로와 다르면 맞는 상세 경로로 바꿔 엶 (notices/{알림 번호} 등, #87)
  */
 function AppNotificationDetailFrame({ notificationId, expectedKind }: { notificationId: string; expectedKind: AppNotificationKind }) {
   const detailQuery = useAppNotificationDetail(notificationId);
   const { markNotificationOpened } = useNotificationReadStateUpdaters();
   const kind = detailQuery.data?.kind ?? expectedKind;
+  const redirectRoute = detailQuery.data && toDetailRouteForReceivedKind(expectedKind, detailQuery.data.kind, notificationId);
 
   useEffect(() => {
     if (/^\d+$/.test(notificationId)) markNotificationOpened(Number(notificationId));
   }, [notificationId, markNotificationOpened]);
+
+  useEffect(() => {
+    if (redirectRoute !== undefined) router.replace(redirectRoute);
+  }, [redirectRoute]);
 
   return (
     <SbScreen>
@@ -55,7 +61,8 @@ function AppNotificationDetailFrame({ notificationId, expectedKind }: { notifica
   );
 
   function renderBody() {
-    if (detailQuery.isPending) return <SbLoadingSkeleton variant="listRows" />;
+    // 맞는 경로로 바꾸는 동안 다른 종류의 본문을 그리지 않음
+    if (detailQuery.isPending || redirectRoute !== undefined) return <SbLoadingSkeleton variant="listRows" />;
     if (detailQuery.isError) {
       const failure = toAppFailure(detailQuery.error);
       if (failure.errorCode === NOTIFICATION_NOT_FOUND_ERROR_CODE) {

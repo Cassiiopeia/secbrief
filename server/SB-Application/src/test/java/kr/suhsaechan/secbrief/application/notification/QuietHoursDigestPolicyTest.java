@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import kr.suhsaechan.secbrief.member.constant.NotificationKind;
 import kr.suhsaechan.secbrief.member.entity.HeldPush;
 import kr.suhsaechan.secbrief.member.push.PushMessage;
@@ -20,30 +21,39 @@ class QuietHoursDigestPolicyTest {
     @Test
     void sendsSingleHeldPushAsIs() {
         PushMessage pushMessage = QuietHoursDigestPolicy.toPushMessage(PUSH_TOKEN,
-                List.of(heldAlert(11L, "악용 중인 취약점이 확인됐어요", 501L, 1)));
+                List.of(heldAlert(11L, "악용 중인 취약점이 확인됐어요", 501L, 1)), Set.of());
 
         assertThat(pushMessage.title()).isEqualTo("악용 중인 취약점이 확인됐어요");
         assertThat(pushMessage.data()).containsEntry("notificationId", "11").containsEntry("articleId", "501")
-                .containsEntry("notificationKind", "ALERT");
+                .containsEntry("notificationKind", "ALERT").doesNotContainKey("targetScreen");
+    }
+
+    @Test
+    void opensAlertLevelScreenForSingleHeldAlertLevelArticle() {
+        // 보류분에는 출처가 없어 보낼 때 받은 경보단계 글 번호로 판정 (#87)
+        PushMessage pushMessage = QuietHoursDigestPolicy.toPushMessage(PUSH_TOKEN,
+                List.of(heldAlert(13L, "KISA 긴급 공지가 올라왔어요", 601L, 1)), Set.of(601L));
+
+        assertThat(pushMessage.data()).containsEntry("articleId", "601").containsEntry("targetScreen", "alertLevel");
     }
 
     @Test
     void sendsOneDigestCountingArticlesForSeveralHeldAlerts() {
         PushMessage pushMessage = QuietHoursDigestPolicy.toPushMessage(PUSH_TOKEN, List.of(
                 heldAlert(11L, "긴급 보안 소식 3건이 들어왔어요", null, 3),
-                heldAlert(12L, "고위험 취약점이 공개됐어요", 777L, 1)));
+                heldAlert(12L, "고위험 취약점이 공개됐어요", 777L, 1)), Set.of(777L));
 
         assertThat(pushMessage.title()).isEqualTo("방해 금지 시간에 긴급 소식 4건이 들어왔어요");
         assertThat(pushMessage.body()).isEqualTo(QuietHoursDigestPolicy.DIGEST_BODY);
         assertThat(pushMessage.data()).containsEntry("notificationKind", "QUIET_HOURS_DIGEST")
-                .containsEntry("targetTab", "vulnerability").doesNotContainKeys("notificationId", "articleId");
+                .containsEntry("targetTab", "vulnerability").doesNotContainKeys("notificationId", "articleId", "targetScreen");
     }
 
     @Test
     void writesDigestTitleForNoticesAndMixedItems() {
         assertThat(QuietHoursDigestPolicy.toDigestTitle(0, 2)).isEqualTo("방해 금지 시간에 공지사항 2건이 올라왔어요");
         assertThat(QuietHoursDigestPolicy.toDigestTitle(5, 1)).isEqualTo("방해 금지 시간에 긴급 소식 5건, 공지사항 1건이 있었어요");
-        assertThat(QuietHoursDigestPolicy.toPushMessage(PUSH_TOKEN, List.of(heldNotice(21L), heldNotice(22L))).data())
+        assertThat(QuietHoursDigestPolicy.toPushMessage(PUSH_TOKEN, List.of(heldNotice(21L), heldNotice(22L)), Set.of()).data())
                 .containsEntry("targetTab", "today");
     }
 

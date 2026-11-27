@@ -28,6 +28,14 @@
             th:text="|${#lists.size(providerSection.storedKeyViews)} / ${maximumKeyCount}개|">0 / 10개</span>
     </div>
 
+    <!--/* 저장한 목록을 풀지 못함: 빈 목록으로 보고 저장하면 기존 키가 사라져 바꾸기를 전부 막음 */-->
+    <div role="alert" class="alert alert-error mx-4 mb-3" th:if="${providerSection.isStoredKeyListUnreadable()}">
+      <i data-lucide="octagon-alert" class="size-5"></i>
+      <span>저장한 키 목록을 읽지 못했어요. 저장할 때와 다른 마스터 키로 서버가 떠 있을 수 있어요.
+        저장할 때 쓴 <code>secbrief.secret.master-key</code> 로 서버를 다시 띄울 때까지 키를 추가하거나 바꿀 수 없어요.
+        (AI_KEY_LIST_UNREADABLE)</span>
+    </div>
+
     <div role="status" class="alert alert-info mx-4 mb-3" th:if="${providerSection.isUsingDeployPropertyKeys()}">
       <i data-lucide="info" class="size-5"></i>
       <span>여기에 켜진 키가 없어서 운영 설정(<code th:text="${provider.deployPropertyName}">secbrief.ai.key</code>)의 키를 쓰고 있어요.</span>
@@ -129,7 +137,7 @@
           </td>
         </tr>
         <th:block th:if="${#lists.isEmpty(providerSection.storedKeyViews)}">
-          <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(8, '등록한 키가 없어요')}"></tr>
+          <tr th:replace="~{admin/fragments/admin-ui :: emptyRow(8, ${providerSection.isStoredKeyListUnreadable()} ? '저장한 키를 읽지 못해 보여 줄 수 없어요' : '등록한 키가 없어요')}"></tr>
         </th:block>
         </tbody>
       </table>
@@ -156,7 +164,7 @@
         </label>
         <button type="submit" class="btn btn-primary btn-sm" th:disabled="${!providerSection.canAddKey()}">추가</button>
       </form>
-      <p class="text-sm text-warning" th:if="${canStoreSecret and !providerSection.canAddKey()}">키를 더 추가하려면 안 쓰는 키를 먼저 삭제해 주세요.</p>
+      <p class="text-sm text-warning" th:if="${canStoreSecret and !providerSection.isStoredKeyListUnreadable() and !providerSection.canAddKey()}">키를 더 추가하려면 안 쓰는 키를 먼저 삭제해 주세요.</p>
     </div>
 
     <!--/* 운영 설정의 키 (읽기 전용) */-->

@@ -9,7 +9,7 @@ import { toAppPathFromIncomingLink } from '@/features/navigation/incoming-link-r
 import { NOW, nvdItem } from './briefing-item-fixtures';
 
 const article = toArticleDetailView(
-  { article: nvdItem, keyPoints: [], isAiSummarized: false, facts: [], relatedItems: [], responseGuideSections: [] },
+  { article: nvdItem, keyPoints: [], isAiSummarized: false, isSummaryPending: false, facts: [], relatedItems: [], responseGuideSections: [] },
   NOW,
 ).article;
 const expectedSharedUrl = `${apiConfig.baseUrl}/a/${nvdItem.id}`;

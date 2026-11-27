@@ -82,6 +82,15 @@ public class SystemConfigService {
         return plainValue == null ? "" : plainValue;
     }
 
+    /** 저장된 비밀값이 있는데 풀지 못하는지 (마스터 키 불일치·변조, 마스터 키 없음은 canStoreSecret 으로 따로 안내) */
+    public boolean hasUnreadableSecret(ConfigKey key) {
+        String storedValue = systemConfigCache.findStoredValue(key);
+        if (storedValue == null || storedValue.isBlank() || !secretCipher.isAvailable()) {
+            return false;
+        }
+        return secretCipher.decrypt(key.name(), storedValue) == null;
+    }
+
     /** 비밀값을 저장할 수 있는지 (마스터 키 설정 여부) */
     public boolean canStoreSecret() {
         return secretCipher.isAvailable();
